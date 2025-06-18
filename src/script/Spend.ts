@@ -89,6 +89,11 @@ function isChecksigFormatHelper (buf: Readonly<number[]>): boolean {
   return true
 }
 
+/**
+ * These opcodes are all enabled as of CHRONICLE release.
+ * @param op 
+ * @returns 
+ */
 function isOpcodeDisabledHelper (op: number): boolean {
   return (
     op === OP.OP_2MUL ||
@@ -428,6 +433,51 @@ export default class Spend {
       let i: number, ikey: number, isig: number, nKeysCount: number, nSigsCount: number, fOk: boolean
 
       switch (currentOpcode) {
+
+        case OP.OP_VER:
+          this.pushStackCopy(new BigNumber(this.transactionVersion).toScriptNum())
+          break
+        case OP.OP_SUBSTR: {
+          if (this.stack.length < 3) this.scriptEvaluationError('OP_SUBSTR requires at least three items to be on the stack.')
+          const len = BigNumber.fromScriptNum(this.popStack(), requireMinimalPush).toNumber()
+          const offset = BigNumber.fromScriptNum(this.popStack(), requireMinimalPush).toNumber()
+          buf = this.popStack()
+          const size = buf.length
+
+          if (offset < 0 || offset >= size || len < 0 || len > size - offset) {
+            this.scriptEvaluationError(`OP_SUBSTR offset (${offset}) must be in range [0, ${size}) and length (${len}) must be in range [0, ${size - offset}]`)
+          }
+
+          this.pushStack(buf.slice(offset, offset + len))
+          break
+        }
+        case OP.OP_LEFT: {
+          if (this.stack.length < 2) this.scriptEvaluationError('OP_LEFT requires at least two items to be on the stack.')
+          const len = BigNumber.fromScriptNum(this.popStack(), requireMinimalPush).toNumber()
+          buf = this.popStack()
+          const size = buf.length
+
+          if (len < 0 || len > size) {
+            this.scriptEvaluationError(`OP_LEFT length (${len}) must be in range [0, ${size}]`)
+          }
+
+          this.pushStack(buf.slice(0, len))
+          break
+        }
+        case OP.OP_RIGHT: {
+          if (this.stack.length < 2) this.scriptEvaluationError('OP_RIGHT requires at least two items to be on the stack.')
+          const len = BigNumber.fromScriptNum(this.popStack(), requireMinimalPush).toNumber()
+          buf = this.popStack()
+          const size = buf.length
+
+          if (len < 0 || len > size) {
+            this.scriptEvaluationError(`OP_RIGHT length (${len}) must be in range [0, ${size}]`)
+          }
+
+          this.pushStack(buf.slice(size - len, len))
+          break
+        }
+
         case OP.OP_1NEGATE: this.pushStackCopy(SCRIPTNUM_NEG_1); break
         case OP.OP_0: this.pushStackCopy(SCRIPTNUMS_0_TO_16[0]); break
         case OP.OP_1: case OP.OP_2: case OP.OP_3: case OP.OP_4:
@@ -439,18 +489,16 @@ export default class Spend {
           break
 
         case OP.OP_NOP:
-        case OP.OP_NOP2: // Formerly CHECKLOCKTIMEVERIFY
-        case OP.OP_NOP3: // Formerly CHECKSEQUENCEVERIFY
         case OP.OP_NOP1:
-        case OP.OP_NOP4:
-        case OP.OP_NOP5:
+        case OP.OP_NOP2:
+        // case OP.OP_NOP3: // Allocated to OP_SUBSTR
+        // case OP.OP_NOP4: // Allocated to OP_LEFT
+        // case OP.OP_NOP5: // Allocated to OP_RIGHT
         case OP.OP_NOP6:
         case OP.OP_NOP7:
         case OP.OP_NOP8:
         case OP.OP_NOP9:
         case OP.OP_NOP10:
-          /* falls through */
-          // eslint-disable-next-line no-fallthrough
         // eslint-disable-next-line no-fallthrough
         case OP.OP_NOP11: case OP.OP_NOP12: case OP.OP_NOP13: case OP.OP_NOP14: case OP.OP_NOP15:
         case OP.OP_NOP16: case OP.OP_NOP17: case OP.OP_NOP18: case OP.OP_NOP19: case OP.OP_NOP20:
@@ -468,6 +516,18 @@ export default class Spend {
         case OP.OP_NOP77:
           break
 
+        case OP.OP_VERIF:
+        case OP.OP_VERNOTIF:
+          fValue = false
+          if (isScriptExecuting) {
+            if (this.stack.length < 1) this.scriptEvaluationError('OP_VERIF and OP_VERNOTIF require at least one item on the stack when they are used!')
+            buf2 = new BigNumber(this.transactionVersion).toScriptNum()
+            buf1 = this.popStack()
+            fValue = compareNumberArrays(buf1, buf2)
+            if (currentOpcode === OP.OP_VERNOTIF) fValue = !fValue
+          }
+          this.ifStack.push(fValue)
+          break
         case OP.OP_IF:
         case OP.OP_NOTIF:
           fValue = false
@@ -684,7 +744,7 @@ export default class Spend {
           }
           break
 
-        case OP.OP_1ADD: case OP.OP_1SUB:
+        case OP.OP_1ADD: case OP.OP_1SUB: case OP.OP_2MUL: case OP.OP_2DIV:
         case OP.OP_NEGATE: case OP.OP_ABS:
         case OP.OP_NOT: case OP.OP_0NOTEQUAL:
           if (this.stack.length < 1) this.scriptEvaluationError(`${OP[currentOpcode] as string} requires at least one item to be on the stack.`)
@@ -692,6 +752,8 @@ export default class Spend {
           switch (currentOpcode) {
             case OP.OP_1ADD: bn = bn.add(new BigNumber(1)); break
             case OP.OP_1SUB: bn = bn.sub(new BigNumber(1)); break
+            case OP.OP_2MUL: bn = bn.mul(new BigNumber(2)); break
+            case OP.OP_2DIV: bn = bn.div(new BigNumber(2)); break
             case OP.OP_NEGATE: bn = bn.neg(); break
             case OP.OP_ABS: if (bn.isNeg()) bn = bn.neg(); break
             case OP.OP_NOT: bn = new BigNumber(bn.cmpn(0) === 0 ? 1 : 0); break
