@@ -475,11 +475,11 @@ export default class Spend {
         case OP.OP_NOP:
         case OP.OP_NOP1:
         case OP.OP_NOP2:
-        // case OP.OP_NOP3: // Allocated to OP_SUBSTR
-        // case OP.OP_NOP4: // Allocated to OP_LEFT
-        // case OP.OP_NOP5: // Allocated to OP_RIGHT
+        case OP.OP_NOP3:
+        // case OP.OP_NOP4: // Allocated to OP_SUBSTR
+        // case OP.OP_NOP5: // Allocated to OP_LEFT
+        // case OP.OP_NOP6: // Allocated to OP_RIGHT
         // eslint-disable-next-line no-fallthrough
-        case OP.OP_NOP6:
         case OP.OP_NOP7:
         case OP.OP_NOP8:
         case OP.OP_NOP9:

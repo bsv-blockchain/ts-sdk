@@ -1,4 +1,12 @@
-export default [
+export const chronicle = [
+  [
+    '51',
+    'b0b1b2b6b7b8b95187',
+    'test'
+  ],
+]
+
+export const preChronicle = [
   [
     'Format is: [scriptSig, scriptPubKey, comment]'
   ],
@@ -395,16 +403,6 @@ export default [
   [
     '04ffffffff01e40164',
     'a591',
-    'test'
-  ],
-  [
-    '04ffffff7f01e40164',
-    'a591',
-    'test'
-  ],
-  [
-    '51',
-    'b0b1b2b3b4b5b6b7b8b95187',
     'test'
   ],
   [
@@ -1555,11 +1553,6 @@ export default [
   [
     '04ffffff7f01e40164',
     'a591',
-    'test'
-  ],
-  [
-    '51',
-    'b0b1b2b3b4b5b6b7b8b95187',
     'test'
   ],
   [
