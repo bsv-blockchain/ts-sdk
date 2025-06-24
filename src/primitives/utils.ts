@@ -514,8 +514,13 @@ export class Writer {
   }
 
   writeUInt64LE (n: number): this {
-    const buf = new BigNumber(n).toArray('be', 8)
-    this.writeReverse(buf)
+    if (n === 0xffffffffffffffff) {
+      // This value is used as a dummy satoshis value when serializing OTDA placeholder output for SIGHASH_SINGLE
+      this.write(new Array(8).fill(0xff))
+    } else {
+      const buf = new BigNumber(n).toArray('be', 8)
+      this.writeReverse(buf)
+    }
     return this
   }
 

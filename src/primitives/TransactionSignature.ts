@@ -47,7 +47,7 @@ export default class TransactionSignature extends Signature {
    */
   static formatOTDA (params: TransactionSignatureFormatParams): Uint8Array {
 
-    const isAnyoneCanPay = (params.scope & TransactionSignature.SIGHASH_ANYONECANPAY) !== TransactionSignature.SIGHASH_ANYONECANPAY
+    const isAnyoneCanPay = (params.scope & TransactionSignature.SIGHASH_ANYONECANPAY) === TransactionSignature.SIGHASH_ANYONECANPAY
     const isSingle = (params.scope & 3) === TransactionSignature.SIGHASH_SINGLE
     const isNone = (params.scope & 3) === TransactionSignature.SIGHASH_NONE
     const isAll = (params.scope & 3) === TransactionSignature.SIGHASH_ALL
@@ -107,7 +107,7 @@ export default class TransactionSignature extends Signature {
       writeOutputs(outputs)
     } else if (isSingle) {
       const outputs: Array<{ satoshis: number, script: number[] }> = []
-      for (let i = 0; i < params.inputIndex; i++) outputs.push({ satoshis: 0, script: emptyScript })
+      for (let i = 0; i < params.inputIndex; i++) outputs.push({ satoshis: 0xffffffffffffffff, script: emptyScript })
       const o = params.outputs[params.inputIndex]
       if (o !== undefined) { outputs.push({ satoshis: o.satoshis ?? 0, script: o.lockingScript.toBinary() }) }
       writeOutputs(outputs)
