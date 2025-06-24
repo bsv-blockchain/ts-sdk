@@ -937,7 +937,8 @@ describe('Transaction', () => {
             subscript: subScript,
             inputSequence: input.sequence ?? 0xffffffff,
             lockTime: tx.lockTime,
-            scope: nHashType
+            scope: nHashType,
+            ignoreChronicle: true
           })
           const hash = hash256(preimage)
           hash.reverse()

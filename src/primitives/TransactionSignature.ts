@@ -27,6 +27,10 @@ interface TransactionSignatureFormatParams {
   lockTime: number
   scope: number
   cache?: SignatureHashCache
+  /**
+   * Supports running bitcoin-abc test vectors which reuses the CHRONICLE bit.
+   */
+  ignoreChronicle?: boolean
 }
 
 const EMPTY_SCRIPT = new Uint8Array(0)
@@ -317,7 +321,7 @@ export default class TransactionSignature extends Signature {
   static formatBytes(params: TransactionSignatureFormatParams): Uint8Array {
 
     const hasForkId = (params.scope & TransactionSignature.SIGHASH_FORKID) !== 0
-    const hasChronicle = (params.scope & TransactionSignature.SIGHASH_CHRONICLE) !== 0
+    const hasChronicle = params.ignoreChronicle !== true && (params.scope & TransactionSignature.SIGHASH_CHRONICLE) !== 0
 
     if (hasForkId && !hasChronicle) {
       return TransactionSignature.formatBip143(params)
