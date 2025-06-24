@@ -98,7 +98,7 @@ function validateUnlockScript (
   vin: number,
   lockingScript: string,
   amount: number,
-  enableRelaxed?: boolean
+  isRelaxed?: boolean
 ): boolean {
   const spendingTx = Transaction.fromHex(spendingRawTx)
   const ls = Script.fromHex(lockingScript)
@@ -115,7 +115,7 @@ function validateUnlockScript (
     outputs: spendingTx.outputs,
     inputSequence: verifyTruthy(spendingTx.inputs[vin].sequence),
     lockTime: spendingTx.lockTime,
-    enableRelaxed,
+    isRelaxed
   })
 
   const valid = spend.validate()
