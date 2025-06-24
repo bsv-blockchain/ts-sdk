@@ -89,21 +89,6 @@ function isChecksigFormatHelper (buf: Readonly<number[]>): boolean {
   return true
 }
 
-/**
- * These opcodes are all enabled as of CHRONICLE release.
- * @param op 
- * @returns 
- */
-function isOpcodeDisabledHelper (op: number): boolean {
-  return (
-    op === OP.OP_2MUL ||
-    op === OP.OP_2DIV ||
-    op === OP.OP_VERIF ||
-    op === OP.OP_VERNOTIF ||
-    op === OP.OP_VER
-  )
-}
-
 function isChunkMinimalPushHelper (chunk: ScriptChunk): boolean {
   const data = chunk.data
   const op = chunk.op
@@ -136,7 +121,6 @@ function isChunkMinimalPushHelper (chunk: ScriptChunk): boolean {
  * @property {number} inputSequence - The sequence number of this input.
  * @property {number} lockTime - The lock time of the transaction.
  * @property {number} memoryLimit - Control over script interpreter memory usage.
- * @property {boolean} enableOTDA - Optional. If true, allows use of the Chronicle release OTDA (original transaction digest algorithm).
  * @property {boolean} enableRelaxed - Optional. If true, disables all the maleability restrictions consitent with Chronicle release.
  */
 export default class Spend {
@@ -163,7 +147,6 @@ export default class Spend {
   altStackMem: number
   private sigHashCache: SignatureHashCache
 
-  enableOTDA?: boolean
   enableRelaxed?: boolean
 
   /**
@@ -183,7 +166,6 @@ export default class Spend {
    * @param {number} params.inputSequence - The sequence number of this input.
    * @param {number} params.lockTime - The lock time of the transaction.
    * @param {number} params.memoryLimit - Optional control over script interpreter memory usage.
-   * @param {boolean} params.enableOTDA - Optional. If true, allows use of the Chronicle release OTDA (original transaction digest algorithm).
    * @param {boolean} params.enableRelaxed - Optional. If true, disables all the maleability restrictions consitent with Chronicle release.
    *
    * @example
@@ -214,7 +196,6 @@ export default class Spend {
     inputIndex: number
     lockTime: number
     memoryLimit?: number
-    enableOTDA?: boolean
     enableRelaxed?: boolean
   }) {
     this.sourceTXID = params.sourceTXID
@@ -229,7 +210,6 @@ export default class Spend {
     this.inputSequence = params.inputSequence
     this.lockTime = params.lockTime
     this.memoryLimit = params.memoryLimit ?? 32000000
-    this.enableOTDA = params.enableOTDA
     this.enableRelaxed = params.enableRelaxed
     this.stack = []
     this.altStack = []
@@ -327,10 +307,6 @@ export default class Spend {
         this.scriptEvaluationError('The signature must have a low S value.')
         return false
       }
-      if (!this.enableOTDA && (sig.scope & TransactionSignature.SIGHASH_FORKID) === 0) {
-        this.scriptEvaluationError('The signature must use SIGHASH_FORKID.')
-        return false
-      }
     } catch (e) {
       this.scriptEvaluationError('The signature format is invalid.')
       return false
@@ -426,10 +402,6 @@ export default class Spend {
     }
 
     const isScriptExecuting = !this.ifStack.includes(false)
-
-    if (isScriptExecuting && isOpcodeDisabledHelper(currentOpcode)) {
-      this.scriptEvaluationError(`This opcode is currently disabled. (Opcode: ${OP[currentOpcode] as string}, PC: ${this.programCounter})`) // Error thrown
-    }
 
     if (isScriptExecuting && currentOpcode >= 0 && currentOpcode <= OP.OP_PUSHDATA4) {
       if (requireMinimalPush && !isChunkMinimalPushHelper(operation)) {

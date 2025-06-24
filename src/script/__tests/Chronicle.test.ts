@@ -5,42 +5,6 @@ import Spend from '../Spend.js'
 import Transaction from '../../transaction/Transaction.js'
 import { sighashTestData } from './sighashTestData.js'
 
-function verifyTruthy<T> (v: T | undefined): T {
-  if (v == null) throw new Error('must have value')
-  return v
-}
-
-export function validateUnlockScript (
-  spendingRawTx: string,
-  vin: number,
-  lockingScript: string,
-  amount: number,
-  enableOTDA?: boolean,
-  enableRelaxed?: boolean
-): boolean {
-  const spendingTx = Transaction.fromHex(spendingRawTx)
-  const ls = Script.fromHex(lockingScript)
-
-  const spend = new Spend({
-    sourceTXID: verifyTruthy(spendingTx.inputs[vin].sourceTXID),
-    sourceOutputIndex: verifyTruthy(spendingTx.inputs[vin].sourceOutputIndex),
-    sourceSatoshis: amount,
-    lockingScript: ls,
-    transactionVersion: spendingTx.version,
-    otherInputs: spendingTx.inputs.filter((v, i) => i !== vin),
-    inputIndex: vin,
-    unlockingScript: verifyTruthy(spendingTx.inputs[vin].unlockingScript),
-    outputs: spendingTx.outputs,
-    inputSequence: verifyTruthy(spendingTx.inputs[vin].sequence),
-    lockTime: spendingTx.lockTime,
-    enableOTDA,
-    enableRelaxed,
-  })
-
-  const valid = spend.validate()
-  return valid
-}
-
 describe('Chronicle Tests', () => {
 
   it('spend bip143 input', () => {
@@ -64,10 +28,11 @@ describe('Chronicle Tests', () => {
       // input sourceTxid e9166ef24d3bb23a5af806a35e2b4924d325ddc655d7482e6716eedc5040ff4d vout 0
       // 'OP_DUP OP_HASH160 5478d152bb557ac994c9793cece77d4295ed37e3 OP_EQUALVERIFY OP_CHECKSIG'
       '76a9145478d152bb557ac994c9793cece77d4295ed37e388ac'
-    const ok = validateUnlockScript(rawTx, 0, lockingScript, 36473000000, true, true)
+    const ok = validateUnlockScript(rawTx, 0, lockingScript, 36473000000, true)
     expect(ok).toBe(true)
     // preimage 189 bytes
     // "01000000014dff4050dcee16672e48d755c6dd25d324492b5ea306f85a3ab23b4df26e16e900000000424104b70574006425b61867d2cbb8de7c26095fbc00ba4041b061cf75b85699cb2b449c6758741f640adffa356406632610efb267cb1efa0442c207059dd7fd652eeaffffffff020049d971020000001976a91461cf5af7bb84348df3fd695672e53c7d5b3f3db988ac30601c0c060000001976a914fd4ed114ef85d350d6d40ed3f6dc23743f8f99c488ac0000000001000000"
+    // "01000000014dff4050dcee16672e48d755c6dd25d324492b5ea306f85a3ab23b4df26e16e9000000001976a9145478d152bb557ac994c9793cece77d4295ed37e388acffffffff010049d971020000001976a91461cf5af7bb84348df3fd695672e53c7d5b3f3db988ac0000000001000000"
     // sighash
     // "abd8ec80c6601004f669409da1d811d06d070d58d129d24915b237e8ecb627d6" 
   })
@@ -123,3 +88,37 @@ describe('Chronicle Tests', () => {
     console.log(log)
   })
 })
+
+function verifyTruthy<T> (v: T | undefined): T {
+  if (v == null) throw new Error('must have value')
+  return v
+}
+
+function validateUnlockScript (
+  spendingRawTx: string,
+  vin: number,
+  lockingScript: string,
+  amount: number,
+  enableRelaxed?: boolean
+): boolean {
+  const spendingTx = Transaction.fromHex(spendingRawTx)
+  const ls = Script.fromHex(lockingScript)
+
+  const spend = new Spend({
+    sourceTXID: verifyTruthy(spendingTx.inputs[vin].sourceTXID),
+    sourceOutputIndex: verifyTruthy(spendingTx.inputs[vin].sourceOutputIndex),
+    sourceSatoshis: amount,
+    lockingScript: ls,
+    transactionVersion: spendingTx.version,
+    otherInputs: spendingTx.inputs.filter((v, i) => i !== vin),
+    inputIndex: vin,
+    unlockingScript: verifyTruthy(spendingTx.inputs[vin].unlockingScript),
+    outputs: spendingTx.outputs,
+    inputSequence: verifyTruthy(spendingTx.inputs[vin].sequence),
+    lockTime: spendingTx.lockTime,
+    enableRelaxed,
+  })
+
+  const valid = spend.validate()
+  return valid
+}
