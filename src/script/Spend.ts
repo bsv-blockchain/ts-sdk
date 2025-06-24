@@ -147,7 +147,7 @@ export default class Spend {
   altStackMem: number
   private sigHashCache: SignatureHashCache
 
-  isRelaxed?: boolean
+  isRelaxed: boolean
 
   /**
    * @constructor
@@ -210,7 +210,7 @@ export default class Spend {
     this.inputSequence = params.inputSequence
     this.lockTime = params.lockTime
     this.memoryLimit = params.memoryLimit ?? 32000000
-    this.isRelaxed = params.isRelaxed
+    this.isRelaxed = params.isRelaxed === true
     this.stack = []
     this.altStack = []
     this.ifStack = []
@@ -418,7 +418,6 @@ export default class Spend {
       let i: number, ikey: number, isig: number, nKeysCount: number, nSigsCount: number, fOk: boolean
 
       switch (currentOpcode) {
-
         case OP.OP_VER:
           this.pushStackCopy(new BigNumber(this.transactionVersion).toScriptNum())
           break
@@ -479,6 +478,7 @@ export default class Spend {
         // case OP.OP_NOP3: // Allocated to OP_SUBSTR
         // case OP.OP_NOP4: // Allocated to OP_LEFT
         // case OP.OP_NOP5: // Allocated to OP_RIGHT
+        // eslint-disable-next-line no-fallthrough
         case OP.OP_NOP6:
         case OP.OP_NOP7:
         case OP.OP_NOP8:
