@@ -145,9 +145,9 @@ describe('Chronicle Tests', () => {
         if (!okOTDA)
           log += `${i+1} OTDA ${okOTDA} ${!okOTDA ? ret : ''}\n`
       }
-      //expect(ok).toBe(true) // Only first two test vectors are currently known to be valid
     }
     console.log(log)
+    expect(log).toBe('')
   })
 })
 

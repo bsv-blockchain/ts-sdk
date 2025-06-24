@@ -53,7 +53,8 @@ export default class TransactionSignature extends Signature {
     const isNone = (params.scope & 31) === TransactionSignature.SIGHASH_NONE
     const isAll = (params.scope & 31) === TransactionSignature.SIGHASH_ALL || (!isSingle && !isNone)
 
-    const subscript = params.subscript.findAndDelete(new Script().writeOpCode(OP.OP_CODESEPARATOR))
+    const subscript = new Script([...params.subscript.chunks])
+    subscript.findAndDelete(new Script().writeOpCode(OP.OP_CODESEPARATOR))
 
     const currentInput = {
       sourceTXID: params.sourceTXID,
