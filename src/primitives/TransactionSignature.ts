@@ -88,7 +88,7 @@ export default class TransactionSignature extends Signature {
 
     if (!isAnyoneCanPay) {
       const inputs = params.otherInputs.map(input => ({
-        sourceTXID: input.sourceTXID ?? input.sourceTransaction?.hash() ?? '',
+        sourceTXID: input.sourceTXID ?? input.sourceTransaction?.id('hex') ?? '',
         sourceOutputIndex: input.sourceOutputIndex,
         sequence: (isSingle || isNone) ? 0 : (input.sequence ?? 0xffffffff), // Default to max sequence number
         script: emptyScript
