@@ -421,7 +421,7 @@ export class Writer {
     return ret
   }
 
-  toHex(): string {
+  toHex (): string {
     return this.toArray().map((n) => n.toString(16).padStart(2, '0')).join('')
   }
 
@@ -518,7 +518,7 @@ export class Writer {
   }
 
   writeUInt64LE (n: number): this {
-    if (n === 0xffffffffffffffff) {
+    if (n === -1) {
       // This value is used as a dummy satoshis value when serializing OTDA placeholder output for SIGHASH_SINGLE
       this.write(new Array(8).fill(0xff))
     } else {

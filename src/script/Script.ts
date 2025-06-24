@@ -106,7 +106,7 @@ export default class Script {
    * @example
    * const script = Script.fromHex("76a9...");
    */
-  static fromHex (hex: string): Script {
+  static fromHex (hex: string, legacyData?: boolean): Script {
     if (hex.length === 0) return Script.fromBinary([])
     if (hex.length % 2 !== 0) {
       throw new Error(

@@ -111,7 +111,7 @@ export default class TransactionSignature extends Signature {
       writeOutputs(outputs)
     } else if (isSingle) {
       const outputs: Array<{ satoshis: number, script: number[] }> = []
-      for (let i = 0; i < params.inputIndex; i++) outputs.push({ satoshis: 0xffffffffffffffff, script: emptyScript })
+      for (let i = 0; i < params.inputIndex; i++) outputs.push({ satoshis: -1, script: emptyScript })
       const o = params.outputs[params.inputIndex]
       if (o !== undefined) { outputs.push({ satoshis: o.satoshis ?? 0, script: o.lockingScript.toBinary() }) }
       writeOutputs(outputs)
