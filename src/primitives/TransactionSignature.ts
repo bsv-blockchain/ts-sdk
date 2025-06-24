@@ -3,6 +3,7 @@ import BigNumber from './BigNumber.js'
 import * as Hash from './Hash.js'
 import { toArray, Writer } from './utils.js'
 import Script from '../script/Script.js'
+import OP from '../script/OP.js'
 import TransactionInput from '../transaction/TransactionInput.js'
 import TransactionOutput from '../transaction/TransactionOutput.js'
 
@@ -48,15 +49,17 @@ export default class TransactionSignature extends Signature {
   static formatOTDA (params: TransactionSignatureFormatParams): Uint8Array {
 
     const isAnyoneCanPay = (params.scope & TransactionSignature.SIGHASH_ANYONECANPAY) === TransactionSignature.SIGHASH_ANYONECANPAY
-    const isSingle = (params.scope & 3) === TransactionSignature.SIGHASH_SINGLE
-    const isNone = (params.scope & 3) === TransactionSignature.SIGHASH_NONE
-    const isAll = (params.scope & 3) === TransactionSignature.SIGHASH_ALL
+    const isSingle = (params.scope & 31) === TransactionSignature.SIGHASH_SINGLE
+    const isNone = (params.scope & 31) === TransactionSignature.SIGHASH_NONE
+    const isAll = (params.scope & 31) === TransactionSignature.SIGHASH_ALL || (!isSingle && !isNone)
+
+    const subscript = params.subscript.findAndDelete(new Script().writeOpCode(OP.OP_CODESEPARATOR))
 
     const currentInput = {
       sourceTXID: params.sourceTXID,
       sourceOutputIndex: params.sourceOutputIndex,
       sequence: params.inputSequence,
-      script: params.subscript.toBinary()
+      script: subscript.toBinary()
     }
 
     const writer = new Writer()
@@ -315,7 +318,7 @@ export default class TransactionSignature extends Signature {
     const hasForkId = (params.scope & TransactionSignature.SIGHASH_FORKID) !== 0
     const hasChronicle = (params.scope & TransactionSignature.SIGHASH_CHRONICLE) !== 0
 
-    if (hasForkId) {
+    if (hasForkId && !hasChronicle) {
       return TransactionSignature.formatBip143(params)
     }
 
