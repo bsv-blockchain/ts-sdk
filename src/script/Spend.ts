@@ -135,6 +135,9 @@ function isChunkMinimalPushHelper (chunk: ScriptChunk): boolean {
  * @property {UnlockingScript} unlockingScript - The unlocking script that unlocks the UTXO for spending.
  * @property {number} inputSequence - The sequence number of this input.
  * @property {number} lockTime - The lock time of the transaction.
+ * @property {number} memoryLimit - Control over script interpreter memory usage.
+ * @property {boolean} enableOTDA - Optional. If true, allows use of the Chronicle release OTDA (original transaction digest algorithm).
+ * @property {boolean} enableRelaxed - Optional. If true, disables all the maleability restrictions consitent with Chronicle release.
  */
 export default class Spend {
   sourceTXID: string
@@ -160,6 +163,9 @@ export default class Spend {
   altStackMem: number
   private sigHashCache: SignatureHashCache
 
+  enableOTDA?: boolean
+  enableRelaxed?: boolean
+
   /**
    * @constructor
    * Constructs the Spend object with necessary transaction details.
@@ -176,6 +182,9 @@ export default class Spend {
    * @param {UnlockingScript} params.unlockingScript - The unlocking script for this spend.
    * @param {number} params.inputSequence - The sequence number of this input.
    * @param {number} params.lockTime - The lock time of the transaction.
+   * @param {number} params.memoryLimit - Optional control over script interpreter memory usage.
+   * @param {boolean} params.enableOTDA - Optional. If true, allows use of the Chronicle release OTDA (original transaction digest algorithm).
+   * @param {boolean} params.enableRelaxed - Optional. If true, disables all the maleability restrictions consitent with Chronicle release.
    *
    * @example
    * const spend = new Spend({
@@ -205,6 +214,8 @@ export default class Spend {
     inputIndex: number
     lockTime: number
     memoryLimit?: number
+    enableOTDA?: boolean
+    enableRelaxed?: boolean
   }) {
     this.sourceTXID = params.sourceTXID
     this.sourceOutputIndex = params.sourceOutputIndex
@@ -218,6 +229,8 @@ export default class Spend {
     this.inputSequence = params.inputSequence
     this.lockTime = params.lockTime
     this.memoryLimit = params.memoryLimit ?? 32000000
+    this.enableOTDA = params.enableOTDA
+    this.enableRelaxed = params.enableRelaxed
     this.stack = []
     this.altStack = []
     this.ifStack = []
@@ -310,11 +323,11 @@ export default class Spend {
     }
     try {
       const sig = TransactionSignature.fromChecksigFormat(buf as number[]) // This can throw for stricter DER rules
-      if (requireLowSSignatures && !sig.hasLowS()) {
+      if (!this.enableRelaxed && requireLowSSignatures && !sig.hasLowS()) {
         this.scriptEvaluationError('The signature must have a low S value.')
         return false
       }
-      if ((sig.scope & TransactionSignature.SIGHASH_FORKID) === 0) {
+      if (!this.enableOTDA && (sig.scope & TransactionSignature.SIGHASH_FORKID) === 0) {
         this.scriptEvaluationError('The signature must use SIGHASH_FORKID.')
         return false
       }
@@ -851,15 +864,16 @@ export default class Spend {
             this.scriptEvaluationError(`${OP[currentOpcode] as string} requires correct encoding for the public key and signature.`) // Fallback, should be unreachable
           }
 
-          const scriptForChecksig = this.context === 'UnlockingScript' ? this.unlockingScript : this.lockingScript
-          const scriptCodeChunks = scriptForChecksig.chunks.slice(this.lastCodeSeparator === null ? 0 : this.lastCodeSeparator + 1)
-          subscript = new Script(scriptCodeChunks)
-          subscript.findAndDelete(new Script().writeBin(bufSig))
-
           fSuccess = false
           if (bufSig.length > 0) {
             try {
               sig = TransactionSignature.fromChecksigFormat(bufSig)
+
+              const scriptForChecksig: Script = this.context === 'UnlockingScript' ? this.unlockingScript : this.lockingScript
+              const scriptCodeChunks = scriptForChecksig.chunks.slice(this.lastCodeSeparator === null ? 0 : this.lastCodeSeparator + 1)
+              subscript = new Script(scriptCodeChunks)
+              subscript.findAndDelete(new Script().writeBin(bufSig))
+
               pubkey = PublicKey.fromDER(bufPubkey)
               fSuccess = this.verifySignature(sig, pubkey, subscript)
             } catch (e) {
