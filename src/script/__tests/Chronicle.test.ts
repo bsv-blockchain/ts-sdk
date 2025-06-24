@@ -67,12 +67,14 @@ describe('Chronicle Tests', () => {
         lockTime: tx.lockTime,
         scope: t.hashType,
       }
+      let ok = false
       {
         const sighash = t.sighashBip143
         const buf = TransactionSignature.format(params)
         const ret = Utils.toHex(Hash.hash256(buf))
         if (ret === sighash) {
           log += `${i} ${ret === sighash}\n`
+          ok = true
         }
       }
       {
@@ -81,10 +83,12 @@ describe('Chronicle Tests', () => {
         const ret = Utils.toHex(Hash.hash256(buf))
         if (ret === sighash) {
           log += `${i} ${ret === sighash}\n`
+          ok = true
         }
       }
+      expect(ok || i > 1).toBe(true) // Only first two test vectors are currently known to be valid
     }
-    console.log(log)
+    //console.log(log)
   })
 })
 
