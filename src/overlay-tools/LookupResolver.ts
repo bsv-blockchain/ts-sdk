@@ -27,11 +27,8 @@ export type LookupAnswer =
     outputs: Array<{
       beef: number[]
       outputIndex: number
+      context?: number[]
     }>
-  }
-  | {
-    type: 'freeform'
-    result: unknown
   }
 
 /** Default SLAP trackers */
@@ -200,13 +197,8 @@ export default class LookupResolver {
     }
 
     // Process the successful responses
-    if (successfulResponses[0].type === 'freeform') {
-      // Return the first freeform response
-      return successfulResponses[0]
-    }
-
     // Aggregate outputs from all successful responses
-    const outputs = new Map<string, { beef: number[], outputIndex: number }>()
+    const outputs = new Map<string, { beef: number[], context?: number[], outputIndex: number }>()
 
     for (const response of successfulResponses) {
       if (response.type !== 'output-list') {
@@ -215,14 +207,9 @@ export default class LookupResolver {
       try {
         for (const output of response.outputs) {
           try {
-            const txId: string = String(Transaction.fromBEEF(output.beef).id('hex'))
-
-            if (txId !== '') { // ✅ Ensures `txId` is always a non-empty string
-              const key = `${String(txId)}.${String(output.outputIndex)}`
-              outputs.set(key, output)
-            } else {
-              console.warn('Invalid transaction ID:', txId)
-            }
+            const txId: string = Transaction.fromBEEF(output.beef).id('hex') // !! This is STUPIDLY inefficient.
+            const key = `${txId}.${output.outputIndex}`
+            outputs.set(key, output)
           } catch {
             continue
           }

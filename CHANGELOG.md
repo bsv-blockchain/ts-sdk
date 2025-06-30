@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.6.8 - 2025-06-26](#168---2025-06-26)
+- [1.6.7 - 2025-06-25](#167---2025-06-25)
+- [1.6.6 - 2025-06-25](#166---2025-06-25)
+- [1.6.5 - 2025-06-21](#165---2025-06-21)
+- [1.6.4 - 2025-06-20](#164---2025-06-20)
+- [1.6.3 - 2025-06-20](#163---2025-06-20)
+- [1.6.2 - 2025-06-18](#162---2025-06-18)
+- [1.6.1 - 2025-06-16](#161---2025-06-16)
 - [1.6.0 - 2025-05-29](#160---2025-05-29)
 - [1.5.3 - 2025-05-29](#153---2025-05-29)
 - [1.5.1 - 2025-05-13](#151---2025-05-13)
@@ -130,12 +138,85 @@ All notable changes to this project will be documented in this file. The format 
 
 ---
 
+## [1.6.8] - 2025-06-26
+
+### Change
+
+- VarInt read and write methods will now handle negative numbers by writing them as Int64.
+- `readVarIntNum` method now takes a signed argument to control whether to read as Int64 or Uint64.
+
+### Added
+
+- OverflowInt64 and OverflowUint64 constants.
+- `readInt64LEBn` method to read Int64 values.
+
+---
+
+## [1.6.7] - 2025-06-25
+
+### Change
+
+To LocalKVStore:
+
+- Extend locks to lockQueues and to get and remove operations.
+
+---
+
+## [1.6.6] - 2025-06-25
+
+### Change
+
+To LocalKVStore:
+
+- Make the `set` method update each key value atomically.
+- Add acceptDelayedBroadcast constructor argument, default false.
+
+---
+
+## [1.6.5] - 2025-06-21
+
+### Added
+- ChainTracker which relies on an instance of [Block Headers Service](https://github.com/bitcoin-sv/block-headers-service).
+
+---
+
+## [1.6.4] - 2025-06-20
+
+### Change
+- Export the type for `ScriptChunk` properly.
+
+---
+
+## [1.6.3] - 2025-06-20
+
+### Change
+- `SimplifiedFetchTransport`: Added more checks to ensure the connection at the transport layer is correct when sending certificates.
+
+---
+
+## [1.6.2] - 2025-06-18
+
+### Change
+
+- Use `OffChainValues` with TopicBroadcaster from `tx.metadata`
+- Handle and return context explicitly in LookupResolver
+
+---
+
+## [1.6.1] - 2025-06-16
+
+### Change
+
+- New types for Private Overlay support
+
+---
+
 ## [1.6.0] - 2025-05-29
 
 ### Fixed
 
 - Align eval mem limits with current miner policy while stopping memory attacks at 100MB
-- Use BigInt in BigNumber for faster proformance
+- Use BigInt in BigNumber for faster performance
 - Optimize script interpreter memory usage
 
 ## [1.5.3] - 2025-05-29

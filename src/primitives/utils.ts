@@ -534,6 +534,9 @@ export class Writer {
 
   static varIntNum (n: number): number[] {
     let buf: number[]
+    if (n < 0) {
+      return this.varIntBn(new BigNumber(n))
+    }
     if (n < 253) {
       buf = [n] // 1 byte
     } else if (n < 0x10000) {
@@ -574,6 +577,9 @@ export class Writer {
 
   static varIntBn (bn: BigNumber): number[] {
     let buf: number[]
+    if (bn.isNeg()) {
+      bn = bn.add(OverflowUint64) // Adjust for negative numbers
+    }
     if (bn.ltn(253)) {
       const n = bn.toNumber()
       // No need for bitwise operation as the value is within a byte's range
@@ -717,7 +723,16 @@ export class Reader {
     return bn
   }
 
-  public readVarIntNum (): number {
+  public readInt64LEBn (): BigNumber {
+    const bin = this.readReverse(8)
+    let bn = new BigNumber(bin)
+    if (bn.gte(OverflowInt64)) {
+      bn = bn.sub(OverflowUint64) // Adjust for negative numbers
+    }
+    return bn
+  }
+
+  public readVarIntNum (signed: boolean = true): number {
     const first = this.readUInt8()
     let bn: BigNumber
     switch (first) {
@@ -726,7 +741,7 @@ export class Reader {
       case 0xfe:
         return this.readUInt32LE()
       case 0xff:
-        bn = this.readUInt64LEBn()
+        bn = signed ? this.readInt64LEBn() : this.readUInt64LEBn()
         if (bn.lte(new BigNumber(2).pow(new BigNumber(53)))) {
           return bn.toNumber()
         } else {
@@ -810,3 +825,6 @@ export const minimallyEncode = (buf: number[]): number[] => {
   // If we found the whole thing is zeros, then we have a zero.
   return []
 }
+
+const OverflowInt64 = new BigNumber(2).pow(new BigNumber(63))
+const OverflowUint64 = new BigNumber(2).pow(new BigNumber(64))

@@ -93,8 +93,7 @@ export default class BigNumber {
     zeroBits(): number 
     byteLength(): number { if (this._magnitude === 0n)
         return 0; return Math.ceil(this.bitLength() / 8); }
-    toTwos(width: number): BigNumber { this.assert(width >= 0); const Bw = BigInt(width); let v = this._getSignedValue(); if (this._sign === 1 && this._magnitude !== 0n)
-        v = (1n << Bw) + v; const m = (1n << Bw) - 1n; v &= m; const r = new BigNumber(0n); r._initializeState(v, 0); return r; }
+    toTwos(width: number): BigNumber 
     fromTwos(width: number): BigNumber 
     isNeg(): boolean 
     neg(): BigNumber 
@@ -132,15 +131,7 @@ export default class BigNumber {
     iushln(bits: number): this { this.assert(typeof bits === "number" && bits >= 0); if (bits === 0)
         return this; this._magnitude <<= BigInt(bits); this._finishInitialization(); return this.strip(); }
     ishln(bits: number): this 
-    iushrn(bits: number, hint?: number, extended?: BigNumber): this { this.assert(typeof bits === "number" && bits >= 0); if (bits === 0) {
-        if (extended != null)
-            extended._initializeState(0n, 0);
-        return this;
-    } if (extended != null) {
-        const m = (1n << BigInt(bits)) - 1n;
-        const sOut = this._magnitude & m;
-        extended._initializeState(sOut, 0);
-    } this._magnitude >>= BigInt(bits); this._finishInitialization(); return this.strip(); }
+    iushrn(bits: number, hint?: number, extended?: BigNumber): this 
     ishrn(bits: number, hint?: number, extended?: BigNumber): this 
     shln(bits: number): BigNumber 
     ushln(bits: number): BigNumber 
@@ -168,31 +159,8 @@ export default class BigNumber {
         a: BigNumber;
         b: BigNumber;
         gcd: BigNumber;
-    } { this.assert(p._sign === 0, "p must not be negative"); this.assert(!p.isZero(), "p must not be zero"); let uV = this._getSignedValue(); let vV = p._magnitude; let a = 1n; let pa = 0n; let b = 0n; let pb = 1n; while (vV !== 0n) {
-        const q = uV / vV;
-        let t = vV;
-        vV = uV % vV;
-        uV = t;
-        t = pa;
-        pa = a - q * pa;
-        a = t;
-        t = pb;
-        pb = b - q * pb;
-        b = t;
-    } const ra = new BigNumber(0n); ra._setValueFromSigned(a); const rb = new BigNumber(0n); rb._setValueFromSigned(b); const rg = new BigNumber(0n); rg._initializeState(uV < 0n ? -uV : uV, 0); return { a: ra, b: rb, gcd: rg }; }
-    gcd(num: BigNumber): BigNumber { let u = this._magnitude; let v = num._magnitude; if (u === 0n) {
-        const r = new BigNumber(0n);
-        r._setValueFromSigned(v);
-        return r.iabs();
-    } if (v === 0n) {
-        const r = new BigNumber(0n);
-        r._setValueFromSigned(u);
-        return r.iabs();
-    } while (v !== 0n) {
-        const t = u % v;
-        u = v;
-        v = t;
-    } const res = new BigNumber(0n); res._initializeState(u, 0); return res; }
+    } 
+    gcd(num: BigNumber): BigNumber 
     invm(num: BigNumber): BigNumber 
     isEven(): boolean 
     isOdd(): boolean 
@@ -3247,8 +3215,8 @@ export class Reader {
     public pos: number;
     constructor(bin: number[] = [], pos: number = 0) 
     public eof(): boolean 
-    public read(len = this.bin.length): number[] 
-    public readReverse(len = this.bin.length): number[] 
+    public read(len = this.length): number[] 
+    public readReverse(len = this.length): number[] 
     public readUInt8(): number 
     public readInt8(): number 
     public readUInt16BE(): number 
@@ -3261,7 +3229,8 @@ export class Reader {
     public readInt32LE(): number 
     public readUInt64BEBn(): BigNumber 
     public readUInt64LEBn(): BigNumber 
-    public readVarIntNum(): number 
+    public readInt64LEBn(): BigNumber 
+    public readVarIntNum(signed: boolean = true): number 
     public readVarInt(): number[] 
     public readVarIntBn(): BigNumber 
 }
@@ -5047,9 +5016,9 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 exclusiveOR = function (block0: number[], block1: number[]): number[] {
-    let i;
-    const result = [];
-    for (i = 0; i < block0.length; i++) {
+    const len = block0.length;
+    const result = new Array(len);
+    for (let i = 0; i < len; i++) {
         result[i] = block0[i] ^ block1[i];
     }
     return result;
@@ -5231,20 +5200,19 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 multiply = function (block0: number[], block1: number[]): number[] {
-    let i;
-    let j;
-    let v = block1.slice();
-    let z = createZeroBlock(16);
-    for (i = 0; i < 16; i++) {
-        for (j = 7; j !== -1; j--) {
-            if (checkBit(block0, i, j) !== 0) {
-                z = exclusiveOR(z, v);
+    const v = block1.slice();
+    const z = createZeroBlock(16);
+    for (let i = 0; i < 16; i++) {
+        for (let j = 7; j >= 0; j--) {
+            if ((block0[i] & (1 << j)) !== 0) {
+                xorInto(z, v);
             }
-            if (checkBit(v, 15, 0) !== 0) {
-                v = exclusiveOR(rightShift(v), R);
+            if ((v[15] & 1) !== 0) {
+                rightShift(v);
+                xorInto(v, R);
             }
             else {
-                v = rightShift(v);
+                rightShift(v);
             }
         }
     }
@@ -5252,7 +5220,7 @@ multiply = function (block0: number[], block1: number[]): number[] {
 }
 ```
 
-See also: [checkBit](./primitives.md#variable-checkbit), [exclusiveOR](./primitives.md#variable-exclusiveor), [rightShift](./primitives.md#variable-rightshift)
+See also: [rightShift](./primitives.md#variable-rightshift)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 

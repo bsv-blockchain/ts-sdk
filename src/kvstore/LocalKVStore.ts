@@ -38,6 +38,14 @@ export default class LocalKVStore {
    */
   private readonly originator?: string
 
+  acceptDelayedBroadcast: boolean = false
+
+  /**
+   * A map to store locks for each key to ensure atomic updates.
+   * @private
+   */
+  private readonly keyLocks: Map<string, Array<(value: void | PromiseLike<void>) => void>> = new Map()
+
   /**
    * Creates an instance of the localKVStore.
    *
@@ -51,7 +59,8 @@ export default class LocalKVStore {
     wallet: WalletInterface = new WalletClient(),
     context = 'kvstore default',
     encrypt = true,
-    originator?: string
+    originator?: string,
+    acceptDelayedBroadcast = false
   ) {
     if (typeof context !== 'string' || context.length < 1) {
       throw new Error('A context in which to operate is required.')
@@ -60,6 +69,39 @@ export default class LocalKVStore {
     this.context = context
     this.encrypt = encrypt
     this.originator = originator
+    this.acceptDelayedBroadcast = acceptDelayedBroadcast
+  }
+
+  private async queueOperationOnKey (key: string): Promise<Array<(value: void | PromiseLike<void>) => void>> {
+    // Check if a lock exists for this key and wait for it to resolve
+    let lockQueue = this.keyLocks.get(key)
+    if (lockQueue == null) {
+      lockQueue = []
+      this.keyLocks.set(key, lockQueue)
+    }
+
+    let resolveNewLock: () => void = () => {}
+    const newLock = new Promise<void>((resolve) => {
+      resolveNewLock = resolve
+      if (lockQueue != null) { lockQueue.push(resolve) }
+    })
+
+    // If we are the only request, resolve the lock immediately, queue remains at 1 item until request ends.
+    if (lockQueue.length === 1) {
+      resolveNewLock()
+    }
+
+    await newLock
+
+    return lockQueue
+  }
+
+  private finishOperationOnKey (key: string, lockQueue: Array<(value: void | PromiseLike<void>) => void>): void {
+    lockQueue.shift() // Remove the current lock from the queue
+    if (lockQueue.length > 0) {
+      // If there are more locks waiting, resolve the next one
+      lockQueue[0]()
+    }
   }
 
   private getProtocol (key: string): { protocolID: WalletProtocol, keyID: string } {
@@ -88,8 +130,14 @@ export default class LocalKVStore {
    * @throws {Error} If the found output's locking script cannot be decoded or represents an invalid token format.
    */
   async get (key: string, defaultValue: string | undefined = undefined): Promise<string | undefined> {
-    const r = await this.lookupValue(key, defaultValue, 5)
-    return r.value
+    const lockQueue = await this.queueOperationOnKey(key)
+
+    try {
+      const r = await this.lookupValue(key, defaultValue, 5)
+      return r.value
+    } finally {
+      this.finishOperationOnKey(key, lockQueue)
+    }
   }
 
   private getLockingScript (output: WalletOutput, beef: Beef): LockingScript {
@@ -160,78 +208,94 @@ export default class LocalKVStore {
   }
 
   /**
-   * Sets or updates the value associated with a given key.
+   * Sets or updates the value associated with a given key atomically.
    * If the key already exists (one or more outputs found), it spends the existing output(s)
    * and creates a new one with the updated value. If multiple outputs exist for the key,
    * they are collapsed into a single new output.
    * If the key does not exist, it creates a new output.
    * Handles encryption if enabled.
    * If signing the update/collapse transaction fails, it relinquishes the original outputs and starts over with a new chain.
+   * Ensures atomicity by locking the key during the operation, preventing concurrent updates
+   * to the same key from missing earlier changes.
    *
    * @param {string} key - The key to set or update.
    * @param {string} value - The value to associate with the key.
    * @returns {Promise<OutpointString>} A promise that resolves to the outpoint string (txid.vout) of the new or updated token output.
    */
   async set (key: string, value: string): Promise<OutpointString> {
-    const current = await this.lookupValue(key, undefined, 10)
-    if (current.value === value) {
-      if (current.outpoint === undefined) { throw new Error('outpoint must be valid when value is valid and unchanged') }
-      // Don't create a new transaction if the value doesn't need to change...
-      return current.outpoint
-    }
-    const protocol = this.getProtocol(key)
-    let valueAsArray = Utils.toArray(value, 'utf8')
-    if (this.encrypt) {
-      const { ciphertext } = await this.wallet.encrypt({
-        ...protocol,
-        plaintext: valueAsArray
-      })
-      valueAsArray = ciphertext
-    }
-    const pushdrop = new PushDrop(this.wallet, this.originator)
-    const lockingScript = await pushdrop.lock(
-      [valueAsArray],
-      protocol.protocolID,
-      protocol.keyID,
-      'self'
-    )
-    const { outputs, BEEF: inputBEEF } = current.lor
-    let outpoint: OutpointString
+    const lockQueue = await this.queueOperationOnKey(key)
+
     try {
-      const inputs = this.getInputs(outputs)
-      const { txid, signableTransaction } = await this.wallet.createAction({
-        description: `Update ${key} in ${this.context}`,
-        inputBEEF,
-        inputs,
-        outputs: [{
-          basket: this.context,
-          tags: [key],
-          lockingScript: lockingScript.toHex(),
-          satoshis: 1,
-          outputDescription: 'Key-value token'
-        }],
-        options: {
-          acceptDelayedBroadcast: false,
-          randomizeOutputs: false
+      const current = await this.lookupValue(key, undefined, 10)
+      if (current.value === value) {
+        if (current.outpoint === undefined) {
+          throw new Error('outpoint must be valid when value is valid and unchanged')
         }
-      })
-      if (outputs.length > 0 && typeof signableTransaction !== 'object') {
-        throw new Error('Wallet did not return a signable transaction when expected.')
+        // Don't create a new transaction if the value doesn't need to change
+        return current.outpoint
       }
-      if (signableTransaction == null) {
-        outpoint = `${txid as string}.0`
-      } else {
-        const spends = await this.getSpends(key, outputs, pushdrop, signableTransaction.tx)
-        const { txid } = await this.wallet.signAction({
-          reference: signableTransaction.reference,
-          spends
+
+      const protocol = this.getProtocol(key)
+      let valueAsArray = Utils.toArray(value, 'utf8')
+      if (this.encrypt) {
+        const { ciphertext } = await this.wallet.encrypt({
+          ...protocol,
+          plaintext: valueAsArray
         })
-        outpoint = `${txid as string}.0`
+        valueAsArray = ciphertext
       }
-    } catch (_) {
-      throw new Error(`There are ${outputs.length} outputs with tag ${key} that cannot be unlocked.`)
+
+      const pushdrop = new PushDrop(this.wallet, this.originator)
+      const lockingScript = await pushdrop.lock(
+        [valueAsArray],
+        protocol.protocolID,
+        protocol.keyID,
+        'self'
+      )
+
+      const { outputs, BEEF: inputBEEF } = current.lor
+      let outpoint: OutpointString
+      try {
+        const inputs = this.getInputs(outputs)
+        const { txid, signableTransaction } = await this.wallet.createAction({
+          description: `Update ${key} in ${this.context}`,
+          inputBEEF,
+          inputs,
+          outputs: [{
+            basket: this.context,
+            tags: [key],
+            lockingScript: lockingScript.toHex(),
+            satoshis: 1,
+            outputDescription: 'Key-value token'
+          }],
+          options: {
+            acceptDelayedBroadcast: this.acceptDelayedBroadcast,
+            randomizeOutputs: false
+          }
+        })
+
+        if (outputs.length > 0 && typeof signableTransaction !== 'object') {
+          throw new Error('Wallet did not return a signable transaction when expected.')
+        }
+
+        if (signableTransaction == null) {
+          outpoint = `${txid as string}.0`
+        } else {
+          const spends = await this.getSpends(key, outputs, pushdrop, signableTransaction.tx)
+          const { txid } = await this.wallet.signAction({
+            reference: signableTransaction.reference,
+            spends
+          })
+          outpoint = `${txid as string}.0`
+        }
+      } catch (_) {
+        throw new Error(`There are ${outputs.length} outputs with tag ${key} that cannot be unlocked.`)
+      }
+
+      return outpoint
+    } finally {
+      this.finishOperationOnKey(key, lockQueue)
     }
-    return outpoint
   }
 
   /**
@@ -245,38 +309,44 @@ export default class LocalKVStore {
    * @returns {Promise<string[]>} A promise that resolves to the txids of the removal transactions if successful.
    */
   async remove (key: string): Promise<string[]> {
-    const txids: string[] = []
-    for (; ;) {
-      const { outputs, BEEF: inputBEEF, totalOutputs } = await this.getOutputs(key)
-      if (outputs.length > 0) {
-        const pushdrop = new PushDrop(this.wallet, this.originator)
-        try {
-          const inputs = this.getInputs(outputs)
-          const { signableTransaction } = await this.wallet.createAction({
-            description: `Remove ${key} in ${this.context}`,
-            inputBEEF,
-            inputs,
-            options: {
-              acceptDelayedBroadcast: false
+    const lockQueue = await this.queueOperationOnKey(key)
+
+    try {
+      const txids: string[] = []
+      for (; ;) {
+        const { outputs, BEEF: inputBEEF, totalOutputs } = await this.getOutputs(key)
+        if (outputs.length > 0) {
+          const pushdrop = new PushDrop(this.wallet, this.originator)
+          try {
+            const inputs = this.getInputs(outputs)
+            const { signableTransaction } = await this.wallet.createAction({
+              description: `Remove ${key} in ${this.context}`,
+              inputBEEF,
+              inputs,
+              options: {
+                acceptDelayedBroadcast: this.acceptDelayedBroadcast
+              }
+            })
+            if (typeof signableTransaction !== 'object') {
+              throw new Error('Wallet did not return a signable transaction when expected.')
             }
-          })
-          if (typeof signableTransaction !== 'object') {
-            throw new Error('Wallet did not return a signable transaction when expected.')
+            const spends = await this.getSpends(key, outputs, pushdrop, signableTransaction.tx)
+            const { txid } = await this.wallet.signAction({
+              reference: signableTransaction.reference,
+              spends
+            })
+            if (txid === undefined) { throw new Error('signAction must return a valid txid') }
+            txids.push(txid)
+          } catch (_) {
+            throw new Error(`There are ${totalOutputs} outputs with tag ${key} that cannot be unlocked.`)
           }
-          const spends = await this.getSpends(key, outputs, pushdrop, signableTransaction.tx)
-          const { txid } = await this.wallet.signAction({
-            reference: signableTransaction.reference,
-            spends
-          })
-          if (txid === undefined) { throw new Error('signAction must return a valid txid') }
-          txids.push(txid)
-        } catch (_) {
-          throw new Error(`There are ${totalOutputs} outputs with tag ${key} that cannot be unlocked.`)
         }
+        if (outputs.length === totalOutputs) { break }
       }
-      if (outputs.length === totalOutputs) { break }
+      return txids
+    } finally {
+      this.finishOperationOnKey(key, lockQueue)
     }
-    return txids
   }
 }
 

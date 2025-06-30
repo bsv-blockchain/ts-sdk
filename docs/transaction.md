@@ -1506,7 +1506,7 @@ export default class Transaction {
     static fromHex(hex: string): Transaction 
     static fromHexEF(hex: string): Transaction 
     static fromHexBEEF(hex: string, txid?: string): Transaction 
-    constructor(version: number = 1, inputs: TransactionInput[] = [], outputs: TransactionOutput[] = [], lockTime: number = 0, metadata: Record<string, any> = {}, merklePath?: MerklePath) 
+    constructor(version: number = 1, inputs: TransactionInput[] = [], outputs: TransactionOutput[] = [], lockTime: number = 0, metadata: Record<string, any> = new Map(), merklePath?: MerklePath) 
     addInput(input: TransactionInput): void 
     addOutput(output: TransactionOutput): void 
     addP2PKHOutput(address: number[] | string, satoshis?: number): void 

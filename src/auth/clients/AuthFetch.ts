@@ -240,7 +240,6 @@ export class AuthFetch {
         reject(e)
       }
     }) as Function)
-
     // Check if server requires payment to access the requested route
     if (response.status === 402) {
       // Create and attach a payment, then retry

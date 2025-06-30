@@ -17,6 +17,7 @@ export class SimplifiedFetchTransport implements Transport {
   fetchClient: typeof fetch
   baseUrl: string
 
+
   /**
    * Constructs a new instance of SimplifiedFetchTransport.
    * @param baseUrl - The base URL for all HTTP requests made by this transport.
@@ -53,11 +54,11 @@ export class SimplifiedFetchTransport implements Transport {
             body: JSON.stringify(message)
           })
 
+          // For initialRequest message, mark connection as established and start pool.
           if (message.messageType !== "initialRequest") {
             resolve()
           }
           const response = await responsePromise
-
           // Handle the response if data is received and callback is set
           if (response.ok && this.onDataCallback) {
             const responseMessage = await response.json()
@@ -126,7 +127,8 @@ export class SimplifiedFetchTransport implements Transport {
       })
 
       // Check for an acceptable status
-      if (response.status === 500 && !response.headers.get('x-bsv-auth-request-id')) {
+      if (response.status === 500 && (response.headers.get('x-bsv-auth-request-id') == null &&
+          response.headers.get('x-bsv-auth-requested-certificates') == null)) {
         // Try parsing JSON error
         const errorInfo = await response.json()
         // Otherwise just throw whatever we got
@@ -135,7 +137,10 @@ export class SimplifiedFetchTransport implements Transport {
 
       const parsedBody = await response.arrayBuffer()
       const payloadWriter = new Utils.Writer()
-      payloadWriter.write(Utils.toArray(response.headers.get('x-bsv-auth-request-id'), 'base64'))
+      if(response.headers.get('x-bsv-auth-request-id') != null)
+      {
+          payloadWriter.write(Utils.toArray(response.headers.get('x-bsv-auth-request-id'), 'base64'));
+      }
       payloadWriter.writeVarIntNum(response.status)
 
       // PARSE RESPONSE HEADERS FROM SERVER --------------------------------

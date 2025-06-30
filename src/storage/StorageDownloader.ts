@@ -13,17 +13,6 @@ export interface DownloadResult {
   mimeType: string | null
 }
 
-/**
- * Locates HTTP URLs where content can be downloaded. It uses the passed or the default one.
- *
- * @param {Object} obj All parameters are passed in an object.
- * @param {String} obj.uhrpUrl The UHRP url to resolve.
- * @param {string} obj.confederacyHost HTTPS URL for for the with default setting.
- *
- * @return {Array<String>} An array of HTTP URLs where content can be downloaded.
- * @throws {Error} If UHRP url parameter invalid or is not an array
- * or there is an error retrieving url(s) stored in the UHRP token.
- */
 export class StorageDownloader {
   private readonly networkPreset?: 'mainnet' | 'testnet' | 'local' = 'mainnet'
 
@@ -31,6 +20,11 @@ export class StorageDownloader {
     this.networkPreset = config?.networkPreset
   }
 
+  /**
+   * Resolves the UHRP URL to a list of HTTP URLs where content can be downloaded.
+   * @param uhrpUrl The UHRP URL to resolve.
+   * @returns A promise that resolves to an array of HTTP URLs.
+   */
   public async resolve (uhrpUrl: string): Promise<string[]> {
     // Use UHRP lookup service
     const lookupResolver = new LookupResolver({ networkPreset: this.networkPreset })
@@ -54,6 +48,11 @@ export class StorageDownloader {
     return decodedResults
   }
 
+  /**
+   * Downloads the content from the UHRP URL after validating the hash for integrity.
+   * @param uhrpUrl The UHRP URL to download.
+   * @returns A promise that resolves to the downloaded content.
+   */
   public async download (uhrpUrl: string): Promise<DownloadResult> {
     if (!StorageUtils.isValidURL(uhrpUrl)) {
       throw new Error('Invalid parameter UHRP url')

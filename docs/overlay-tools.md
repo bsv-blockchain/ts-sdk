@@ -272,6 +272,7 @@ Tagged BEEF
 export interface TaggedBEEF {
     beef: number[];
     topics: string[];
+    offChainValues?: number[];
 }
 ```
 
@@ -530,10 +531,8 @@ export type LookupAnswer = {
     outputs: Array<{
         beef: number[];
         outputIndex: number;
+        context?: number[];
     }>;
-} | {
-    type: "freeform";
-    result: unknown;
 }
 ```
 

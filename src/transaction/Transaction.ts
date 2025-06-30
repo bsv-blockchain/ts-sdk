@@ -318,7 +318,7 @@ export default class Transaction {
     inputs: TransactionInput[] = [],
     outputs: TransactionOutput[] = [],
     lockTime: number = 0,
-    metadata: Record<string, any> = {},
+    metadata: Record<string, any> = new Map(),
     merklePath?: MerklePath
   ) {
     this.version = version

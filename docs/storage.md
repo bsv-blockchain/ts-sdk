@@ -120,8 +120,6 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ### Class: StorageDownloader
 
-Locates HTTP URLs where content can be downloaded. It uses the passed or the default one.
-
 ```ts
 export class StorageDownloader {
     constructor(config?: DownloaderConfig) 
@@ -131,6 +129,41 @@ export class StorageDownloader {
 ```
 
 See also: [DownloadResult](./storage.md#interface-downloadresult), [DownloaderConfig](./storage.md#interface-downloaderconfig)
+
+#### Method download
+
+Downloads the content from the UHRP URL after validating the hash for integrity.
+
+```ts
+public async download(uhrpUrl: string): Promise<DownloadResult> 
+```
+See also: [DownloadResult](./storage.md#interface-downloadresult)
+
+Returns
+
+A promise that resolves to the downloaded content.
+
+Argument Details
+
++ **uhrpUrl**
+  + The UHRP URL to download.
+
+#### Method resolve
+
+Resolves the UHRP URL to a list of HTTP URLs where content can be downloaded.
+
+```ts
+public async resolve(uhrpUrl: string): Promise<string[]> 
+```
+
+Returns
+
+A promise that resolves to an array of HTTP URLs.
+
+Argument Details
+
++ **uhrpUrl**
+  + The UHRP URL to resolve.
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 

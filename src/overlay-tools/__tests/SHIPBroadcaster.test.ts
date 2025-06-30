@@ -253,7 +253,8 @@ describe('SHIPCast', () => {
     const testTx = {
       toBEEF: () => {
         throw new Error('Cannot serialize to BEEF')
-      }
+      },
+      metadata: new Map()
     } as unknown as Transaction
 
     await expect(b.broadcast(testTx)).rejects.toThrow(
