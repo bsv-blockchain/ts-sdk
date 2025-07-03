@@ -15,7 +15,7 @@ UHRP (Universal Hash Resource Protocol) is a decentralized file storage system t
 ## Prerequisites
 
 ### For Upload Operations
-- **BRC-100 compliant wallet** (such as MetaNet Desktop Wallet) must be installed and running
+- **BRC-100 compliant wallet** (such as Metanet Desktop Wallet) must be installed and running
 - **Wallet connection** accessible via JSON API (typically http://localhost:3321)
 - **Sufficient wallet balance** for transaction fees and storage costs
 - **UHRP storage service** - This tutorial uses `https://nanostore.babbage.systems`
@@ -26,7 +26,7 @@ UHRP (Universal Hash Resource Protocol) is a decentralized file storage system t
 
 ### Service Availability
 **Important Note**: This tutorial uses `https://nanostore.babbage.systems`, which is a working UHRP storage service. The examples demonstrate correct SDK usage patterns and will work with:
-- A running BRC-100 compliant wallet (such as MetaNet Desktop Wallet)
+- A running BRC-100 compliant wallet (such as Metanet Desktop Wallet)
 - Sufficient wallet balance for storage fees
 
 **Performance Note**: UHRP storage operations may take time to complete as they involve blockchain transactions and network propagation. Upload operations can take 10-30 seconds or more depending on network conditions.
@@ -492,7 +492,7 @@ demonstrateBatchOperations().catch(console.error)
 #### "No wallet available" Error
 **Problem**: StorageUploader fails with "No wallet available over any communication substrate"
 **Solution**: 
-- Install and run a BRC-100 compliant wallet (e.g., MetaNet Desktop Wallet)
+- Install and run a BRC-100 compliant wallet (e.g., Metanet Desktop Wallet)
 - Ensure wallet is accessible at http://localhost:3321
 - Verify wallet is fully synced and has sufficient balance
 

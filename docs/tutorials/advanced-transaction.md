@@ -16,7 +16,7 @@ This tutorial builds on your knowledge of basic `WalletClient` usage to explore 
 ## Prerequisites
 
 - Complete the [Transaction Types and Data](./transaction-types.md) tutorial
-- Have a BRC-100 compliant wallet (such as the [MetaNet Desktop Wallet](https://metanet.bsvb.tech/)) installed and configured
+- Have a BRC-100 compliant wallet (such as the [Metanet Desktop Wallet](https://Metanet.bsvb.tech/)) installed and configured
 - Some BSV in your wallet
 - Understanding of Bitcoin transaction fundamentals
 
@@ -572,4 +572,4 @@ These techniques enable you to build production-ready applications that efficien
 
 - [Wallet Reference](../reference/wallet.md)
 - [BSV Blockchain Documentation](https://docs.bsvblockchain.org/)
-- [MetaNet Desktop Wallet](https://metanet.bsvb.tech/)
+- [Metanet Desktop Wallet](https://Metanet.bsvb.tech/)

@@ -17,7 +17,7 @@ In this tutorial, you'll learn how to create your first Bitcoin SV transactions 
 
 ## Precondition 
 
-Install a BRC-100 compliant wallet such as the [MetaNet Desktop Wallet](https://metanet.bsvb.tech/). When you install it, you'll receive a small amount of funds to play with.
+Install a BRC-100 compliant wallet such as the [Metanet Desktop Wallet](https://Metanet.bsvb.tech/). When you install it, you'll receive a small amount of funds to play with.
 
 ## Step 1: Setting Up Your Environment
 
@@ -120,7 +120,7 @@ npx ts-node step1-simple-transaction.ts
 
 
 **What's happening here:**
-- We connect to your BRC-100 wallet (like MetaNet Desktop)
+- We connect to your BRC-100 wallet (like Metanet Desktop)
 - Create a transaction with one output containing "Hello BSV!" data
 - The wallet automatically handles inputs, change, and fees
 - We get a transaction ID to view on the blockchain explorer

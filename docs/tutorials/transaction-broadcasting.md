@@ -18,7 +18,7 @@ Transaction broadcasting is the process of submitting your signed transaction to
 
 In this tutorial, you'll learn about the two main broadcasting approaches:
 
-1. **WalletClient Broadcasting**: Uses a BRC-100 compliant wallet as a proxy (such as the MetaNet Desktop Wallet)
+1. **WalletClient Broadcasting**: Uses a BRC-100 compliant wallet as a proxy (such as the Metanet Desktop Wallet)
 2. **Direct Broadcasting**: Connects directly to mining services and APIs
 
 ## Understanding Broadcasting Architecture
@@ -177,7 +177,7 @@ walletClientBroadcasting()
 
 When you use `WalletClient`:
 
-1. **Connection**: Your app connects to the BRC-100 wallet's local HTTP API (usually `http://localhost:3321` for MetaNet Desktop Wallet)
+1. **Connection**: Your app connects to the BRC-100 wallet's local HTTP API (usually `http://localhost:3321` for Metanet Desktop Wallet)
 2. **Transaction Creation**: The wallet helps construct the transaction using your available UTXOs
 3. **Signing**: The wallet signs the transaction with your private keys
 4. **Broadcasting**: The wallet submits the transaction to whatever broadcast service is configured in its settings

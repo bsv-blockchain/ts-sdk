@@ -52,7 +52,7 @@ In this tutorial, you'll create:
 import { AuthFetch, WalletClient } from '@bsv/sdk'
 
 async function createAuthFetch() {
-  // Create wallet for authentication - connects to local wallet (e.g., MetaNet Desktop)
+  // Create wallet for authentication - connects to local wallet (e.g., Metanet Desktop)
   const wallet = new WalletClient('auto', 'localhost')
   
   // Check if wallet is connected
@@ -99,7 +99,7 @@ async function basicAuthenticatedRequest() {
   } catch (error) {
     console.error('Authentication error:', error.message)
     if (error.message.includes('No wallet available')) {
-      console.log(' Install and run MetaNet Desktop Wallet to test with real authentication')
+      console.log(' Install and run Metanet Desktop Wallet to test with real authentication')
       console.log('   For now, this demonstrates the AuthFetch API structure')
     }
   }
@@ -406,7 +406,7 @@ async function demonstrateSecureAPIClient() {
   } catch (error) {
     console.error('API operations failed:', error.message)
     if (error.message.includes('No wallet available')) {
-      console.log('💡 Install MetaNet Desktop Wallet to test with real authentication')
+      console.log('💡 Install Metanet Desktop Wallet to test with real authentication')
       console.log('   The API calls work, but authentication requires a connected wallet')
     }
   }
