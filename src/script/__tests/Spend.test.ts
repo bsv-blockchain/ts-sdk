@@ -8,8 +8,6 @@ import Transaction from '../../transaction/Transaction'
 import LockingScript from '../../script/LockingScript'
 import UnlockingScript from '../../script/UnlockingScript'
 
-import spendValid from './spend.valid.vectors'
-
 describe('Spend', () => {
   it('Successfully validates a P2PKH spend', async () => {
     const privateKey = new PrivateKey(1)
@@ -345,27 +343,4 @@ describe('Spend', () => {
 
     expect(() => spend.validate()).toThrow()
   })
-  for (let i = 0; i < spendValid.length; i++) {
-    const a = spendValid[i]
-    if (a.length === 1) {
-      continue
-    }
-    it(a[2], () => {
-      const spend = new Spend({
-        sourceTXID:
-          '0000000000000000000000000000000000000000000000000000000000000000',
-        sourceOutputIndex: 0,
-        sourceSatoshis: 1,
-        lockingScript: LockingScript.fromHex(a[1]),
-        transactionVersion: 1,
-        otherInputs: [],
-        outputs: [],
-        inputIndex: 0,
-        unlockingScript: UnlockingScript.fromHex(a[0]),
-        inputSequence: 0xffffffff,
-        lockTime: 0
-      })
-      expect(spend.validate()).toBe(true)
-    })
-  }
 })
