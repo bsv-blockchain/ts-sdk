@@ -1,0 +1,1960 @@
+openapi: 3.1.0
+info:
+  title: Wallet JSON API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3321
+tags:
+  - name: HTTPWalletJSON
+    description: HTTP Wallet JSON API
+paths:
+  /createAction:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Creates a new Bitcoin transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateActionArgs"
+      responses:
+        "200":
+          description: The created transaction result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateActionResult"
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+  /signAction:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Signs a transaction previously created using `createAction`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignActionArgs"
+      responses:
+        "200":
+          description: The signed transaction result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignActionResult"
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+  /abortAction:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Aborts a transaction that is in progress
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AbortActionArgs"
+      responses:
+        "200":
+          description: The abortion result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AbortActionResult"
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+  /listActions:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Lists all transactions matching the specified labels
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListActionsArgs"
+      responses:
+        "200":
+          description: The list of actions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListActionsResult"
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+  /internalizeAction:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Submits a transaction to be internalized
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InternalizeActionArgs"
+      responses:
+        "200":
+          description: The internalization result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalizeActionResult"
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+  /listOutputs:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Lists the spendable outputs kept within a specific basket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListOutputsArgs"
+      responses:
+        "200":
+          description: The list of outputs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListOutputsResult"
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+  /relinquishOutput:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Relinquish an output out of a basket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                basket:
+                  $ref: "#/components/schemas/BasketStringUnder300Bytes"
+                output:
+                  $ref: "#/components/schemas/OutpointString"
+      responses:
+        "200":
+          description: The relinquishment result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  relinquished:
+                    type: boolean
+                    examples:
+                      - true
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+  /getPublicKey:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Retrieves the public key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seekPermission:
+                  type: boolean
+                  default: true
+                identityKey:
+                  type: boolean
+                protocolID:
+                  $ref: "#/components/schemas/ProtocolID"
+                keyID:
+                  type: string
+                  examples:
+                    - "1"
+                privileged:
+                  type: boolean
+                  default: false
+                privilegedReason:
+                  type: string
+                  examples:
+                    - "extra secure"
+                counterparty:
+                  type: string
+                  examples:
+                    - "0200daf17a4b9f7ca9e188a5b0e2b356107bde46d9d358d99e3402bd0e5beffbff"
+                forSelf:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: The public key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  publicKey:
+                    type: string
+                    examples:
+                      - "027facf8e28228eea25abd69c4f23f15573e1d0f9180718af297e1458827cd5aef"
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /revealCounterpartyKeyLinkage:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Reveals counterparty key linkage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                counterparty:
+                  type: string
+                  examples:
+                    - "027facf8e28228eea25abd69c4f23f15573e1d0f9180718af297e1458827cd5aef"
+                verifier:
+                  type: string
+                  examples:
+                    - "03c378a866d72c391343eddeadf64c4f896637c4160ac6073e7b80b5717310153b"
+                privilegedReason:
+                  type: string
+                  examples:
+                    - "extra sensitive"
+                privileged:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: The counterparty key linkage
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  prover:
+                    type: string
+                    examples:
+                      - "02790ab2d725d04af29e20bf46e1dbc40ba8b49f1355146884c5bd06819273d101"
+                  verifier:
+                    type: string
+                    examples:
+                      - "03c378a866d72c391343eddeadf64c4f896637c4160ac6073e7b80b5717310153b"
+                  counterparty:
+                    type: string
+                    examples:
+                      - "027facf8e28228eea25abd69c4f23f15573e1d0f9180718af297e1458827cd5aef"
+                  revelationTime:
+                    type: string
+                    examples:
+                      - "2024-12-12T12:12:12.120Z"
+                  encryptedLinkage:
+                    type: array
+                    items:
+                      type: integer
+                  encryptedLinkageProof:
+                    type: array
+                    items:
+                      type: integer
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /revealSpecificKeyLinkage:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Reveals specific key linkage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                counterparty:
+                  type: string
+                  examples:
+                    - "027facf8e28228eea25abd69c4f23f15573e1d0f9180718af297e1458827cd5aef"
+                verifier:
+                  type: string
+                  examples:
+                    - "03c378a866d72c391343eddeadf64c4f896637c4160ac6073e7b80b5717310153b"
+                protocolID:
+                  $ref: "#/components/schemas/ProtocolID"
+                keyID:
+                  type: string
+                  examples:
+                    - "1"
+                privilegedReason:
+                  type: string
+                  examples:
+                    - "special stuff"
+                privileged:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: The specific key linkage
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  prover:
+                    type: string
+                    examples:
+                      - "02790ab2d725d04af29e20bf46e1dbc40ba8b49f1355146884c5bd06819273d101"
+                  verifier:
+                    type: string
+                    examples:
+                      - "03c378a866d72c391343eddeadf64c4f896637c4160ac6073e7b80b5717310153b"
+                  counterparty:
+                    type: string
+                    examples:
+                      - "027facf8e28228eea25abd69c4f23f15573e1d0f9180718af297e1458827cd5aef"
+                  revelationTime:
+                    type: string
+                    examples:
+                      - "2024-12-12T12:12:12.120Z"
+                  protocolID:
+                    $ref: "#/components/schemas/ProtocolID"
+                  keyID:
+                    type: string
+                    examples:
+                      - "1"
+                  encryptedLinkage:
+                    type: array
+                    items:
+                      type: integer
+                  encryptedLinkageProof:
+                    type: array
+                    items:
+                      type: integer
+                  proofType:
+                    type: integer
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /encrypt:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Encrypts data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seekPermission:
+                  type: boolean
+                  default: true
+                plaintext:
+                  type: array
+                  examples:
+                    - [115, 101, 99, 114, 101, 116, 115]
+                  items:
+                    type: integer
+                protocolID:
+                  $ref: "#/components/schemas/ProtocolID"
+                keyID:
+                  type: string
+                  examples:
+                    - "1"
+                privilegedReason:
+                  type: string
+                  examples:
+                    - "extra secure"
+                counterparty:
+                  type: string
+                  examples:
+                    - "self"
+                privileged:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: The encrypted data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ciphertext:
+                    type: array
+                    examples:
+                      - [47, 102, 55, 54, 51, 52, 42, 38, 9]
+                    items:
+                      type: integer
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /decrypt:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Decrypts data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seekPermission:
+                  type: boolean
+                  default: true
+                ciphertext:
+                  type: array
+                  examples:
+                    - [47, 102, 55, 54, 51, 52, 42, 38, 9]
+                  items:
+                    type: integer
+                protocolID:
+                  $ref: "#/components/schemas/ProtocolID"
+                keyID:
+                  type: string
+                  examples:
+                    - "1"
+                privilegedReason:
+                  type: string
+                  examples:
+                    - "extra secure"
+                counterparty:
+                  type: string
+                  examples:
+                    - "self"
+                privileged:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: The decrypted data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plaintext:
+                    type: array
+                    examples:
+                      - [115, 101, 99, 114, 101, 116, 115]
+                    items:
+                      type: integer
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /createHmac:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Creates HMAC
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seekPermission:
+                  type: boolean
+                  default: true
+                data:
+                  type: array
+                  examples:
+                    - [115, 101, 99, 114, 101, 116, 115]
+                  items:
+                    type: integer
+                protocolID:
+                  $ref: "#/components/schemas/ProtocolID"
+                keyID:
+                  type: string
+                  examples:
+                    - "2"
+                privilegedReason:
+                  type: string
+                  examples:
+                    - "special reasons"
+                counterparty:
+                  type: string
+                  examples:
+                    - "anyone"
+                privileged:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: The HMAC
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hmac:
+                    type: array
+                    examples:
+                      - [
+                          114,
+                          178,
+                          137,
+                          236,
+                          120,
+                          224,
+                          169,
+                          40,
+                          197,
+                          101,
+                          72,
+                          10,
+                          67,
+                          84,
+                          83,
+                          227,
+                          10,
+                          203,
+                          146,
+                          237,
+                          219,
+                          59,
+                          120,
+                          255,
+                          22,
+                          139,
+                          40,
+                          115,
+                          124,
+                          246,
+                          168,
+                          73,
+                        ]
+                    items:
+                      type: integer
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /verifyHmac:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Verifies HMAC
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seekPermission:
+                  type: boolean
+                  default: true
+                data:
+                  type: array
+                  examples:
+                    - [115, 101, 99, 114, 101, 116, 115]
+                  items:
+                    type: integer
+                hmac:
+                  type: array
+                  examples:
+                    - [
+                        114,
+                        178,
+                        137,
+                        236,
+                        120,
+                        224,
+                        169,
+                        40,
+                        197,
+                        101,
+                        72,
+                        10,
+                        67,
+                        84,
+                        83,
+                        227,
+                        10,
+                        203,
+                        146,
+                        237,
+                        219,
+                        59,
+                        120,
+                        255,
+                        22,
+                        139,
+                        40,
+                        115,
+                        124,
+                        246,
+                        168,
+                        73,
+                      ]
+                  items:
+                    type: integer
+                protocolID:
+                  $ref: "#/components/schemas/ProtocolID"
+                keyID:
+                  type: string
+                  examples:
+                    - "1"
+                privilegedReason:
+                  type: string
+                  examples:
+                    - "I love to be secure"
+                counterparty:
+                  type: string
+                  examples:
+                    - "anyone"
+                privileged:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: The verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /createSignature:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Creates a signature
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seekPermission:
+                  type: boolean
+                  default: true
+                data:
+                  type: array
+                  examples:
+                    - [115, 101, 99, 114, 101, 116, 115]
+                  items:
+                    type: integer
+                hashToDirectlySign:
+                  type: array
+                  examples:
+                    - []
+                  items:
+                    type: integer
+                protocolID:
+                  $ref: "#/components/schemas/ProtocolID"
+                keyID:
+                  type: string
+                  examples:
+                    - "1"
+                privilegedReason:
+                  type: string
+                  examples:
+                    - "I love to be secure"
+                counterparty:
+                  type: string
+                  examples:
+                    - "anyone"
+                privileged:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: The signature
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  signature:
+                    type: array
+                    items:
+                      type: integer
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /verifySignature:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Verifies a signature
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seekPermission:
+                  type: boolean
+                  default: true
+                data:
+                  type: array
+                  items:
+                    type: integer
+                hashToDirectlyVerify:
+                  type: array
+                  examples:
+                    - [
+                        114,
+                        178,
+                        137,
+                        236,
+                        120,
+                        224,
+                        169,
+                        40,
+                        197,
+                        101,
+                        72,
+                        10,
+                        67,
+                        84,
+                        83,
+                        227,
+                        10,
+                        203,
+                        146,
+                        237,
+                        219,
+                        59,
+                        120,
+                        255,
+                        22,
+                        139,
+                        40,
+                        115,
+                        124,
+                        246,
+                        168,
+                        73,
+                      ]
+                  items:
+                    type: integer
+                signature:
+                  type: array
+                  examples:
+                    - [
+                        48,
+                        69,
+                        2,
+                        33,
+                        0,
+                        189,
+                        197,
+                        179,
+                        187,
+                        162,
+                        114,
+                        42,
+                        69,
+                        21,
+                        51,
+                        96,
+                        183,
+                        226,
+                        242,
+                        212,
+                        49,
+                        221,
+                        96,
+                        197,
+                        178,
+                        63,
+                        241,
+                        43,
+                        248,
+                        36,
+                        212,
+                        243,
+                        226,
+                        144,
+                        198,
+                        47,
+                        238,
+                        2,
+                        32,
+                        54,
+                        138,
+                        29,
+                        195,
+                        78,
+                        4,
+                        222,
+                        220,
+                        219,
+                        226,
+                        234,
+                        189,
+                        122,
+                        78,
+                        27,
+                        129,
+                        253,
+                        196,
+                        59,
+                        189,
+                        167,
+                        195,
+                        66,
+                        73,
+                        69,
+                        115,
+                        126,
+                        200,
+                        16,
+                        65,
+                        114,
+                        64,
+                        65,
+                      ]
+                  items:
+                    type: integer
+                protocolID:
+                  $ref: "#/components/schemas/ProtocolID"
+                keyID:
+                  type: string
+                  examples:
+                    - "1"
+                privilegedReason:
+                  type: string
+                  examples:
+                    - "-"
+                counterparty:
+                  type: string
+                  examples:
+                    - "anyone"
+                forSelf:
+                  type: boolean
+                  default: false
+                privileged:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: The verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /acquireCertificate:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Acquires a certificate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcquireCertificateArgs"
+      responses:
+        "200":
+          description: The acquired certificate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Certificate"
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /listCertificates:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Lists certificates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                certifiers:
+                  type: array
+                  examples:
+                    - - "0322f8f64b95234a4b531109c2c271e01cd2a9ee497e71a788cae384b6aae54d75"
+                      - "02e3dfb8196c17baab7353e139693a1c0813d60ecd022f5c52779faf2cff341374"
+                      - "0334b3dd693269d37e0ef35aace5dc07fdd510ff0f1596399ed7bf8b27dc025bdd"
+                  items:
+                    type: string
+                types:
+                  type: array
+                  examples:
+                    - - "W/iqV/xaa8VH3s8cxttj8Q3rVaPGxd9JfWMfs9leGr8="
+                      - "xrhnMvBJoy7tWi92bFzci3cGNhmiC+yU8iK8vSSeZWI="
+                  items:
+                    type: string
+                limit:
+                  type: integer
+                  examples:
+                    - 10
+                offset:
+                  type: integer
+                privileged:
+                  type: boolean
+                  default: false
+                privilegedReason:
+                  type: string
+                  examples:
+                    - "-"
+      responses:
+        "200":
+          description: The list of certificates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListCertificatesResult"
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /proveCertificate:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Proves a certificate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProveCertificateArgs"
+      responses:
+        "200":
+          description: The proof of the certificate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProveCertificateResult"
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /relinquishCertificate:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Relinquishes a certificate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  examples:
+                    - "W/iqV/xaa8VH3s8cxttj8Q3rVaPGxd9JfWMfs9leGr8="
+                serialNumber:
+                  type: string
+                  examples:
+                    - "oXTshKWy209Lv8MFVDxmsFzZQQ"
+                certifier:
+                  type: string
+                  examples:
+                    - "03d40063722f77cc57a96bdf963c56fd29085b1297e598471ad63dd51b1b54db6e"
+      responses:
+        "200":
+          description: The relinquishment result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  relinquished:
+                    type: boolean
+                    examples:
+                      - true
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /discoverByIdentityKey:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Discovers certificates by identity key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identityKey:
+                  type: string
+                  examples:
+                    - "03ed91c6e33a5ef6fc3d927b2d7064af0c78447cfc304c069715ea7bdd2e5c6ea8"
+                limit:
+                  type: integer
+                  examples:
+                    - 10
+                offset:
+                  type: integer
+                seekPermission:
+                  type: boolean
+                  default: true
+      responses:
+        "200":
+          description: The discovered certificates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoverCertificatesResult"
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /discoverByAttributes:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Discovers certificates by attributes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                attributes:
+                  type: object
+                  examples:
+                    - firstName: "David"
+                  additionalProperties:
+                    type: string
+                limit:
+                  type: integer
+                  examples:
+                    - 10
+                offset:
+                  type: integer
+                seekPermission:
+                  type: boolean
+                  default: true
+      responses:
+        "200":
+          description: The discovered certificates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoverCertificatesResult"
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /isAuthenticated:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Checks if the user is authenticated
+      responses:
+        "200":
+          description: The authentication status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated:
+                    type: boolean
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /waitForAuthentication:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Waits for user authentication
+      responses:
+        "200":
+          description: The authentication result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated:
+                    type: boolean
+                    examples:
+                      - true
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /getHeight:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Retrieves the current blockchain height
+      responses:
+        "200":
+          description: The current blockchain height
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  height:
+                    type: integer
+                    examples:
+                      - 875002
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /getHeaderForHeight:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Retrieves the block header for a specific height
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                height:
+                  type: integer
+                  examples:
+                    - 875002
+      responses:
+        "200":
+          description: The block header
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  header:
+                    type: string
+                    examples:
+                      - "0020372d395bfcfc03b467e747f873da7e4f4fd0afcc89301787b10a0000000000000000724ab3c241848b826766b46947e008e022b95877629498ec3e7dd85f1ae0b383f8f8826566280d184b11f02a"
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /getNetwork:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Retrieves the current network
+      responses:
+        "200":
+          description: The current network
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  network:
+                    type: string
+                    enum:
+                      - mainnet
+                      - testnet
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+
+  /getVersion:
+    post:
+      tags:
+        - HTTPWalletJSON
+      summary: Retrieves the current version
+      responses:
+        "200":
+          description: The current version
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+                    examples:
+                      - "BSVA-1.0.0"
+        "400":
+          description: Invalid input
+        "500":
+          description: Internal server error
+components:
+  schemas:
+    CreateActionArgs:
+      type: object
+      properties:
+        description:
+          type: string
+          examples:
+            - "human readable purpose of this action"
+        inputBEEF:
+          type: array
+          examples:
+            - [1, 1, 1, 1]
+          items:
+            type: number
+        inputs:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateActionInput"
+        outputs:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateActionOutput"
+        lockTime:
+          type: number
+          examples:
+            - 0
+        version:
+          type: number
+          examples:
+            - 1
+        labels:
+          type: array
+          examples:
+            - ["todo create"]
+          items:
+            type: string
+        options:
+          $ref: "#/components/schemas/CreateActionOptions"
+    CreateActionResult:
+      type: object
+      properties:
+        txid:
+          type: string
+          examples:
+            - "16bed6368b8b1542cd6eb87f5bc20dc830b41a2258dde40438a75fa701d24e9a"
+        tx:
+          type: array
+          examples:
+            - [1, 1, 1, 1]
+          items:
+            type: number
+        noSendChange:
+          type: array
+          examples:
+            - [
+                "11df9f39662e276dc2f637f063919ce3ca86cbc2d55ee8d661408d22b1f49018.0",
+              ]
+          items:
+            type: string
+        sendWithResults:
+          type: array
+          items:
+            $ref: "#/components/schemas/SendWithResult"
+        signableTransaction:
+          $ref: "#/components/schemas/SignableTransaction"
+    SignActionArgs:
+      type: object
+      properties:
+        spends:
+          type: object
+          examples:
+            - 0:
+                unlockingScript: "47304402206ba4a1c0aa4e1ba7f2cd79de36..."
+                sequenceNumber: 4294967295
+              1:
+                unlockingScript: "473044022031d6c05d21ea4ee96da0fa17ea..."
+                sequenceNumber: 4294967295
+          additionalProperties:
+            $ref: "#/components/schemas/SignActionSpend"
+        reference:
+          type: string
+          examples:
+            - "C1HST7xvPKzh66npoiJ5fKwnLtnH3xxQ4ylxaGBTTOA="
+        options:
+          $ref: "#/components/schemas/SignActionOptions"
+    SignActionResult:
+      type: object
+      properties:
+        txid:
+          type: string
+          examples:
+            - "cd8345f101b2c6163921d9ff08526d88aa24cb68456f546eec935c6485155838"
+        tx:
+          type: array
+          examples:
+            - [1, 1, 1, 1]
+          items:
+            type: number
+        sendWithResults:
+          type: array
+          items:
+            $ref: "#/components/schemas/SendWithResult"
+    AbortActionArgs:
+      type: object
+      properties:
+        reference:
+          type: string
+          examples:
+            - "C1HST7xvPKzh66npoiJ5fKwnLtnH3xxQ4ylxaGBTTOA="
+    AbortActionResult:
+      type: object
+      properties:
+        aborted:
+          type: boolean
+          examples:
+            - true
+    ListActionsArgs:
+      type: object
+      properties:
+        labels:
+          type: array
+          examples:
+            - ["todo create"]
+          items:
+            type: string
+        labelQueryMode:
+          type: string
+          enum: [any, all]
+        includeLabels:
+          type: boolean
+          examples:
+            - false
+        includeInputs:
+          type: boolean
+        includeInputSourceLockingScripts:
+          type: boolean
+        includeInputUnlockingScripts:
+          type: boolean
+        includeOutputs:
+          type: boolean
+        includeOutputLockingScripts:
+          type: boolean
+        limit:
+          type: number
+          examples:
+            - 10
+        offset:
+          type: number
+          examples:
+            - 0
+        seekPermission:
+          type: boolean
+    ListActionsResult:
+      type: object
+      properties:
+        totalActions:
+          type: number
+          examples:
+            - 1
+        actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/WalletAction"
+    InternalizeActionArgs:
+      type: object
+      properties:
+        tx:
+          type: array
+          examples:
+            - [1, 1, 1, 1]
+          items:
+            type: number
+        outputs:
+          type: array
+          examples:
+            - - outputIndex: 0
+                protocol: "wallet payment"
+                paymentRemittance:
+                  derivationPrefix: "12345678"
+                  derivationSuffix: "00000"
+                  senderIdentity: "02ffc4f361307f34a82069edbcbe2c9f4bd5498165549f42bdeb698ffdcab1ea38"
+              - outputIndex: 1
+                protocol: "basket insertion"
+                insertionRemittance:
+                  basket: "todo token"
+                  customInstructions: "3453,3462346,self"
+                  tags:
+                    - "foose"
+                    - "goose"
+          items:
+            $ref: "#/components/schemas/InternalizeOutput"
+        description:
+          type: string
+          examples:
+            - "Creation of a new thing."
+        labels:
+          type: array
+          examples:
+            - ["todo create", "productivity"]
+          items:
+            type: string
+        seekPermission:
+          type: boolean
+    InternalizeActionResult:
+      type: object
+      properties:
+        accepted:
+          type: boolean
+          examples:
+            - true
+    ListOutputsArgs:
+      type: object
+      properties:
+        basket:
+          type: string
+          examples:
+            - "todo token"
+        tags:
+          type: array
+          examples:
+            - ["todo create", "todo burn"]
+          items:
+            type: string
+        tagQueryMode:
+          type: string
+          examples:
+            - "any"
+          enum: [all, any]
+        include:
+          type: string
+          enum: [locking scripts, entire transactions]
+        includeCustomInstructions:
+          type: boolean
+        includeTags:
+          type: boolean
+        includeLabels:
+          type: boolean
+        limit:
+          type: number
+          examples:
+            - 10
+        offset:
+          type: number
+        seekPermission:
+          type: boolean
+    ListOutputsResult:
+      type: object
+      examples:
+        - totalOutputs: 1
+          outputs:
+            - satoshis: 1000
+              lockingScript: "76a914dd8b1abde0304820ace0adf1478a3ef2291a833788ac"
+              spendable: true
+              customInstructions: "12,34,023398754239872342354534"
+              tags: ["todo create"]
+              outpoint: "d834139537caeb6abb876e1adcf00064fa7a775cf324a2c3bd8c13a8ec8c888f.34"
+              labels: ["productivity"]
+        - totalOutputs: 1
+          BEEF: [2, 0, 190, 239]
+      properties:
+        totalOutputs:
+          type: number
+          examples:
+            - 1
+        BEEF:
+          type: array
+          items:
+            type: number
+        outputs:
+          type: array
+          items:
+            $ref: "#/components/schemas/WalletOutput"
+    CreateActionInput:
+      type: object
+      properties:
+        outpoint:
+          type: string
+          examples:
+            - "ef01fee61a0d00090280027a0ec9df2e605fa46a903dfa1bd249b96aa3001490.0"
+        inputDescription:
+          type: string
+          examples:
+            - "why this token is being spent"
+        unlockingScript:
+          type: string
+          examples:
+            - "47304402200aa56a892e310a7575035fb3c0bcf466bbc16e97dae197cc1d40412313f94b89022011944d2b1b0fa72dbe7893c400624a0652a6efcc40d459216c0e00d5d135f7fc412103820b289317fa9ba995ca05bc084a77ae6077dbb424206424d92b51653521bb90"
+        unlockingScriptLength:
+          type: number
+          examples:
+            - 106
+        sequenceNumber:
+          type: number
+          examples:
+            - 4294967295
+    CreateActionOutput:
+      type: object
+      properties:
+        lockingScript:
+          type: string
+          examples:
+            - "76a914978bf440c1ae52331b2e95b641c0041debaa87ce88ac"
+        satoshis:
+          type: number
+          examples:
+            - 1234
+        outputDescription:
+          type: string
+          examples:
+            - "why this token is being created"
+        basket:
+          type: string
+          examples:
+            - "todo token"
+        customInstructions:
+          type: string
+          examples:
+            - "invoice1234,keyId1,03820b289317fa9ba995ca05bc084a77ae6077dbb424206424d92b51653521bb90"
+        tags:
+          type: array
+          examples:
+            - ["todo", "productivity"]
+          items:
+            type: string
+    CreateActionOptions:
+      type: object
+      properties:
+        signAndProcess:
+          type: boolean
+        acceptDelayedBroadcast:
+          type: boolean
+        trustSelf:
+          type: string
+          enum: [known]
+        knownTxids:
+          type: array
+          items:
+            type: string
+        returnTXIDOnly:
+          type: boolean
+        noSend:
+          type: boolean
+        noSendChange:
+          type: array
+          examples:
+            - [
+                "11df9f39662e276dc2f637f063919ce3ca86cbc2d55ee8d661408d22b1f49018.0",
+              ]
+          items:
+            type: string
+        sendWith:
+          type: array
+          examples:
+            - [
+                "c2d37dd0575766e4deedf7ba072ad35b87e9223af01d2829a81960ba7164f606",
+              ]
+          items:
+            type: string
+        randomizeOutputs:
+          type: boolean
+    SendWithResult:
+      type: object
+      properties:
+        txid:
+          type: string
+          examples:
+            - "a0084f73e13afdcc284cc810b4d22af004a38dcf404d8ddbe43ac9fb1a77a4be"
+        status:
+          type: string
+          enum: [unproven, sending, failed]
+    SignableTransaction:
+      type: object
+      properties:
+        tx:
+          type: array
+          examples:
+            - [1, 1, 1, 1]
+          items:
+            type: number
+        reference:
+          type: string
+          examples:
+            - "C1HST7xvPKzh66npoiJ5fKwnLtnH3xxQ4ylxaGBTTOA="
+    SignActionSpend:
+      type: object
+      properties:
+        unlockingScript:
+          type: string
+          examples:
+            - "47304402206ba4a1c0aa4e1ba7f2cd79de3617c9b1..."
+        sequenceNumber:
+          type: number
+          examples:
+            - 4294967295
+    SignActionOptions:
+      type: object
+      properties:
+        acceptDelayedBroadcast:
+          type: boolean
+        returnTXIDOnly:
+          type: boolean
+        noSend:
+          type: boolean
+        sendWith:
+          type: array
+          examples:
+            - [
+                "c2d37dd0575766e4deedf7ba072ad35b87e9223af01d2829a81960ba7164f606",
+              ]
+          items:
+            type: string
+    InternalizeOutput:
+      type: object
+      properties:
+        outputIndex:
+          type: number
+        protocol:
+          type: string
+          enum: [wallet payment, basket insertion]
+        paymentRemittance:
+          type: object
+          properties:
+            derivationPrefix:
+              type: string
+            derivationSuffix:
+              type: string
+            senderIdentityKey:
+              type: string
+        insertionRemittance:
+          type: object
+          properties:
+            basket:
+              type: string
+            customInstructions:
+              type: string
+            tags:
+              type: array
+              items:
+                type: string
+    WalletAction:
+      type: object
+      properties:
+        txid:
+          type: string
+          examples:
+            - "ab69c16801e6ea2bb78bde521c6e3654f7e665d0900e4236b5945e47a1482d3c"
+        satoshis:
+          type: number
+          examples:
+            - 1
+        status:
+          type: string
+          enum:
+            [
+              completed,
+              unprocessed,
+              sending,
+              unproven,
+              unsigned,
+              nosend,
+              nonfinal,
+            ]
+        isOutgoing:
+          type: boolean
+        description:
+          type: string
+          examples:
+            - "The creation of a token which captures an item of a todo list."
+        labels:
+          type: array
+          examples:
+            - ["todo create"]
+          items:
+            type: string
+        version:
+          type: number
+          examples:
+            - 1
+        lockTime:
+          type: number
+        inputs:
+          type: array
+          items:
+            $ref: "#/components/schemas/WalletActionInput"
+        outputs:
+          type: array
+          items:
+            $ref: "#/components/schemas/WalletActionOutput"
+    WalletActionInput:
+      type: object
+      properties:
+        sourceOutpoint:
+          type: string
+          examples:
+            - "50e7365af507f6c862b6ca77cef2571ae63544bcd8e19c3c2abc44b20d0aeb6c.3"
+        sourceSatoshis:
+          type: number
+          examples:
+            - 4000
+        sourceLockingScript:
+          type: string
+          examples:
+            - "76a9144f427ee5f3099f0ac571f6b723a628e7b08fb64c88ac"
+        unlockingScript:
+          type: string
+          examples:
+            - "47304402200aa56a892e310a7575035fb3c0bcf4..."
+        inputDescription:
+          type: string
+          examples:
+            - "spending of a token of some sort"
+        sequenceNumber:
+          type: number
+          examples:
+            - 4294967295
+    WalletActionOutput:
+      type: object
+      properties:
+        satoshis:
+          type: number
+          examples:
+            - 1000
+        lockingScript:
+          type: string
+          examples:
+            - "76a914dd8b1abde0304820ace0adf1478a3ef2291a833788ac"
+        spendable:
+          type: boolean
+        customInstructions:
+          type: string
+          examples:
+            - "invoice5678,keyId2,02ffc4f361307f34a82069edbcbe2c9f4bd5498165549f42bdeb698ffdcab1ea38"
+        tags:
+          type: array
+          examples:
+            - ["todo create", "productivity"]
+          items:
+            type: string
+        outputIndex:
+          type: number
+          examples:
+            - 0
+        outputDescription:
+          type: string
+          examples:
+            - "a special token of some description"
+        basket:
+          type: string
+          examples:
+            - "todo token"
+    WalletOutput:
+      type: object
+      properties:
+        satoshis:
+          type: number
+        lockingScript:
+          type: string
+        spendable:
+          type: boolean
+        customInstructions:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        outpoint:
+          type: string
+        labels:
+          type: array
+          items:
+            type: string
+    BasketStringUnder300Bytes:
+      type: string
+      examples:
+        - "todo token"
+    OutpointString:
+      type: string
+      examples:
+        - "ae9b36d2bad995e5cd9a12e73d02140c163a7932fa37b927de1f031410dbd751.0"
+    AcquireCertificateArgs:
+      type: object
+      properties:
+        certifier:
+          type: string
+          examples:
+            - "035836f24728af22bdeb3524c35b2e6c6126a45587dd11fcab826c054e170f97b8"
+        type:
+          type: string
+          examples:
+            - "W/iqV/xaa8VH3s8cxttj8Q3rVaPGxd9JfWMfs9leGr8="
+        fields:
+          type: object
+          examples:
+            - firstName: "Michael"
+              lastName: "Huntington"
+              dob: "12/12/2001"
+          additionalProperties:
+            type: string
+        privilegedReason:
+          type: string
+          examples:
+            - "-"
+        privileged:
+          type: boolean
+          default: false
+    Certificate:
+      type: object
+      properties:
+        type:
+          type: string
+          examples:
+            - "W/iqV/xaa8VH3s8cxttj8Q3rVaPGxd9JfWMfs9leGr8="
+        subject:
+          type: string
+          examples:
+            - "02d292971b665575c90e8183e20d7c528e2ec1734fcb9f69c7e65e5046596767f3"
+        serialNumber:
+          type: string
+          examples:
+            - "6d4U5qznZnQmWJF3sEqKXsi5pB8sUhD0MWcadrxzKas="
+        certifier:
+          type: string
+          examples:
+            - "035836f24728af22bdeb3524c35b2e6c6126a45587dd11fcab826c054e170f97b8"
+        revocationOutput:
+          type: string
+          examples:
+            - "e38a285d99d8a70448240255b5e92090bef87d7c5abab34a1263966fcde40621.3"
+        signature:
+          type: string
+          examples:
+            - "30450221008a9e150a43dc22652f4b627d08cae1d..."
+        fields:
+          type: object
+          examples:
+            - firstName: "Michael"
+              lastName: "Huntington"
+              dob: "12/12/2001"
+          additionalProperties:
+            type: string
+    ListCertificatesResult:
+      type: object
+      properties:
+        totalCertificates:
+          type: number
+          examples:
+            - 1
+        certificates:
+          type: array
+          items:
+            $ref: "#/components/schemas/Certificate"
+    ProveCertificateArgs:
+      type: object
+      properties:
+        certificate:
+          $ref: "#/components/schemas/Certificate"
+        fieldsToReveal:
+          type: array
+          items:
+            type: string
+            examples:
+              - "dob"
+        verifier:
+          type: string
+          examples:
+            - "02a3ffa2ea5db22192aed65131a6683c0f626fb35a8c717c783587e08a4daec380"
+        privileged:
+          type: boolean
+          default: false
+        privilegedReason:
+          type: string
+          examples:
+            - "-"
+    ProveCertificateResult:
+      type: object
+      properties:
+        keyringForVerifier:
+          type: object
+          examples:
+            - firstName: "ZGF2aWQ="
+              lastName: "SW52ZXJuZXNz"
+              dob: "MTIvMTIvMTk4OA=="
+          additionalProperties:
+            type: string
+    DiscoverCertificatesResult:
+      type: object
+      properties:
+        totalCertificates:
+          type: number
+          examples:
+            - 1
+        certificates:
+          type: array
+          items:
+            $ref: "#/components/schemas/Certificate"
+    ProtocolID:
+      type: array
+      examples:
+        - [0, "todo token"]
+      prefixItems:
+        - type: integer
+        - type: string
+      minItems: 2
+      maxItems: 2
