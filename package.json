@@ -256,7 +256,7 @@
     "tsconfig-to-dual-package": "^1.2.0",
     "typescript": "5.1",
     "typescript-eslint": "^8.29.0",
-    "@rspack/cli": "^0.4.4"
+    "@rspack/cli": "^1.4.9"
   },
   "ts-standard": {
     "project": "tsconfig.eslint.json",
