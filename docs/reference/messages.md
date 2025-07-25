@@ -1,6 +1,8 @@
 # API
 
-Links: [API](#api), [Classes](#classes), [Functions](#functions), [Variables](#variables)
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Variables](#variables)
+
+## Interfaces
 
 ## Classes
 
@@ -15,7 +17,7 @@ Links: [API](#api), [Classes](#classes), [Functions](#functions), [Variables](#v
 | [sign](#variable-sign) |
 | [verify](#variable-verify) |
 
-Links: [API](#api), [Classes](#classes), [Functions](#functions), [Variables](#variables)
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Variables](#variables)
 
 ---
 
@@ -49,7 +51,7 @@ decrypt = (message: number[], recipient: PrivateKey): number[] => {
 
 See also: [PrivateKey](./primitives.md#class-privatekey), [PublicKey](./primitives.md#class-publickey), [Reader](./primitives.md#class-reader), [SymmetricKey](./primitives.md#class-symmetrickey), [encode](./primitives.md#variable-encode), [toBase64](./primitives.md#function-tobase64), [toHex](./primitives.md#variable-tohex)
 
-Links: [API](#api), [Classes](#classes), [Functions](#functions), [Variables](#variables)
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Variables](#variables)
 
 ---
 ### Variable: encrypt
@@ -78,7 +80,7 @@ encrypt = (message: number[], sender: PrivateKey, recipient: PublicKey): number[
 
 See also: [PrivateKey](./primitives.md#class-privatekey), [PublicKey](./primitives.md#class-publickey), [SymmetricKey](./primitives.md#class-symmetrickey), [encode](./primitives.md#variable-encode), [toArray](./primitives.md#variable-toarray), [toBase64](./primitives.md#function-tobase64)
 
-Links: [API](#api), [Classes](#classes), [Functions](#functions), [Variables](#variables)
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Variables](#variables)
 
 ---
 ### Variable: sign
@@ -111,7 +113,7 @@ sign = (message: number[], signer: PrivateKey, verifier?: PublicKey): number[] =
 
 See also: [Curve](./primitives.md#class-curve), [PrivateKey](./primitives.md#class-privatekey), [PublicKey](./primitives.md#class-publickey), [encode](./primitives.md#variable-encode), [toArray](./primitives.md#variable-toarray), [toBase64](./primitives.md#function-tobase64)
 
-Links: [API](#api), [Classes](#classes), [Functions](#functions), [Variables](#variables)
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Variables](#variables)
 
 ---
 ### Variable: verify
@@ -151,6 +153,6 @@ verify = (message: number[], sig: number[], recipient?: PrivateKey): boolean => 
 
 See also: [PrivateKey](./primitives.md#class-privatekey), [PublicKey](./primitives.md#class-publickey), [Reader](./primitives.md#class-reader), [Signature](./primitives.md#class-signature), [encode](./primitives.md#variable-encode), [toBase64](./primitives.md#function-tobase64), [toHex](./primitives.md#variable-tohex)
 
-Links: [API](#api), [Classes](#classes), [Functions](#functions), [Variables](#variables)
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Variables](#variables)
 
 ---
