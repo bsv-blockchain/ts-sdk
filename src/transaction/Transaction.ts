@@ -15,6 +15,7 @@ import { defaultBroadcaster } from './broadcasters/DefaultBroadcaster.js'
 import { defaultChainTracker } from './chaintrackers/DefaultChainTracker.js'
 import { Beef, BEEF_V1 } from './Beef.js'
 import P2PKH from '../script/templates/P2PKH.js'
+import { CreateActionArgs, WalletInterface, DescriptionString5to50Bytes } from '../wallet/WalletInterface.js'
 
 const BufferCtor =
   typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
@@ -1051,5 +1052,89 @@ export default class Transaction {
     const txHash = this.hash() as number[]
     const beefData = this.toBEEF(allowPartial)
     return prefix.concat(txHash, beefData)
+  }
+
+  /**
+   * Completes the transaction using a wallet interface, which will handle
+   * signing and transaction finalization. This method converts the current
+   * transaction into a format that can be processed by the wallet, and then
+   * updates this transaction object with the result from the wallet.
+   *
+   * @param {WalletInterface} wallet - The BRC-100 compliant wallet to use for completing the transaction
+   * @param {string} [actionDescription] - Optional description for the action
+   * @param {string} [originator] - Optional originator domain name
+   * @returns {Promise<void>}
+   */
+  async completeWithWallet (wallet: WalletInterface, actionDescription?: DescriptionString5to50Bytes, originator?: string): Promise<void> {
+    const inputCount = this.inputs.length
+    const outputCount = this.outputs.length
+    const description = actionDescription ?? `Transaction with ${inputCount} input(s) and ${outputCount} output(s)`
+
+    const actionArgs: CreateActionArgs = {
+      description,
+      inputs: [] as any[],
+      outputs: [] as any[],
+      lockTime: this.lockTime,
+      version: this.version
+    }
+
+    // Process inputs - collect all source transactions and convert them to BEEF
+    const beefData = new Beef()
+    for (const input of this.inputs) {
+      // Process source transactions for BEEF data if available
+      if (input.sourceTransaction != null) {
+        if (input.sourceTransaction.merklePath != null) {
+          // If the source transaction has a merkle path, it might be more
+          // efficiently represented as BEEF directly
+          const sourceBEEF = input.sourceTransaction.toBEEF()
+          beefData.mergeBeef(sourceBEEF)
+        } else {
+          // For transactions without merkle paths, adding directly is fine
+          beefData.addTransaction(input.sourceTransaction)
+        }
+      }
+
+      // Add input to action args
+      if (input.sourceTXID != null) {
+        actionArgs.inputs.push({
+          outpointTransactionHash: input.sourceTXID,
+          outpointVout: input.sourceOutputIndex,
+          sequenceNumber: input.sequenceNumber
+        })
+      }
+    }
+
+    // Process outputs
+    for (const output of this.outputs) {
+      actionArgs.outputs.push({
+        satoshis: output.satoshis,
+        lockingScript: output.lockingScript.toHex()
+      })
+    }
+
+    // Add any labels from metadata if they exist
+    if (this.metadata?.labels != null && Array.isArray(this.metadata.labels)) {
+      actionArgs.labels = this.metadata.labels
+    }
+
+    // Call the wallet's createAction method
+    const atomicBEEF = await wallet.createAction(actionArgs, originator)
+
+    // Create a new transaction from the atomic BEEF
+    const newTransaction = Transaction.fromAtomicBEEF(atomicBEEF)
+
+    // Update this transaction's properties with the new transaction's properties
+    this.version = newTransaction.version
+    this.inputs = newTransaction.inputs
+    this.outputs = newTransaction.outputs
+    this.lockTime = newTransaction.lockTime
+    this.merklePath = newTransaction.merklePath
+    this.cachedHash = newTransaction.cachedHash
+
+    // Preserve metadata from the original transaction but update with any new metadata
+    this.metadata = {
+      ...this.metadata,
+      ...newTransaction.metadata
+    }
   }
 }
