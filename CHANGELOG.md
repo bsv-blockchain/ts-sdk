@@ -775,6 +775,584 @@ All notable changes to this project will be documented in this file. The format 
 
 ---
 
+## [1.9.30] - 2025-12-18
+
+### Added
+- Added constant-time scalar multiplication (`mulCT`) for elliptic curve points.
+- Added comprehensive unit tests for constant-time scalar multiplication, including generator and non-generator points, negative scalars, and edge cases.
+- Expanded test coverage across Point, ECDSA, PublicKey, and PrivateKey to validate correctness and edge-case behavior.
+
+### Changed
+- Updated ECDSA signing to use constant-time scalar multiplication internally.
+- Refactored elliptic curve scalar multiplication internals to improve timing consistency without changing public APIs.
+
+### Fixed
+- Fixed incorrect handling of negative scalars during BigInt conversion in scalar multiplication.
+- Corrected discrepancies between constant-time and variable-time scalar multiplication results.
+- Ensured scalar multiplication by zero and point-at-infinity cases behave correctly and consistently.
+
+### Security
+- Reduced timing side-channel risk in elliptic curve scalar multiplication paths by introducing constant-time algorithms (TOB-4).
+
+---
+
+## [1.9.29] - 2025-12-12
+### Added
+- Introduced constantTimeEquals() utility for timing-safe byte comparisons.
+- Added new unit tests covering constant-time comparison behavior, TOTP validation paths, and ProtoWallet HMAC verification.
+
+### Changed
+- Updated TOTP validation logic to compare passcodes using constant-time comparison.
+- Updated ProtoWallet HMAC verification to avoid string comparison and instead use constant-time byte comparison.
+
+### Fixed
+- Ensured incorrect but same-length HMACs correctly fail validation through secure comparison logic.
+- Fixed timing-side-channel vulnerability (TOB-8) where secrets and HMAC outputs were previously compared using ===.
+
+### Security
+- Hardened TOTP and HMAC verification paths against timing attacks by replacing all secret-derived comparisons with constant-time equivalents.
+
+---
+
+## [1.9.28] - 2025-12-11
+
+### Added
+- Add getBytes64 helper for 64-bit length fields.
+- Added long ciphertext test case.
+
+### Changed
+- Changed AESGCM to use Uint8Arrays instead of number[] for all inputs and outputs for optimization.
+
+### Fixed
+- Use 64-bit length encoding for GHASH inputs.
+
+---
+
+## [1.9.27] - 2025-12-11
+
+### Fixed
+- Addressed TOB-24: hardened elliptic-curve point validation across `fromDER`, `fromX`, and `fromJSON`.
+- Added bigint-secure curve equation checking to `Point.validate()`.
+- Fixed modular sqrt and pow logic (`biModSqrt`, `biModPow`) to correctly detect invalid X coordinates.
+- Ensured consistent `Invalid point` errors for malformed input.
+- Added negative tests and roundtrip validation tests.
+
+---
+
+## [1.9.26] - 2025-12-10
+
+### Security
+- Addressed TOB-25 by adding explicit ECDSA and elliptic-curve regression tests
+  ensuring correct propagation and handling of the point at infinity during
+  scalar multiplication and signature verification.
+  These tests prevent regressions where invalid infinity points could be
+  incorrectly treated as valid curve points.
+
+---
+
+## [1.9.25] - 2025-12-09
+
+### Added
+- Documentation disclaimer for our specific AESGCM implementation of padding for additional authenticated data (AAD) and ciphertext.
+
+### Removed
+- Removed support for additional authenticated data (AAD) padding in AESGCM.
+
+---
+
+## [1.9.24] - 2025-12-09
+
+### Fixed
+- Addressed TOB-20: clarified and corrected byte-order helper behavior in
+  `Hash.ts`.  
+  - The original `htonl()` implementation (a byte-swap) is now formally
+    exposed as `swapBytes32()` for clarity.  
+  - Introduced `realHtonl()`, which applies true host-to-network conversion
+    based on runtime endianness.  
+  - Added `isHostLittleEndian` export to ensure deterministic behavior and 
+    allow complete test coverage.
+
+### Added
+- Comprehensive unit tests for `swapBytes32()`, `realHtonl()`, and all
+  32-bit edge cases, including simulated big-endian environments.
+
+### Security
+- TOB-20 remediation ensures byte-order correctness for PBKDF2, SHA-family
+  padding, and any future code paths relying on word-level endian handling.
+
+---
+
+## [1.9.23] - 2025-12-08
+
+### Fixed
+- Implemented strict infinity normalization for JacobianPoint, ensuring
+  all infinity representations (`null`, `"0"`, or BigNumber(0)) are treated
+  canonically and compare equal (TOB-18).
+- Gracefully handle encoding of the point at infinity (TOB-19).
+  `Point.encode()` now returns the SEC1-compliant `0x00` encoding instead
+  of triggering internal assertions when coordinates are null.
+
+### Security
+- Addressed TOB-18 and TOB-19: eliminated assertion failures and ensured
+  standards-compliant behavior for malformed or edge-case elliptic curve
+  point objects.
+  
+---
+
+### [1.9.22] - 2025-12-04
+
+### Changed
+
+- Removed the export of DRBG from the package.
+- Added disclaimer to DRBG documentation.
+
+---
+
+### [1.9.21] - 2025-12-04
+
+### Security
+
+- Implemented strict validation for hex string parsing across the codebase,
+  addressing TOB-21.  
+  Non-hex characters now cause an immediate error instead of being silently
+  discarded, preventing message-forgery scenarios.
+
+### Fixed
+
+- Rewrote the `toArray` and `hexToArray` conversion logic to enforce strict
+  hexadecimal input handling rather than permissive filtering.  
+- Corrected UTF-8 decoding behavior to ensure invalid byte sequences produce
+  a single `U+FFFD` replacement character as specified.  
+- Updated all internal hash and array conversion utilities to maintain consistent
+  behavior with strong input validation.
+
+---
+
+### [1.9.20] - 2025-12-02
+
+### Security
+
+- Corrected ECDSA nonce range validation to strictly follow the specification.
+  The implementation now correctly accepts `k = 1` and `k = n-1` when generating or
+  validating nonces, resolving the issue raised in TOB-23.
+
+### Fixed
+
+- Updated both locations in the ECDSA sign function where the incorrect bound
+  check was performed, ensuring consistent and standards-compliant behavior.
+
+---
+
+### [1.9.19] - 2025-12-02
+
+### Added
+
+- Added DRBG checks for entropy and nonce length to ensure uniqueness of generated sequences.
+
+### Changed
+
+- Tests for DRBG was fully rewritten and expanded upon.
+
+---
+
+### [1.9.18] - 2025-12-02
+
+### Added
+
+- Added checks for messages that are too long for the hash function.
+
+### Changed
+
+- Changed the Hash class to use BigInt for padding.
+- Changed the way padding is calculated for big endian and little endian.
+
+---
+
+### [1.9.17] - 2025-12-01
+
+### Added
+
+- Added bound checking in the toUTF8 function to prevent buffer overflows.
+
+---
+
+### [1.9.16] - 2025-12-01
+
+### Added
+
+- AES unpadding of keys.
+
+---
+
+### [1.9.15] - 2025-12-01
+
+### Added
+
+- AESGCM checks for initialization vector and key length for both encryption and decryption.
+
+---
+
+### [1.9.14] - 2025-12-01
+
+### Added
+
+- Added a standalone secp256r1 (P-256) BigInt implementation with ECDSA signing, verification, and tests.
+
+---
+
+### [1.9.13] - 2025-12-01
+
+### Added
+
+- Changed the toArray function to throw on invalid base64 strings.
+
+---
+
+### [1.9.12] - 2025-12-01
+
+### Added
+
+- Added decryption validation to SymmetricKey.
+
+---
+
+### [1.9.11] - 2025-11-24
+
+### Removed
+
+- Removed dependency on react-native-get-random-values polyfill from Random.ts
+
+
+---
+
+### [1.9.10] - 2025-11-17
+
+### Added
+
+- Added `Certificate.fromObject` method for creating Certificate instances from plain objects.
+
+---
+
+### [1.9.9] - 2025-11-15
+
+### Fixed
+
+- Ensured `OP_LSHIFT` and `OP_RSHIFT` maintain the original stack element endianness and added regression tests covering the bug.
+
+---
+
+### [1.9.8] - 2025-11-15
+
+### Added
+
+- Added WalletLoggerInterface with change to validationHelpers to inject logging into wallet requests.
+
+---
+
+### [1.9.7] - 2025-11-14
+
+### Added
+
+- Added handling of already spent transactions for the identity client's revoke method.
+- Added originator checks for all methods that may try to create a new wallet.
+
+---
+
+### [1.9.6] - 2025-11-13
+
+### Added
+
+- Script interpreter now routes script numbers through bigint-only paths (stack indexing, bit shifts, split/num2bin sizing, and CHECKMULTISIG counters) to avoid JS safe-number limits while keeping checks accurate.
+
+---
+
+### [1.9.5] - 2025-11-13
+
+### Added
+
+- Added support for revoking certificate revelation.
+
+---
+
+### [1.9.3] - 2025-11-11
+
+### Added
+
+- Added `withDoubleSpendRetry` overlay tool to retry broadcast with resolved competing transactions.
+- Updated GlobalKVStore to use `withDoubleSpendRetry` in set/remove operations.
+
+---
+
+### [1.9.2] - 2025-11-11
+
+### Fixed
+
+- Fixed bug with RegistryClient definition removal.
+- Added support for updating existing registry definitions.
+
+---
+
+### [1.9.1] - 2025-11-10
+
+### Fixed
+
+- Added support for originator param in LocalKVStore wallet calls.
+
+---
+
+### [1.9.0] - 2025-11-09
+
+### Added
+
+- Faster serialization and caching improvements
+- Use node- and browser-specific fast-paths opportunistically
+- Cache signatures in Spend to avoid repeated verifications
+- Cache serialized values and use Uint8Array in more places
+- These changes are not intended to be breaking, but a minor version increment is performed out of an abundance of caution
+
+---
+
+
+### [1.8.13] - 2025-11-06
+
+### Added
+
+- LookupResolver: Support for custom overlay ranking to allow for expedited lookups and reputation tracking.
+
+---
+
+### [1.8.12] - 2025-11-06
+
+### Fixed
+
+- **WalletError**: unknownToJson now using isError and name rather than constructor.name
+
+---
+
+### [1.8.11] - 2025-10-30
+
+### Fixed
+
+- **Transaction**: Default sequence value changed from 0 to 0xffffffff (max sequence) for transaction inputs in serialization and script validation. This aligns with the default set within the preimage calculation. This change ensures that the transaction is marked as final by default, which is the expected behavior for most transactions. addInput had this build in already, this extends that to the constructor approach.
+
+---
+
+### [1.8.10] - 2025-10-28
+
+### Added
+
+- WalletClient argument validation methods to throw WERR_INVALID_PARAMETER errors.
+- validationHelpers functions exported under Validation.
+- Support for WERR_INVALID_PARAMETER and WERR_INSUFFICIENT_FUNDS errors through HTTPWalletJSON
+
+---
+
+### [1.8.9] - 2025-10-27
+
+### Fixed
+
+- Default fetch binding now works in more environments.
+
+---
+
+### [1.8.8] - 2025-10-22
+
+### Added
+
+- **GlobalKVStore**: Support for tags in set/get operations
+
+---
+
+### [1.8.7] - 2025-10-22
+
+### Fixed
+
+- **Auth**: Peer transport now preserves detailed `SimplifiedFetchTransport` errors instead of replacing them with generic peer send failures.
+- Improved error handling when payments are involved
+
+---
+
+### [1.8.5] - 2025-10-21
+
+### Added
+
+- **LookupResolver**: Support compact binary return format
+
+---
+
+### [1.8.4] - 2025-10-20
+
+### Added
+
+- **LookupResolver**: Validate format of all host overrides.
+
+### [1.8.3] - 2025-10-16
+
+### Added
+
+- **Random**: New random number generator that works across all JavaScript environments.
+
+---
+
+### [1.8.2] - 2025-10-03
+
+### Added
+
+- **GlobalKVStore**: Added import for GlobalKVStore.
+
+---
+
+### [1.8.1] - 2025-10-02
+
+### Added
+
+- **GlobalKVStore**: New global key-value storage system using overlay services to track key-value pairs
+  - Full CRUD operations: `get()`, `set()`, `remove()` with PushDrop token outputs
+  - Flexible query system supporting key, controller, and protocolID parameters
+  - Optional history tracking with `Historian` integration for chronological value chains
+  - Optional token data inclusion for transaction details and BEEF access
+  - Atomic operations with key-based locking for concurrent safety
+- **Historian**: Overlay tool for building chronological history by traversing transaction input ancestry and interpreting outputs with provided interpreter functions.
+
+---
+
+### [1.8.0] - 2025-10-02
+
+### Added
+
+- Added `secure-json-api` substrate to allow for HTTPS JSON API communication.
+
+### Changed
+
+- Changed the way in which the substrates attempt to connect to speed up the decision by 20x. Now all substrates are tried in parallel and the first successful one is used. XDM is attempted if all else fails because the delayed caused by absence would otherwise be 200ms.
+
+---
+
+
+### [1.7.8] - 2025-10-02
+
+### Added
+
+- **LivePolicy fee model**: New dynamic fee model that fetches current rates from ARC GorillaPool API (`https://arc.gorillapool.io/v1/policy`) with intelligent caching and fallback mechanisms
+
+
+---
+
+### [1.7.7] - 2025-09-19
+
+### Added
+
+- Atomic BEEF bemchmark for long chains
+- Performance enhancements when dealing with long BEEF chains
+
+---
+
+### [1.7.6] - 2025-09-09
+
+### Fixed
+
+- Set the originator of AuthFetch within the constructor so it properly uses originator.
+
+---
+
+### [1.7.5] - 2025-09-08
+
+### Fixed
+
+- Plumbed originator through Peer and AuthFetch to pass to WalletInterface calls.
+- Updated IdentityClient to support limit on getContacts, and only request locking scripts to increase performance.
+
+---
+
+### [1.7.4] - 2025-09-08
+
+### Fixed
+
+- Use shared lookup resolver to benefit from competent host caching.
+
+---
+
+### [1.7.3] - 2025-09-05
+
+### Fixed
+
+- Fixed bug with LookupResolver default fetch in browser.
+
+---
+
+### [1.7.2] - 2025-09-05
+
+### Changed
+
+- Cache lookup resolver state for faster overlay operations
+
+---
+
+### [1.7.1] - 2025-09-03
+
+### Changed
+
+- Support overriding identity resolution results with personal contacts in IdentityClient.discoverByIdentityKey and IdentityClient.discoverByAttributes
+
+---
+
+### [1.7.0] - 2025-09-03
+
+### Changed
+
+- Use Uint8Array for storage instead of number arrays
+- Support chunked hashing for more efficient uploads and downloads of large data
+
+---
+
+### [1.6.26] - 2025-09-02
+
+### Fixed
+
+- Fixed bug with ContactsManager caching system.
+
+---
+
+### [1.6.25] - 2025-09-02
+
+### Added
+
+- IdentityClient now supports saving, getting, and removing encrypted personal contacts.
+- SPV verification bugfix
+
+---
+
+### [1.6.24] - 2025-08-19
+
+### Fixed
+
+- Modified Script.writeBin so that when passed an empty array the chunk is correctly written as OP_0 when toASM() is called
+
+---
+
+### [1.6.23] - 2025-08-13
+
+### Change
+
+- ListOutputsArgs offset is now number, negative values sort newest first, newest output is offset -1.
+
+---
+
+### [1.6.22] - 2025-08-06
+
+### Fixed
+
+- TOB-BSV-2: Fix vulnerability in toKeyShares function which allowed for repeated x-coordinates and zeroed x-coordinates which would have lead to privateKey leaks and unrecoverable shares.
+- Fix platform specific build errors on Apple Silicon
+
+---
+
+### [1.6.21] - 2025-07-25
+
+### Added
+
+- Added `Transaction.completeWithWallet` method
+
 ### [1.6.20] - 2025-07-22
 
 ### Fixed
