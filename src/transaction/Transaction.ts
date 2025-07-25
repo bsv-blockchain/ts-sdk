@@ -1061,7 +1061,8 @@ export default class Transaction {
     for (const output of this.outputs) {
       actionArgs.outputs.push({
         satoshis: output.satoshis,
-        lockingScript: output.lockingScript.toHex()
+        lockingScript: output.lockingScript.toHex(),
+        outputDescription: 'Output from source transaction'
       })
     }
 
