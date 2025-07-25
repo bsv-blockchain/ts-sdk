@@ -456,7 +456,6 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 | [BeefParty](#class-beefparty) |
 | [BeefTx](#class-beeftx) |
 | [FetchHttpClient](#class-fetchhttpclient) |
-| [LivePolicy](#class-livepolicy) |
 | [MerklePath](#class-merklepath) |
 | [NodejsHttpClient](#class-nodejshttpclient) |
 | [SatoshisPerKilobyte](#class-satoshisperkilobyte) |
@@ -589,7 +588,6 @@ export class Beef {
     } 
     toWriter(writer: Writer): void 
     toBinary(): number[] 
-    toUint8Array(): Uint8Array 
     toBinaryAtomic(txid: string): number[] 
     toHex(): string 
     static fromReader(br: Reader): Beef 
@@ -1201,74 +1199,6 @@ See also: [Fetch](./transaction.md#type-fetch), [HttpClient](./transaction.md#in
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
-### Class: LivePolicy
-
-Represents a live fee policy that fetches current rates from ARC GorillaPool.
-Extends SatoshisPerKilobyte to reuse transaction size calculation logic.
-
-```ts
-export default class LivePolicy extends SatoshisPerKilobyte {
-    constructor(cacheValidityMs: number = 5 * 60 * 1000) 
-    static getInstance(cacheValidityMs: number = 5 * 60 * 1000): LivePolicy 
-    async computeFee(tx: Transaction): Promise<number> 
-}
-```
-
-See also: [SatoshisPerKilobyte](./transaction.md#class-satoshisperkilobyte), [Transaction](./transaction.md#class-transaction)
-
-#### Constructor
-
-Constructs an instance of the live policy fee model.
-
-```ts
-constructor(cacheValidityMs: number = 5 * 60 * 1000) 
-```
-
-Argument Details
-
-+ **cacheValidityMs**
-  + How long to cache the fee rate in milliseconds (default: 5 minutes)
-
-#### Method computeFee
-
-Computes the fee for a given transaction using the current live rate.
-Overrides the parent method to use dynamic rate fetching.
-
-```ts
-async computeFee(tx: Transaction): Promise<number> 
-```
-See also: [Transaction](./transaction.md#class-transaction)
-
-Returns
-
-The fee in satoshis for the transaction.
-
-Argument Details
-
-+ **tx**
-  + The transaction for which a fee is to be computed.
-
-#### Method getInstance
-
-Gets the singleton instance of LivePolicy to ensure cache sharing across the application.
-
-```ts
-static getInstance(cacheValidityMs: number = 5 * 60 * 1000): LivePolicy 
-```
-See also: [LivePolicy](./transaction.md#class-livepolicy)
-
-Returns
-
-The singleton LivePolicy instance
-
-Argument Details
-
-+ **cacheValidityMs**
-  + How long to cache the fee rate in milliseconds (default: 5 minutes)
-
-Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
-
----
 ### Class: MerklePath
 
 Represents a Merkle Path, which is used to provide a compact proof of inclusion for a
@@ -1590,12 +1520,11 @@ export default class Transaction {
     addOutput(output: TransactionOutput): void 
     addP2PKHOutput(address: number[] | string, satoshis?: number): void 
     updateMetadata(metadata: Record<string, any>): void 
-    async fee(modelOrFee: FeeModel | number = LivePolicy.getInstance(), changeDistribution: "equal" | "random" = "equal"): Promise<void> 
+    async fee(modelOrFee: FeeModel | number = new SatoshisPerKilobyte(1), changeDistribution: "equal" | "random" = "equal"): Promise<void> 
     getFee(): number 
     async sign(): Promise<void> 
     async broadcast(broadcaster: Broadcaster = defaultBroadcaster()): Promise<BroadcastResponse | BroadcastFailure> 
     toBinary(): number[] 
-    toUint8Array(): Uint8Array 
     toEF(): number[] 
     toHexEF(): string 
     toHex(): string 
@@ -1608,10 +1537,11 @@ export default class Transaction {
     async verify(chainTracker: ChainTracker | "scripts only" = defaultChainTracker(), feeModel?: FeeModel, memoryLimit?: number): Promise<boolean> 
     toBEEF(allowPartial?: boolean): number[] 
     toAtomicBEEF(allowPartial?: boolean): number[] 
+    async completeWithWallet(wallet: WalletInterface, actionDescription?: DescriptionString5to50Bytes, originator?: string): Promise<void> 
 }
 ```
 
-See also: [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [Broadcaster](./transaction.md#interface-broadcaster), [ChainTracker](./transaction.md#interface-chaintracker), [FeeModel](./transaction.md#interface-feemodel), [LivePolicy](./transaction.md#class-livepolicy), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput), [defaultBroadcaster](./transaction.md#function-defaultbroadcaster), [defaultChainTracker](./transaction.md#function-defaultchaintracker), [sign](./compat.md#variable-sign), [toHex](./primitives.md#variable-tohex), [verify](./compat.md#variable-verify)
+See also: [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [Broadcaster](./transaction.md#interface-broadcaster), [ChainTracker](./transaction.md#interface-chaintracker), [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [FeeModel](./transaction.md#interface-feemodel), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [SatoshisPerKilobyte](./transaction.md#class-satoshisperkilobyte), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput), [WalletInterface](./wallet.md#interface-walletinterface), [defaultBroadcaster](./transaction.md#function-defaultbroadcaster), [defaultChainTracker](./transaction.md#function-defaultchaintracker), [sign](./compat.md#variable-sign), [toHex](./primitives.md#variable-tohex), [verify](./compat.md#variable-verify)
 
 #### Method addInput
 
@@ -1678,16 +1608,37 @@ Argument Details
 + **broadcaster**
   + The Broadcaster instance wwhere the transaction will be sent
 
+#### Method completeWithWallet
+
+Completes the transaction using a wallet interface, which will handle
+signing and transaction finalization. This method converts the current
+transaction into a format that can be processed by the wallet, and then
+updates this transaction object with the result from the wallet.
+
+```ts
+async completeWithWallet(wallet: WalletInterface, actionDescription?: DescriptionString5to50Bytes, originator?: string): Promise<void> 
+```
+See also: [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [WalletInterface](./wallet.md#interface-walletinterface)
+
+Argument Details
+
++ **wallet**
+  + The BRC-100 compliant wallet to use for completing the transaction
++ **actionDescription**
+  + Optional description for the action
++ **originator**
+  + Optional originator domain name
+
 #### Method fee
 
 Computes fees prior to signing.
-If no fee model is provided, uses a LivePolicy fee model that fetches current rates from ARC.
+If no fee model is provided, uses a SatoshisPerKilobyte fee model that pays 1 sat/kb.
 If fee is a number, the transaction uses that value as fee.
 
 ```ts
-async fee(modelOrFee: FeeModel | number = LivePolicy.getInstance(), changeDistribution: "equal" | "random" = "equal"): Promise<void> 
+async fee(modelOrFee: FeeModel | number = new SatoshisPerKilobyte(1), changeDistribution: "equal" | "random" = "equal"): Promise<void> 
 ```
-See also: [FeeModel](./transaction.md#interface-feemodel), [LivePolicy](./transaction.md#class-livepolicy)
+See also: [FeeModel](./transaction.md#interface-feemodel), [SatoshisPerKilobyte](./transaction.md#class-satoshisperkilobyte)
 
 Argument Details
 
@@ -2108,7 +2059,7 @@ Argument Details
 Example
 
 ```ts
-tx.verify(new WhatsOnChain(), LivePolicy.getInstance())
+tx.verify(new WhatsOnChain(), new SatoshisPerKilobyte(1))
 ```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
