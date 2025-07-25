@@ -1461,6 +1461,10 @@ describe('Transaction', () => {
         0
       )
 
+      // Create unlocking scripts for the inputs
+      const unlockingScript1 = Script.fromASM('OP_0 OP_0') // Placeholder unlocking script
+      const unlockingScript2 = Script.fromASM('OP_0 OP_0') // Placeholder unlocking script
+
       // Create the transaction to complete
       const tx = new Transaction(
         1,
@@ -1468,12 +1472,14 @@ describe('Transaction', () => {
           {
             sourceTransaction: sourceTx,
             sourceOutputIndex: 0,
-            sequence: 0xffffffff
+            sequence: 0xffffffff,
+            unlockingScript: unlockingScript1
           },
           {
             sourceTransaction: sourceTx2,
             sourceOutputIndex: 0,
-            sequence: 0xffffffff
+            sequence: 0xffffffff,
+            unlockingScript: unlockingScript2
           }
         ],
         [{
@@ -1511,8 +1517,8 @@ describe('Transaction', () => {
       expect(tx.metadata.labels).toContain('test-label-2')
     })
 
-    it('should handle transactions without source transactions', async () => {
-      // Create a transaction with only TXID references
+    it('should throw an error when inputs do not have source transactions', async () => {
+      // Create a transaction with only TXID references (no source transactions)
       const tx = new Transaction(
         1,
         [
@@ -1528,21 +1534,59 @@ describe('Transaction', () => {
         }],
         0
       )
-
+      
       // Create a mock wallet
       const mockWallet = new MockWallet()
-
-      // Complete the transaction with the wallet
-      await tx.completeWithWallet(mockWallet)
-
-      // Verify that the wallet's createAction was called with correct arguments
-      expect(mockWallet.lastCreateActionArgs).not.toBeNull()
-      expect(mockWallet.lastCreateActionArgs!.inputs).toHaveLength(1)
-      expect(mockWallet.lastCreateActionArgs!.outputs).toHaveLength(1)
       
-      // Verify the transaction structure
-      expect(tx.inputs.length).toEqual(1)
-      expect(tx.outputs.length).toEqual(1)
+      // Expect completeWithWallet to throw an error
+      await expect(tx.completeWithWallet(mockWallet))
+        .rejects
+        .toThrow('All inputs must have a sourceTransaction when using completeWithWallet')
+    })
+
+    it('should throw an error when inputs do not have unlocking scripts', async () => {
+      // Create a private key and address for testing
+      const privateKey = new PrivateKey(1)
+      const publicKey = new Curve().g.mul(privateKey)
+      const publicKeyHash = hash160(publicKey.encode(true)) as number[]
+      const p2pkh = new P2PKH()
+
+      // Create a source transaction
+      const sourceTx = new Transaction(
+        1,
+        [],
+        [{
+          lockingScript: p2pkh.lock(publicKeyHash),
+          satoshis: 10000
+        }],
+        0
+      )
+
+      // Create a transaction with source transaction but no unlocking script
+      const tx = new Transaction(
+        1,
+        [
+          {
+            sourceTransaction: sourceTx,
+            sourceOutputIndex: 0,
+            sequence: 0xffffffff
+            // Note: no unlockingScript property
+          }
+        ],
+        [{
+          satoshis: 5000,
+          lockingScript: Script.fromASM('OP_DUP OP_HASH160 OP_EQUALVERIFY OP_CHECKSIG')
+        }],
+        0
+      )
+      
+      // Create a mock wallet
+      const mockWallet = new MockWallet()
+      
+      // Expect completeWithWallet to throw an error
+      await expect(tx.completeWithWallet(mockWallet))
+        .rejects
+        .toThrow('All inputs must have an unlockingScript when using completeWithWallet')
     })
   })
 

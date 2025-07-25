@@ -1081,28 +1081,32 @@ export default class Transaction {
     // Process inputs - collect all source transactions and convert them to BEEF
     const beefData = new Beef()
     for (const input of this.inputs) {
-      // Process source transactions for BEEF data if available
-      if (input.sourceTransaction != null) {
-        if (input.sourceTransaction.merklePath != null) {
-          // If the source transaction has a merkle path, it might be more
-          // efficiently represented as BEEF directly
-          const sourceBEEF = input.sourceTransaction.toBEEF()
-          beefData.mergeBeef(sourceBEEF)
-        } else {
-          // For transactions without merkle paths, adding directly is fine
-          beefData.mergeTransaction(input.sourceTransaction)
-        }
+      if (input.sourceTransaction == null) {
+        throw new Error('All inputs must have a sourceTransaction when using completeWithWallet')
       }
 
-      // Add input to action args
-      const sourceTXID = input.sourceTXID ?? input.sourceTransaction?.id('hex')
-      if (sourceTXID != null && sourceTXID !== '') {
-        actionArgs.inputs.push({
-          outpoint: `${sourceTXID}.${input.sourceOutputIndex}`,
-          inputDescription: 'Input from source transaction',
-          sequenceNumber: input.sequence
-        })
+      // Merge source transaction into BEEF
+      const sourceBEEF = input.sourceTransaction.toBEEF()
+      beefData.mergeBeef(sourceBEEF)
+
+      const sourceTXID = input.sourceTransaction.id('hex')
+
+      // For now, throw an error if unlocking script is not present
+      if (input.unlockingScript == null) {
+        throw new Error('All inputs must have an unlockingScript when using completeWithWallet')
       }
+
+      actionArgs.inputs.push({
+        outpoint: `${sourceTXID}.${input.sourceOutputIndex}`,
+        inputDescription: 'Input from source transaction',
+        sequenceNumber: input.sequence,
+        unlockingScript: input.unlockingScript?.toHex()
+      })
+    }
+
+    // Add inputBEEF if there are inputs
+    if (this.inputs.length > 0) {
+      actionArgs.inputBEEF = beefData.toBinary()
     }
 
     // Process outputs
