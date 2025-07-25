@@ -156,6 +156,8 @@ All notable changes to this project will be documented in this file. The format 
 
 - Added `Transaction.completeWithWallet` method
 
+---
+
 ### [1.6.20] - 2025-07-22
 
 ### Fixed
@@ -163,6 +165,8 @@ All notable changes to this project will be documented in this file. The format 
 - Small ECDSA optimizations
 - Proper types for script evaluation errors (useful for programmatic access)
 - Clear rspack errors and use latest version
+
+---
 
 ### [1.6.19] - 2025-07-21
 
