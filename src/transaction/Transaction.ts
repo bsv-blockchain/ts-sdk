@@ -15,6 +15,7 @@ import { defaultBroadcaster } from './broadcasters/DefaultBroadcaster.js'
 import { defaultChainTracker } from './chaintrackers/DefaultChainTracker.js'
 import { Beef, BEEF_V1 } from './Beef.js'
 import P2PKH from '../script/templates/P2PKH.js'
+import { CreateActionArgs, WalletInterface, DescriptionString5to50Bytes } from '../wallet/WalletInterface.js'
 
 /**
  * Represents a complete Bitcoin transaction. This class encapsulates all the details
@@ -1003,5 +1004,100 @@ export default class Transaction {
     const beefData = this.toBEEF(allowPartial)
     writer.write(beefData)
     return writer.toArray()
+  }
+
+  /**
+   * Completes the transaction using a wallet interface, which will handle
+   * signing and transaction finalization. This method converts the current
+   * transaction into a format that can be processed by the wallet, and then
+   * updates this transaction object with the result from the wallet.
+   *
+   * @param {WalletInterface} wallet - The BRC-100 compliant wallet to use for completing the transaction
+   * @param {string} [actionDescription] - Optional description for the action
+   * @param {string} [originator] - Optional originator domain name
+   * @returns {Promise<void>}
+   */
+  async completeWithWallet (wallet: WalletInterface, actionDescription?: DescriptionString5to50Bytes, originator?: string): Promise<void> {
+    const inputCount = this.inputs.length
+    const outputCount = this.outputs.length
+    const description = actionDescription ?? `Transaction with ${inputCount} input(s) and ${outputCount} output(s)`
+
+    const actionArgs: CreateActionArgs = {
+      description,
+      inputs: [] as any[],
+      outputs: [] as any[],
+      lockTime: this.lockTime,
+      version: this.version
+    }
+
+    // Process inputs - collect all source transactions and convert them to BEEF
+    const beefData = new Beef()
+    for (const input of this.inputs) {
+      if (input.sourceTransaction == null) {
+        throw new Error('All inputs must have a sourceTransaction when using completeWithWallet')
+      }
+
+      // Merge source transaction into BEEF
+      const sourceBEEF = input.sourceTransaction.toBEEF()
+      beefData.mergeBeef(sourceBEEF)
+
+      const sourceTXID = input.sourceTransaction.id('hex')
+
+      // For now, throw an error if unlocking script is not present
+      if (input.unlockingScript == null) {
+        throw new Error('All inputs must have an unlockingScript when using completeWithWallet')
+      }
+
+      actionArgs.inputs.push({
+        outpoint: `${sourceTXID}.${input.sourceOutputIndex}`,
+        inputDescription: 'Input from source transaction',
+        sequenceNumber: input.sequence,
+        unlockingScript: input.unlockingScript?.toHex()
+      })
+    }
+
+    // Add inputBEEF if there are inputs
+    if (this.inputs.length > 0) {
+      actionArgs.inputBEEF = beefData.toBinary()
+    }
+
+    // Process outputs
+    for (const output of this.outputs) {
+      actionArgs.outputs.push({
+        satoshis: output.satoshis,
+        lockingScript: output.lockingScript.toHex(),
+        outputDescription: 'Output from source transaction'
+      })
+    }
+
+    // Add any labels from metadata if they exist
+    if (this.metadata?.labels != null && Array.isArray(this.metadata.labels)) {
+      actionArgs.labels = this.metadata.labels
+    }
+
+    // Call the wallet's createAction method
+    const { tx } = await wallet.createAction(actionArgs, originator)
+
+    // Extract the atomic BEEF from the result
+    if (tx == null) {
+      throw new Error('Wallet createAction did not return transaction data')
+    }
+
+    // Create a new transaction from the atomic BEEF
+    const newTransaction = Transaction.fromAtomicBEEF(tx)
+
+    // Update this transaction's properties with the new transaction's properties
+    this.version = newTransaction.version
+    this.inputs = newTransaction.inputs
+    this.outputs = newTransaction.outputs
+    this.lockTime = newTransaction.lockTime
+    this.merklePath = newTransaction.merklePath
+    this.cachedHash = newTransaction.cachedHash
+
+    // Preserve metadata from the original transaction but update with any new metadata
+    this.metadata = {
+      ...this.metadata,
+      ...newTransaction.metadata
+    }
   }
 }

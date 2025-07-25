@@ -1044,7 +1044,7 @@ Argument Details
 
 #### Method onData
 
-Registers a callback to handle incoming messages. 
+Registers a callback to handle incoming messages.
 This must be called before sending any messages to ensure responses can be processed.
 
 ```ts
