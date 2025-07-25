@@ -1090,16 +1090,17 @@ export default class Transaction {
           beefData.mergeBeef(sourceBEEF)
         } else {
           // For transactions without merkle paths, adding directly is fine
-          beefData.addTransaction(input.sourceTransaction)
+          beefData.mergeTransaction(input.sourceTransaction)
         }
       }
 
       // Add input to action args
-      if (input.sourceTXID != null) {
+      const sourceTXID = input.sourceTXID ?? input.sourceTransaction?.id('hex')
+      if (sourceTXID != null && sourceTXID !== '') {
         actionArgs.inputs.push({
-          outpointTransactionHash: input.sourceTXID,
-          outpointVout: input.sourceOutputIndex,
-          sequenceNumber: input.sequenceNumber
+          outpoint: `${sourceTXID}.${input.sourceOutputIndex}`,
+          inputDescription: 'Input from source transaction',
+          sequenceNumber: input.sequence
         })
       }
     }
@@ -1118,10 +1119,15 @@ export default class Transaction {
     }
 
     // Call the wallet's createAction method
-    const atomicBEEF = await wallet.createAction(actionArgs, originator)
+    const { tx } = await wallet.createAction(actionArgs, originator)
+
+    // Extract the atomic BEEF from the result
+    if (tx == null) {
+      throw new Error('Wallet createAction did not return transaction data')
+    }
 
     // Create a new transaction from the atomic BEEF
-    const newTransaction = Transaction.fromAtomicBEEF(atomicBEEF)
+    const newTransaction = Transaction.fromAtomicBEEF(tx)
 
     // Update this transaction's properties with the new transaction's properties
     this.version = newTransaction.version

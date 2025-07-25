@@ -20,6 +20,7 @@ import invalidTransactions from './tx.invalid.vectors'
 import validTransactions from './tx.valid.vectors'
 import bigTX from './bigtx.vectors'
 import { BroadcastResponse } from '../../transaction/Broadcaster'
+import { WalletInterface, CreateActionArgs, CreateActionResult } from '../../wallet/Wallet.interfaces'
 
 const BRC62Hex =
   '0100beef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000000'
@@ -1376,6 +1377,172 @@ describe('Transaction', () => {
 
       // P2PKH takes less than 150 bytes apparently
       await expect(tx.verify('scripts only', new SatoshisPerKilobyte(1), 150)).resolves.toBe(true)
+    })
+  })
+
+  describe('completeWithWallet', () => {
+    // Mock implementation of WalletInterface for testing
+    class MockWallet implements Partial<WalletInterface> {
+      public lastCreateActionArgs: CreateActionArgs | null = null
+      
+      async createAction (args: CreateActionArgs, originator?: string): Promise<CreateActionResult> {
+        // Store the args for verification
+        this.lastCreateActionArgs = args
+        
+        // Create a simple transaction from the action args
+        const tx = new Transaction(args.version || 1)
+        
+        // Add inputs if provided
+        if (args.inputs) {
+          for (const input of args.inputs) {
+            // Parse outpoint string format "txid.vout"
+            const [txid, voutStr] = input.outpoint.split('.')
+            tx.addInput({
+              sourceTXID: txid,
+              sourceOutputIndex: parseInt(voutStr),
+              unlockingScript: Script.fromASM('OP_1') // Simple unlocking script for testing
+            })
+          }
+        }
+        
+        // Add outputs if provided
+        if (args.outputs) {
+          for (const output of args.outputs) {
+            tx.addOutput({
+              satoshis: output.satoshis,
+              lockingScript: Script.fromHex(output.lockingScript)
+            })
+          }
+        }
+        
+        // Return the transaction as Atomic BEEF in CreateActionResult format
+        return {
+          tx: tx.toAtomicBEEF(),
+          txid: tx.id('hex')
+        }
+      }
+    }
+
+    it('should properly complete a transaction using a wallet', async () => {
+      // Create a private key and address for testing
+      const privateKey = new PrivateKey(1)
+      const publicKey = new Curve().g.mul(privateKey)
+      const publicKeyHash = hash160(publicKey.encode(true)) as number[]
+      const p2pkh = new P2PKH()
+
+      // Create a source transaction with a merkle path
+      const sourceTx = new Transaction(
+        1,
+        [],
+        [{
+          lockingScript: p2pkh.lock(publicKeyHash),
+          satoshis: 10000
+        }],
+        0
+      )
+
+      // Assign a merkle path to simulate a confirmed transaction
+      const sourceTxID = sourceTx.id('hex')
+      sourceTx.merklePath = new MerklePath(1000, [
+        [
+          { offset: 0, hash: sourceTxID, txid: true },
+          { offset: 1, duplicate: true }
+        ]
+      ])
+
+      // Create another source transaction without merkle path
+      const sourceTx2 = new Transaction(
+        1,
+        [],
+        [{
+          lockingScript: p2pkh.lock(publicKeyHash),
+          satoshis: 5000
+        }],
+        0
+      )
+
+      // Create the transaction to complete
+      const tx = new Transaction(
+        1,
+        [
+          {
+            sourceTransaction: sourceTx,
+            sourceOutputIndex: 0,
+            sequence: 0xffffffff
+          },
+          {
+            sourceTransaction: sourceTx2,
+            sourceOutputIndex: 0,
+            sequence: 0xffffffff
+          }
+        ],
+        [{
+          satoshis: 14000,
+          lockingScript: p2pkh.lock(publicKeyHash)
+        }],
+        0
+      )
+
+      // Add metadata with labels
+      tx.updateMetadata({
+        labels: ['test-label-1', 'test-label-2']
+      })
+
+      // Create a mock wallet
+      const mockWallet = new MockWallet()
+
+      // Complete the transaction with the wallet
+      await tx.completeWithWallet(mockWallet, 'Test transaction completion')
+
+      // Verify that the wallet's createAction was called with correct arguments
+      expect(mockWallet.lastCreateActionArgs).not.toBeNull()
+      expect(mockWallet.lastCreateActionArgs!.description).toBe('Test transaction completion')
+      expect(mockWallet.lastCreateActionArgs!.inputs).toHaveLength(2)
+      expect(mockWallet.lastCreateActionArgs!.outputs).toHaveLength(1)
+      expect(mockWallet.lastCreateActionArgs!.labels).toEqual(['test-label-1', 'test-label-2'])
+      
+      // Verify that the transaction structure was updated
+      expect(tx.inputs).toHaveLength(2)
+      expect(tx.outputs).toHaveLength(1)
+      
+      // Verify that original metadata labels are preserved
+      expect(tx.metadata).toHaveProperty('labels')
+      expect(tx.metadata.labels).toContain('test-label-1')
+      expect(tx.metadata.labels).toContain('test-label-2')
+    })
+
+    it('should handle transactions without source transactions', async () => {
+      // Create a transaction with only TXID references
+      const tx = new Transaction(
+        1,
+        [
+          {
+            sourceTXID: '00'.repeat(32),
+            sourceOutputIndex: 0,
+            sequence: 0xffffffff
+          }
+        ],
+        [{
+          satoshis: 5000,
+          lockingScript: Script.fromASM('OP_DUP OP_HASH160 OP_EQUALVERIFY OP_CHECKSIG')
+        }],
+        0
+      )
+
+      // Create a mock wallet
+      const mockWallet = new MockWallet()
+
+      // Complete the transaction with the wallet
+      await tx.completeWithWallet(mockWallet)
+
+      // Verify that the wallet's createAction was called with correct arguments
+      expect(mockWallet.lastCreateActionArgs).not.toBeNull()
+      expect(mockWallet.lastCreateActionArgs!.inputs).toHaveLength(1)
+      expect(mockWallet.lastCreateActionArgs!.outputs).toHaveLength(1)
+      
+      // Verify the transaction structure
+      expect(tx.inputs.length).toEqual(1)
+      expect(tx.outputs.length).toEqual(1)
     })
   })
 
