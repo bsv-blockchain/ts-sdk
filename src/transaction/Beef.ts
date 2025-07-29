@@ -484,7 +484,7 @@ export class Beef {
    * @param writer
    */
   toWriter (writer: Writer): void {
-    writer.writeUInt32LE(this.version)
+    writer.writeInt32LE(this.version)
 
     writer.writeVarIntNum(this.bumps.length)
     for (const b of this.bumps) {

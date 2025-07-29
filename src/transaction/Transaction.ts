@@ -599,7 +599,7 @@ export default class Transaction {
    */
   toBinary (): number[] {
     const writer = new Writer()
-    writer.writeUInt32LE(this.version)
+    writer.writeInt32LE(this.version)
     writer.writeVarIntNum(this.inputs.length)
     for (const i of this.inputs) {
       if (typeof i.sourceTXID === 'undefined') {
@@ -638,7 +638,7 @@ export default class Transaction {
    */
   toEF (): number[] {
     const writer = new Writer()
-    writer.writeUInt32LE(this.version)
+    writer.writeInt32LE(this.version)
     writer.write([0, 0, 0, 0, 0, 0xef])
     writer.writeVarIntNum(this.inputs.length)
     for (const i of this.inputs) {
