@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.6.21 - 2025-07-29](#1621---2025-07-29)
 - [1.6.20 - 2025-07-22](#1620---2025-07-22)
 - [1.6.19 - 2025-07-21](#1619---2025-07-21)
 - [1.6.18 - 2025-07-20](#1618---2025-07-20)
@@ -148,6 +149,12 @@ All notable changes to this project will be documented in this file. The format 
 ### Security
 
 ---
+
+### [1.6.21] - 2025-07-29
+
+### Fixed
+
+- Transcation Version bytes are supposed to be Int32 rather than Uint32, more specifically they're sign-magnitude encoded rather than 2's complement. This is completely unimportant until you use them in the context of OP_VER within the stack where they will be treated as Script Number format.
 
 ### [1.6.20] - 2025-07-22
 
