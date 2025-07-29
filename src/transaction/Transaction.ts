@@ -152,7 +152,7 @@ export default class Transaction {
    */
   static fromEF (ef: number[]): Transaction {
     const br = new Reader(ef)
-    const version = br.readUInt32LE()
+    const version = br.readInt32LE()
     if (toHex(br.read(6)) !== '0000000000ef') { throw new Error('Invalid EF marker') }
     const inputsLength = br.readVarIntNum()
     const inputs: TransactionInput[] = []
@@ -239,7 +239,7 @@ export default class Transaction {
   }
 
   static fromReader (br: Reader): Transaction {
-    const version = br.readUInt32LE()
+    const version = br.readInt32LE()
     const inputsLength = br.readVarIntNum()
     const inputs: TransactionInput[] = []
     for (let i = 0; i < inputsLength; i++) {
