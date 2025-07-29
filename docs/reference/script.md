@@ -87,6 +87,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 | [PushDrop](#class-pushdrop) |
 | [RPuzzle](#class-rpuzzle) |
 | [Script](#class-script) |
+| [ScriptEvaluationError](#class-scriptevaluationerror) |
 | [Spend](#class-spend) |
 | [UnlockingScript](#class-unlockingscript) |
 
@@ -727,6 +728,37 @@ Argument Details
 
 + **script**
   + The script to append.
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Class: ScriptEvaluationError
+
+```ts
+export default class ScriptEvaluationError extends Error {
+    txid: string;
+    outputIndex: number;
+    context: "UnlockingScript" | "LockingScript";
+    programCounter: number;
+    stackState: number[][];
+    altStackState: number[][];
+    ifStackState: boolean[];
+    stackMem: number;
+    altStackMem: number;
+    constructor(params: {
+        message: string;
+        txid: string;
+        outputIndex: number;
+        context: "UnlockingScript" | "LockingScript";
+        programCounter: number;
+        stackState: number[][];
+        altStackState: number[][];
+        ifStackState: boolean[];
+        stackMem: number;
+        altStackMem: number;
+    }) 
+}
+```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 

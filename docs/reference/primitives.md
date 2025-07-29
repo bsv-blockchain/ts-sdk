@@ -4,6 +4,19 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ## Interfaces
 
+### Interface: JacobianPointBI
+
+```ts
+export interface JacobianPointBI {
+    X: bigint;
+    Y: bigint;
+    Z: bigint;
+}
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ## Classes
 
 | | | |
@@ -218,7 +231,7 @@ export default class BigNumber {
 }
 ```
 
-See also: [ReductionContext](./primitives.md#class-reductioncontext), [toArray](./primitives.md#variable-toarray), [toHex](./primitives.md#variable-tohex)
+See also: [ReductionContext](./primitives.md#class-reductioncontext), [red](./primitives.md#function-red), [toArray](./primitives.md#variable-toarray), [toHex](./primitives.md#variable-tohex)
 
 #### Constructor
 
@@ -774,7 +787,7 @@ export default class Curve {
 }
 ```
 
-See also: [BigNumber](./primitives.md#class-bignumber), [Point](./primitives.md#class-point), [ReductionContext](./primitives.md#class-reductioncontext)
+See also: [BigNumber](./primitives.md#class-bignumber), [Point](./primitives.md#class-point), [ReductionContext](./primitives.md#class-reductioncontext), [red](./primitives.md#function-red)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -1700,7 +1713,6 @@ export default class Point extends BasePoint {
     inf: boolean;
     static fromDER(bytes: number[]): Point 
     static fromString(str: string): Point 
-    static redSqrtOptimized(y2: BigNumber): BigNumber 
     static fromX(x: BigNumber | number | number[] | string, odd: boolean): Point 
     static fromJSON(obj: string | any[], isRed: boolean): Point 
     constructor(x: BigNumber | number | number[] | string | null, y: BigNumber | number | number[] | string | null, isRed: boolean = true) 
@@ -2404,14 +2416,14 @@ export default class PrivateKey extends BigNumber {
 }
 ```
 
-See also: [BigNumber](./primitives.md#class-bignumber), [KeyShares](./primitives.md#class-keyshares), [Point](./primitives.md#class-point), [PublicKey](./primitives.md#class-publickey), [Signature](./primitives.md#class-signature), [sign](./compat.md#variable-sign), [toHex](./primitives.md#variable-tohex), [verify](./compat.md#variable-verify)
+See also: [BigNumber](./primitives.md#class-bignumber), [KeyShares](./primitives.md#class-keyshares), [Point](./primitives.md#class-point), [PublicKey](./primitives.md#class-publickey), [Signature](./primitives.md#class-signature), [modN](./primitives.md#variable-modn), [sign](./compat.md#variable-sign), [toHex](./primitives.md#variable-tohex), [verify](./compat.md#variable-verify)
 
 #### Constructor
 
 ```ts
 constructor(number: BigNumber | number | string | number[] = 0, base: number | "be" | "le" | "hex" = 10, endian: "be" | "le" = "be", modN: "apply" | "nocheck" | "error" = "apply") 
 ```
-See also: [BigNumber](./primitives.md#class-bignumber)
+See also: [BigNumber](./primitives.md#class-bignumber), [modN](./primitives.md#variable-modn)
 
 Argument Details
 
@@ -2442,7 +2454,7 @@ checkInField(): {
     modN: BigNumber;
 } 
 ```
-See also: [BigNumber](./primitives.md#class-bignumber)
+See also: [BigNumber](./primitives.md#class-bignumber), [modN](./primitives.md#variable-modn)
 
 Returns
 
@@ -3884,39 +3896,12 @@ const sha256 = new SHA256();
 ```
 
 ```ts
-export class SHA256 extends BaseHash {
-    h: number[];
-    W: number[];
-    k: number[];
+export class SHA256 {
     constructor() 
-    _update(msg: number[], start?: number): void 
-    _digest(): number[] 
-    _digestHex(): string 
+    update(msg: number[] | string, enc?: "hex" | "utf8"): this 
+    digest(): number[] 
+    digestHex(): string 
 }
-```
-
-#### Property W
-
-Provides a way to recycle usage of the array memory.
-
-```ts
-W: number[]
-```
-
-#### Property h
-
-The initial hash constants
-
-```ts
-h: number[]
-```
-
-#### Property k
-
-The round constants used for each round of SHA-256
-
-```ts
-k: number[]
 ```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -3932,8 +3917,6 @@ This class also uses the SHA-256 cryptographic hash algorithm that produces a 25
 
 ```ts
 export class SHA256HMAC {
-    inner: SHA256;
-    outer: SHA256;
     blockSize = 64;
     outSize = 32;
     constructor(key: number[] | string) 
@@ -3942,8 +3925,6 @@ export class SHA256HMAC {
     digestHex(): string 
 }
 ```
-
-See also: [SHA256](./primitives.md#class-sha256)
 
 #### Constructor
 
@@ -3976,15 +3957,6 @@ The block size for the SHA-256 hash function, in bytes. It's set to 64 bytes.
 blockSize = 64
 ```
 
-#### Property inner
-
-Represents the inner hash of SHA-256.
-
-```ts
-inner: SHA256
-```
-See also: [SHA256](./primitives.md#class-sha256)
-
 #### Property outSize
 
 The output size of the SHA-256 hash function, in bytes. It's set to 32 bytes.
@@ -3992,15 +3964,6 @@ The output size of the SHA-256 hash function, in bytes. It's set to 32 bytes.
 ```ts
 outSize = 32
 ```
-
-#### Property outer
-
-Represents the outer hash of SHA-256.
-
-```ts
-outer: SHA256
-```
-See also: [SHA256](./primitives.md#class-sha256)
 
 #### Method digest
 
@@ -4081,40 +4044,12 @@ const sha512 = new SHA512();
 ```
 
 ```ts
-export class SHA512 extends BaseHash {
-    h: number[];
-    W: number[];
-    k: number[];
+export class SHA512 {
     constructor() 
-    _prepareBlock(msg: number[], start: number): void 
-    _update(msg: any, start: number): void 
-    _digest(): number[] 
-    _digestHex(): string 
+    update(msg: number[] | string, enc?: "hex" | "utf8"): this 
+    digest(): number[] 
+    digestHex(): string 
 }
-```
-
-#### Property W
-
-Provides a way to recycle usage of the array memory.
-
-```ts
-W: number[]
-```
-
-#### Property h
-
-The initial hash constants.
-
-```ts
-h: number[]
-```
-
-#### Property k
-
-The round constants used for each round of SHA-512.
-
-```ts
-k: number[]
 ```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -4130,8 +4065,6 @@ This class also uses the SHA-512 cryptographic hash algorithm that produces a 51
 
 ```ts
 export class SHA512HMAC {
-    inner: SHA512;
-    outer: SHA512;
     blockSize = 128;
     outSize = 32;
     constructor(key: number[] | string) 
@@ -4140,8 +4073,6 @@ export class SHA512HMAC {
     digestHex(): string 
 }
 ```
-
-See also: [SHA512](./primitives.md#class-sha512)
 
 #### Constructor
 
@@ -4174,15 +4105,6 @@ The block size for the SHA-512 hash function, in bytes. It's set to 128 bytes.
 blockSize = 128
 ```
 
-#### Property inner
-
-Represents the inner hash of SHA-512.
-
-```ts
-inner: SHA512
-```
-See also: [SHA512](./primitives.md#class-sha512)
-
 #### Property outSize
 
 The output size of the SHA-512 hash function, in bytes. It's set to 64 bytes.
@@ -4190,15 +4112,6 @@ The output size of the SHA-512 hash function, in bytes. It's set to 64 bytes.
 ```ts
 outSize = 32
 ```
-
-#### Property outer
-
-Represents the outer hash of SHA-512.
-
-```ts
-outer: SHA512
-```
-See also: [SHA512](./primitives.md#class-sha512)
 
 #### Method digest
 
@@ -4848,6 +4761,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 | [AESGCMDecrypt](#function-aesgcmdecrypt) |
 | [ghash](#function-ghash) |
 | [pbkdf2](#function-pbkdf2) |
+| [red](#function-red) |
 | [toArray](#function-toarray) |
 | [toBase64](#function-tobase64) |
 
@@ -4922,6 +4836,15 @@ Argument Details
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
+### Function: red
+
+```ts
+export function red(x: bigint): bigint 
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Function: toArray
 
 ```ts
@@ -4975,20 +4898,252 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | | | |
 | --- | --- | --- |
-| [checkBit](#variable-checkbit) | [minimallyEncode](#variable-minimallyencode) | [sign](#variable-sign) |
-| [encode](#variable-encode) | [multiply](#variable-multiply) | [toArray](#variable-toarray) |
-| [exclusiveOR](#variable-exclusiveor) | [rightShift](#variable-rightshift) | [toBase58](#variable-tobase58) |
-| [fromBase58](#variable-frombase58) | [ripemd160](#variable-ripemd160) | [toBase58Check](#variable-tobase58check) |
-| [fromBase58Check](#variable-frombase58check) | [sha1](#variable-sha1) | [toHex](#variable-tohex) |
-| [getBytes](#variable-getbytes) | [sha256](#variable-sha256) | [toUTF8](#variable-toutf8) |
-| [hash160](#variable-hash160) | [sha256hmac](#variable-sha256hmac) | [verify](#variable-verify) |
-| [hash256](#variable-hash256) | [sha512](#variable-sha512) | [zero2](#variable-zero2) |
-| [incrementLeastSignificantThirtyTwoBits](#variable-incrementleastsignificantthirtytwobits) | [sha512hmac](#variable-sha512hmac) |  |
+| [BI_EIGHT](#variable-bi_eight) | [biModSqrt](#variable-bimodsqrt) | [multiply](#variable-multiply) |
+| [BI_FOUR](#variable-bi_four) | [biModSub](#variable-bimodsub) | [rightShift](#variable-rightshift) |
+| [BI_ONE](#variable-bi_one) | [checkBit](#variable-checkbit) | [ripemd160](#variable-ripemd160) |
+| [BI_THREE](#variable-bi_three) | [encode](#variable-encode) | [scalarMultiplyWNAF](#variable-scalarmultiplywnaf) |
+| [BI_TWO](#variable-bi_two) | [exclusiveOR](#variable-exclusiveor) | [sha1](#variable-sha1) |
+| [BI_ZERO](#variable-bi_zero) | [fromBase58](#variable-frombase58) | [sha256](#variable-sha256) |
+| [GX_BIGINT](#variable-gx_bigint) | [fromBase58Check](#variable-frombase58check) | [sha256hmac](#variable-sha256hmac) |
+| [GY_BIGINT](#variable-gy_bigint) | [getBytes](#variable-getbytes) | [sha512](#variable-sha512) |
+| [MASK_256](#variable-mask_256) | [hash160](#variable-hash160) | [sha512hmac](#variable-sha512hmac) |
+| [N_BIGINT](#variable-n_bigint) | [hash256](#variable-hash256) | [sign](#variable-sign) |
+| [P_BIGINT](#variable-p_bigint) | [incrementLeastSignificantThirtyTwoBits](#variable-incrementleastsignificantthirtytwobits) | [toArray](#variable-toarray) |
+| [P_PLUS1_DIV4](#variable-p_plus1_div4) | [jpAdd](#variable-jpadd) | [toBase58](#variable-tobase58) |
+| [biMod](#variable-bimod) | [jpDouble](#variable-jpdouble) | [toBase58Check](#variable-tobase58check) |
+| [biModAdd](#variable-bimodadd) | [jpNeg](#variable-jpneg) | [toHex](#variable-tohex) |
+| [biModInv](#variable-bimodinv) | [minimallyEncode](#variable-minimallyencode) | [toUTF8](#variable-toutf8) |
+| [biModMul](#variable-bimodmul) | [modInvN](#variable-modinvn) | [verify](#variable-verify) |
+| [biModPow](#variable-bimodpow) | [modMulN](#variable-modmuln) | [zero2](#variable-zero2) |
+| [biModSqr](#variable-bimodsqr) | [modN](#variable-modn) |  |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
 
+### Variable: BI_EIGHT
+
+```ts
+BI_EIGHT = 8n
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: BI_FOUR
+
+```ts
+BI_FOUR = 4n
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: BI_ONE
+
+```ts
+BI_ONE = 1n
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: BI_THREE
+
+```ts
+BI_THREE = 3n
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: BI_TWO
+
+```ts
+BI_TWO = 2n
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: BI_ZERO
+
+```ts
+BI_ZERO = 0n
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: GX_BIGINT
+
+```ts
+GX_BIGINT = BigInt("0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: GY_BIGINT
+
+```ts
+GY_BIGINT = BigInt("0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8")
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: MASK_256
+
+```ts
+MASK_256 = (1n << 256n) - 1n
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: N_BIGINT
+
+```ts
+N_BIGINT = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: P_BIGINT
+
+```ts
+P_BIGINT = 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2fn
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: P_PLUS1_DIV4
+
+```ts
+P_PLUS1_DIV4 = (P_BIGINT + 1n) >> 2n
+```
+
+See also: [P_BIGINT](./primitives.md#variable-p_bigint)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: biMod
+
+```ts
+biMod = (a: bigint): bigint => red((a % P_BIGINT + P_BIGINT) % P_BIGINT)
+```
+
+See also: [P_BIGINT](./primitives.md#variable-p_bigint), [red](./primitives.md#function-red)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: biModAdd
+
+```ts
+biModAdd = (a: bigint, b: bigint): bigint => red(a + b)
+```
+
+See also: [red](./primitives.md#function-red)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: biModInv
+
+```ts
+biModInv = (a: bigint): bigint => {
+    let lm = BI_ONE;
+    let hm = BI_ZERO;
+    let low = biMod(a);
+    let high = P_BIGINT;
+    while (low > BI_ONE) {
+        const r = high / low;
+        [lm, hm] = [hm - lm * r, lm];
+        [low, high] = [high - low * r, low];
+    }
+    return biMod(lm);
+}
+```
+
+See also: [BI_ONE](./primitives.md#variable-bi_one), [BI_ZERO](./primitives.md#variable-bi_zero), [P_BIGINT](./primitives.md#variable-p_bigint), [biMod](./primitives.md#variable-bimod)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: biModMul
+
+```ts
+biModMul = (a: bigint, b: bigint): bigint => red(a * b)
+```
+
+See also: [red](./primitives.md#function-red)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: biModPow
+
+```ts
+biModPow = (base: bigint, exp: bigint): bigint => {
+    let result = BI_ONE;
+    base = biMod(base);
+    let e = exp;
+    while (e > BI_ZERO) {
+        if ((e & BI_ONE) === BI_ONE)
+            result = biModMul(result, base);
+        base = biModMul(base, base);
+        e >>= BI_ONE;
+    }
+    return result;
+}
+```
+
+See also: [BI_ONE](./primitives.md#variable-bi_one), [BI_ZERO](./primitives.md#variable-bi_zero), [biMod](./primitives.md#variable-bimod), [biModMul](./primitives.md#variable-bimodmul)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: biModSqr
+
+```ts
+biModSqr = (a: bigint): bigint => biModMul(a, a)
+```
+
+See also: [biModMul](./primitives.md#variable-bimodmul)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: biModSqrt
+
+```ts
+biModSqrt = (a: bigint): bigint | null => {
+    const r = biModPow(a, P_PLUS1_DIV4);
+    return biModMul(r, r) === biMod(a) ? r : null;
+}
+```
+
+See also: [P_PLUS1_DIV4](./primitives.md#variable-p_plus1_div4), [biMod](./primitives.md#variable-bimod), [biModMul](./primitives.md#variable-bimodmul), [biModPow](./primitives.md#variable-bimodpow)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: biModSub
+
+```ts
+biModSub = (a: bigint, b: bigint): bigint => (a >= b ? a - b : P_BIGINT - (b - a))
+```
+
+See also: [P_BIGINT](./primitives.md#variable-p_bigint)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Variable: checkBit
 
 ```ts
@@ -5168,6 +5323,79 @@ incrementLeastSignificantThirtyTwoBits = function (block: number[]): number[] {
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
+### Variable: jpAdd
+
+```ts
+jpAdd = (P: JacobianPointBI, Q: JacobianPointBI): JacobianPointBI => {
+    if (P.Z === BI_ZERO)
+        return Q;
+    if (Q.Z === BI_ZERO)
+        return P;
+    const Z1Z1 = biModMul(P.Z, P.Z);
+    const Z2Z2 = biModMul(Q.Z, Q.Z);
+    const U1 = biModMul(P.X, Z2Z2);
+    const U2 = biModMul(Q.X, Z1Z1);
+    const S1 = biModMul(P.Y, biModMul(Z2Z2, Q.Z));
+    const S2 = biModMul(Q.Y, biModMul(Z1Z1, P.Z));
+    const H = biModSub(U2, U1);
+    const r = biModSub(S2, S1);
+    if (H === BI_ZERO) {
+        if (r === BI_ZERO)
+            return jpDouble(P);
+        return { X: BI_ZERO, Y: BI_ONE, Z: BI_ZERO };
+    }
+    const HH = biModMul(H, H);
+    const HHH = biModMul(H, HH);
+    const V = biModMul(U1, HH);
+    const X3 = biModSub(biModSub(biModMul(r, r), HHH), biModMul(BI_TWO, V));
+    const Y3 = biModSub(biModMul(r, biModSub(V, X3)), biModMul(S1, HHH));
+    const Z3 = biModMul(H, biModMul(P.Z, Q.Z));
+    return { X: X3, Y: Y3, Z: Z3 };
+}
+```
+
+See also: [BI_ONE](./primitives.md#variable-bi_one), [BI_TWO](./primitives.md#variable-bi_two), [BI_ZERO](./primitives.md#variable-bi_zero), [JacobianPointBI](./primitives.md#interface-jacobianpointbi), [biModMul](./primitives.md#variable-bimodmul), [biModSub](./primitives.md#variable-bimodsub), [jpDouble](./primitives.md#variable-jpdouble)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: jpDouble
+
+```ts
+jpDouble = (P: JacobianPointBI): JacobianPointBI => {
+    const { X: X1, Y: Y1, Z: Z1 } = P;
+    if (Y1 === BI_ZERO)
+        return { X: BI_ZERO, Y: BI_ONE, Z: BI_ZERO };
+    const Y1sq = biModMul(Y1, Y1);
+    const S = biModMul(BI_FOUR, biModMul(X1, Y1sq));
+    const M = biModMul(BI_THREE, biModMul(X1, X1));
+    const X3 = biModSub(biModMul(M, M), biModMul(BI_TWO, S));
+    const Y3 = biModSub(biModMul(M, biModSub(S, X3)), biModMul(BI_EIGHT, biModMul(Y1sq, Y1sq)));
+    const Z3 = biModMul(BI_TWO, biModMul(Y1, Z1));
+    return { X: X3, Y: Y3, Z: Z3 };
+}
+```
+
+See also: [BI_EIGHT](./primitives.md#variable-bi_eight), [BI_FOUR](./primitives.md#variable-bi_four), [BI_ONE](./primitives.md#variable-bi_one), [BI_THREE](./primitives.md#variable-bi_three), [BI_TWO](./primitives.md#variable-bi_two), [BI_ZERO](./primitives.md#variable-bi_zero), [JacobianPointBI](./primitives.md#interface-jacobianpointbi), [biModMul](./primitives.md#variable-bimodmul), [biModSub](./primitives.md#variable-bimodsub)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: jpNeg
+
+```ts
+jpNeg = (P: JacobianPointBI): JacobianPointBI => {
+    if (P.Z === BI_ZERO)
+        return P;
+    return { X: P.X, Y: P_BIGINT - P.Y, Z: P.Z };
+}
+```
+
+See also: [BI_ZERO](./primitives.md#variable-bi_zero), [JacobianPointBI](./primitives.md#interface-jacobianpointbi), [P_BIGINT](./primitives.md#variable-p_bigint)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Variable: minimallyEncode
 
 ```ts
@@ -5200,6 +5428,55 @@ minimallyEncode = (buf: number[]): number[] => {
     return [];
 }
 ```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: modInvN
+
+```ts
+modInvN = (a: bigint): bigint => {
+    let lm = 1n;
+    let hm = 0n;
+    let low = modN(a);
+    let high = N_BIGINT;
+    while (low > 1n) {
+        const q = high / low;
+        [lm, hm] = [hm - lm * q, lm];
+        [low, high] = [high - low * q, low];
+    }
+    return modN(lm);
+}
+```
+
+See also: [N_BIGINT](./primitives.md#variable-n_bigint), [modN](./primitives.md#variable-modn)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: modMulN
+
+```ts
+modMulN = (a: bigint, b: bigint): bigint => modN(a * b)
+```
+
+See also: [modN](./primitives.md#variable-modn)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: modN
+
+```ts
+modN = (a: bigint): bigint => {
+    let r = a % N_BIGINT;
+    if (r < 0n)
+        r += N_BIGINT;
+    return r;
+}
+```
+
+See also: [N_BIGINT](./primitives.md#variable-n_bigint)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5264,6 +5541,67 @@ ripemd160 = (msg: number[] | string, enc?: "hex" | "utf8"): number[] => {
 ```
 
 See also: [RIPEMD160](./primitives.md#class-ripemd160)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: scalarMultiplyWNAF
+
+```ts
+scalarMultiplyWNAF = (k: bigint, P0: {
+    x: bigint;
+    y: bigint;
+}, window: number = 5): JacobianPointBI => {
+    const key = `${window}:${P0.x.toString(16)}:${P0.y.toString(16)}`;
+    let tbl = WNAF_TABLE_CACHE.get(key);
+    let P: JacobianPointBI;
+    if (tbl === undefined) {
+        const tblSize = 1 << (window - 1);
+        tbl = new Array(tblSize);
+        P = { X: P0.x, Y: P0.y, Z: BI_ONE };
+        tbl[0] = P;
+        const twoP = jpDouble(P);
+        for (let i = 1; i < tblSize; i++) {
+            tbl[i] = jpAdd(tbl[i - 1], twoP);
+        }
+        WNAF_TABLE_CACHE.set(key, tbl);
+    }
+    else {
+        P = tbl[0];
+    }
+    const wnaf: number[] = [];
+    const wBig = 1n << BigInt(window);
+    const wHalf = wBig >> 1n;
+    let kTmp = k;
+    while (kTmp > 0n) {
+        if ((kTmp & BI_ONE) === BI_ZERO) {
+            wnaf.push(0);
+            kTmp >>= BI_ONE;
+        }
+        else {
+            let z = kTmp & (wBig - 1n);
+            if (z > wHalf)
+                z -= wBig;
+            wnaf.push(Number(z));
+            kTmp -= z;
+            kTmp >>= BI_ONE;
+        }
+    }
+    let Q: JacobianPointBI = { X: BI_ZERO, Y: BI_ONE, Z: BI_ZERO };
+    for (let i = wnaf.length - 1; i >= 0; i--) {
+        Q = jpDouble(Q);
+        const di = wnaf[i];
+        if (di !== 0) {
+            const idx = Math.abs(di) >> 1;
+            const addend = di > 0 ? tbl[idx] : jpNeg(tbl[idx]);
+            Q = jpAdd(Q, addend);
+        }
+    }
+    return Q;
+}
+```
+
+See also: [BI_ONE](./primitives.md#variable-bi_one), [BI_ZERO](./primitives.md#variable-bi_zero), [JacobianPointBI](./primitives.md#interface-jacobianpointbi), [jpAdd](./primitives.md#variable-jpadd), [jpDouble](./primitives.md#variable-jpdouble), [jpNeg](./primitives.md#variable-jpneg)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5337,71 +5675,66 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 sign = (msg: BigNumber, key: BigNumber, forceLowS: boolean = false, customK?: BigNumber | ((iter: number) => BigNumber)): Signature => {
-    const curve = new Curve();
     msg = truncateToN(msg);
-    const bytes = curve.n.byteLength();
+    const msgBig = BigInt("0x" + msg.toString(16));
+    const keyBig = BigInt("0x" + key.toString(16));
     const bkey = key.toArray("be", bytes);
     const nonce = msg.toArray("be", bytes);
     const drbg = new DRBG(bkey, nonce);
-    const ns1 = curve.n.subn(1);
     for (let iter = 0;; iter++) {
-        let k = typeof customK === "function"
+        let kBN = typeof customK === "function"
             ? customK(iter)
             : BigNumber.isBN(customK)
                 ? customK
                 : new BigNumber(drbg.generate(bytes), 16);
-        if (k != null) {
-            k = truncateToN(k, true);
-        }
-        else {
+        if (kBN == null)
             throw new Error("k is undefined");
-        }
-        if (k.cmpn(1) <= 0 || k.cmp(ns1) >= 0) {
+        kBN = truncateToN(kBN, true);
+        if (kBN.cmpn(1) <= 0 || kBN.cmp(ns1) >= 0) {
             if (BigNumber.isBN(customK)) {
-                throw new Error("Invalid fixed custom K value (must be more than 1 and less than N-1)");
+                throw new Error("Invalid fixed custom K value (must be >1 and <N\u20111)");
             }
-            else {
-                continue;
-            }
+            continue;
         }
-        const kp = curve.g.mul(k);
-        if (kp.isInfinity()) {
+        const kBig = BigInt("0x" + kBN.toString(16));
+        const R = scalarMultiplyWNAF(kBig, { x: GX_BIGINT, y: GY_BIGINT });
+        if (R.Z === 0n) {
             if (BigNumber.isBN(customK)) {
-                throw new Error("Invalid fixed custom K value (must not create a point at infinity when multiplied by the generator point)");
+                throw new Error("Invalid fixed custom K value (k\u00B7G at infinity)");
             }
-            else {
-                continue;
-            }
+            continue;
         }
-        const kpX = kp.getX();
-        const r = kpX.umod(curve.n);
-        if (r.cmpn(0) === 0) {
+        const zInv = biModInv(R.Z);
+        const zInv2 = biModMul(zInv, zInv);
+        const xAff = biModMul(R.X, zInv2);
+        const rBig = modN(xAff);
+        if (rBig === 0n) {
             if (BigNumber.isBN(customK)) {
-                throw new Error("Invalid fixed custom K value (when multiplied by G, the resulting x coordinate mod N must not be zero)");
+                throw new Error("Invalid fixed custom K value (r == 0)");
             }
-            else {
-                continue;
-            }
+            continue;
         }
-        let s = k.invm(curve.n).mul(r.mul(key).iadd(msg));
-        s = s.umod(curve.n);
-        if (s.cmpn(0) === 0) {
+        const kInv = modInvN(kBig);
+        const rTimesKey = modMulN(rBig, keyBig);
+        const sum = modN(msgBig + rTimesKey);
+        let sBig = modMulN(kInv, sum);
+        if (sBig === 0n) {
             if (BigNumber.isBN(customK)) {
-                throw new Error("Invalid fixed custom K value (when used with the key, it cannot create a zero value for S)");
+                throw new Error("Invalid fixed custom K value (s == 0)");
             }
-            else {
-                continue;
-            }
+            continue;
         }
-        if (forceLowS && s.cmp(curve.n.ushrn(1)) > 0) {
-            s = curve.n.sub(s);
+        if (forceLowS && sBig > halfN) {
+            sBig = N_BIGINT - sBig;
         }
+        const r = new BigNumber(rBig.toString(16), 16);
+        const s = new BigNumber(sBig.toString(16), 16);
         return new Signature(r, s);
     }
 }
 ```
 
-See also: [BigNumber](./primitives.md#class-bignumber), [Curve](./primitives.md#class-curve), [DRBG](./primitives.md#class-drbg), [Signature](./primitives.md#class-signature), [toArray](./primitives.md#variable-toarray)
+See also: [BigNumber](./primitives.md#class-bignumber), [DRBG](./primitives.md#class-drbg), [GX_BIGINT](./primitives.md#variable-gx_bigint), [GY_BIGINT](./primitives.md#variable-gy_bigint), [N_BIGINT](./primitives.md#variable-n_bigint), [Signature](./primitives.md#class-signature), [biModInv](./primitives.md#variable-bimodinv), [biModMul](./primitives.md#variable-bimodmul), [modInvN](./primitives.md#variable-modinvn), [modMulN](./primitives.md#variable-modmuln), [modN](./primitives.md#variable-modn), [scalarMultiplyWNAF](./primitives.md#variable-scalarmultiplywnaf), [toArray](./primitives.md#variable-toarray)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5551,128 +5884,6 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 verify = (msg: BigNumber, sig: Signature, key: Point): boolean => {
-    const zero = BigInt(0);
-    const one = BigInt(1);
-    const two = BigInt(2);
-    const three = BigInt(3);
-    const p = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F");
-    const n = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
-    const G = {
-        x: BigInt("0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"),
-        y: BigInt("0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8")
-    };
-    const mod = (a: bigint, m: bigint): bigint => ((a % m) + m) % m;
-    const modInv = (a: bigint, m: bigint): bigint => {
-        let [oldr, r] = [a, m];
-        let [olds, s] = [BigInt(1), BigInt(0)];
-        while (r !== zero) {
-            const q = oldr / r;
-            [oldr, r] = [r, oldr - q * r];
-            [olds, s] = [s, olds - q * s];
-        }
-        if (oldr > one)
-            return zero;
-        return mod(olds, m);
-    };
-    const modMul = (a: bigint, b: bigint, m: bigint): bigint => mod(a * b, m);
-    const modSub = (a: bigint, b: bigint, m: bigint): bigint => mod(a - b, m);
-    const four = BigInt(4);
-    const eight = BigInt(8);
-    interface JacobianPoint {
-        X: bigint;
-        Y: bigint;
-        Z: bigint;
-    }
-    const pointDouble = (P: JacobianPoint): JacobianPoint => {
-        const { X: X1, Y: Y1, Z: Z1 } = P;
-        if (Y1 === zero) {
-            return { X: zero, Y: one, Z: zero };
-        }
-        const Y1sq = modMul(Y1, Y1, p);
-        const S = modMul(four, modMul(X1, Y1sq, p), p);
-        const M = modMul(three, modMul(X1, X1, p), p);
-        const X3 = modSub(modMul(M, M, p), modMul(two, S, p), p);
-        const Y3 = modSub(modMul(M, modSub(S, X3, p), p), modMul(eight, modMul(Y1sq, Y1sq, p), p), p);
-        const Z3 = modMul(two, modMul(Y1, Z1, p), p);
-        return { X: X3, Y: Y3, Z: Z3 };
-    };
-    const pointAdd = (P: JacobianPoint, Q: JacobianPoint): JacobianPoint => {
-        if (P.Z === zero)
-            return Q;
-        if (Q.Z === zero)
-            return P;
-        const Z1Z1 = modMul(P.Z, P.Z, p);
-        const Z2Z2 = modMul(Q.Z, Q.Z, p);
-        const U1 = modMul(P.X, Z2Z2, p);
-        const U2 = modMul(Q.X, Z1Z1, p);
-        const S1 = modMul(P.Y, modMul(Z2Z2, Q.Z, p), p);
-        const S2 = modMul(Q.Y, modMul(Z1Z1, P.Z, p), p);
-        const H = modSub(U2, U1, p);
-        const r = modSub(S2, S1, p);
-        if (H === zero) {
-            if (r === zero) {
-                return pointDouble(P);
-            }
-            else {
-                return { X: zero, Y: one, Z: zero };
-            }
-        }
-        const HH = modMul(H, H, p);
-        const HHH = modMul(H, HH, p);
-        const V = modMul(U1, HH, p);
-        const X3 = modSub(modSub(modMul(r, r, p), HHH, p), modMul(two, V, p), p);
-        const Y3 = modSub(modMul(r, modSub(V, X3, p), p), modMul(S1, HHH, p), p);
-        const Z3 = modMul(H, modMul(P.Z, Q.Z, p), p);
-        return { X: X3, Y: Y3, Z: Z3 };
-    };
-    const scalarMultiply = (k: bigint, P: {
-        x: bigint;
-        y: bigint;
-    }): JacobianPoint => {
-        const N: JacobianPoint = { X: P.x, Y: P.y, Z: one };
-        let Q: JacobianPoint = { X: zero, Y: one, Z: zero };
-        const kBin = k.toString(2);
-        for (let i = 0; i < kBin.length; i++) {
-            Q = pointDouble(Q);
-            if (kBin[i] === "1") {
-                Q = pointAdd(Q, N);
-            }
-        }
-        return Q;
-    };
-    const verifyECDSA = (hash: bigint, publicKey: {
-        x: bigint;
-        y: bigint;
-    }, signature: {
-        r: bigint;
-        s: bigint;
-    }): boolean => {
-        const { r, s } = signature;
-        const z = hash;
-        if (r <= zero || r >= n || s <= zero || s >= n) {
-            return false;
-        }
-        const w = modInv(s, n);
-        if (w === zero) {
-            return false;
-        }
-        const u1 = modMul(z, w, n);
-        const u2 = modMul(r, w, n);
-        const RG = scalarMultiply(u1, G);
-        const RQ = scalarMultiply(u2, publicKey);
-        const R = pointAdd(RG, RQ);
-        if (R.Z === zero) {
-            return false;
-        }
-        const ZInv = modInv(R.Z, p);
-        if (ZInv === zero) {
-            return false;
-        }
-        const ZInv2 = modMul(ZInv, ZInv, p);
-        const x1affine = modMul(R.X, ZInv2, p);
-        const v = mod(x1affine, n);
-        return v === r;
-    };
     const hash = BigInt("0x" + msg.toString(16));
     if ((key.x == null) || (key.y == null)) {
         throw new Error("Invalid public key: missing coordinates.");
@@ -5685,11 +5896,30 @@ verify = (msg: BigNumber, sig: Signature, key: Point): boolean => {
         r: BigInt("0x" + sig.r.toString(16)),
         s: BigInt("0x" + sig.s.toString(16))
     };
-    return verifyECDSA(hash, publicKey, signature);
+    const { r, s } = signature;
+    const z = hash;
+    if (r <= BI_ZERO || r >= N_BIGINT || s <= BI_ZERO || s >= N_BIGINT) {
+        return false;
+    }
+    const w = modInvN(s);
+    if (w === 0n)
+        return false;
+    const u1 = modMulN(z, w);
+    const u2 = modMulN(r, w);
+    const RG = scalarMultiplyWNAF(u1, { x: GX_BIGINT, y: GY_BIGINT });
+    const RQ = scalarMultiplyWNAF(u2, publicKey);
+    const R = jpAdd(RG, RQ);
+    if (R.Z === 0n)
+        return false;
+    const zInv = biModInv(R.Z);
+    const zInv2 = biModMul(zInv, zInv);
+    const xAff = biModMul(R.X, zInv2);
+    const v = modN(xAff);
+    return v === r;
 }
 ```
 
-See also: [BigNumber](./primitives.md#class-bignumber), [JacobianPoint](./primitives.md#class-jacobianpoint), [Point](./primitives.md#class-point), [Signature](./primitives.md#class-signature)
+See also: [BI_ZERO](./primitives.md#variable-bi_zero), [BigNumber](./primitives.md#class-bignumber), [GX_BIGINT](./primitives.md#variable-gx_bigint), [GY_BIGINT](./primitives.md#variable-gy_bigint), [N_BIGINT](./primitives.md#variable-n_bigint), [Point](./primitives.md#class-point), [Signature](./primitives.md#class-signature), [biModInv](./primitives.md#variable-bimodinv), [biModMul](./primitives.md#variable-bimodmul), [jpAdd](./primitives.md#variable-jpadd), [modInvN](./primitives.md#variable-modinvn), [modMulN](./primitives.md#variable-modmuln), [modN](./primitives.md#variable-modn), [scalarMultiplyWNAF](./primitives.md#variable-scalarmultiplywnaf)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
