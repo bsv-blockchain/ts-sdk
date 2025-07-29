@@ -493,6 +493,16 @@ export class Writer {
     return this.writeUInt32LE(n >>> 0) // Using unsigned right shift to handle negative numbers
   }
 
+  writeInt32LESignMagnitude (n: number): this {
+    const isNegative = n < 0
+    const magnitude = Math.abs(n)
+    
+    // Set the sign bit (MSB) if negative, keep magnitude in lower 31 bits
+    const signMagnitudeValue = isNegative ? (magnitude | 0x80000000) : magnitude
+    
+    return this.writeUInt32LE(signMagnitudeValue >>> 0)
+  }
+
   writeUInt64BEBn (bn: BigNumber): this {
     const buf = bn.toArray('be', 8)
     this.write(buf)

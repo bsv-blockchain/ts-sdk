@@ -126,6 +126,18 @@ describe('Writer', () => {
     })
   })
 
+  describe('#writeInt32LESignMagnitude', () => {
+    it('should write 1', () => {
+      const bw = new Writer()
+      expect(encode(bw.writeInt32LESignMagnitude(1).toArray(), 'hex')).toEqual(
+        '01000000'
+      )
+      expect(encode(new Writer().writeInt32LESignMagnitude(-1).toArray(), 'hex')).toEqual(
+        '01000080'
+      )
+    })
+  })
+
   describe('#writeUInt64BEBn', () => {
     it('should write 1', () => {
       const bw = new Writer()

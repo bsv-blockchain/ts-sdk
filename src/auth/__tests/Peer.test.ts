@@ -497,7 +497,7 @@ describe('Peer class mutual authentication and certificate exchange', () => {
             resolve()
           }
         })().catch((error) => {
-          console.error(error)
+          // console.error(error)
         })
       })
     })

@@ -132,7 +132,7 @@ export default class TransactionSignature extends Signature {
     const writer = new Writer()
 
     // Version
-    writer.writeInt32LE(params.transactionVersion)
+    writer.writeInt32LESignMagnitude(params.transactionVersion)
 
     // Input prevouts/nSequence (none/all, depending on flags)
     writer.write(hashPrevouts)
