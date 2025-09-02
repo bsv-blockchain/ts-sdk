@@ -6,7 +6,7 @@ import LockingScript from '../script/LockingScript.js'
 import { Reader, Writer, toHex, toArray } from '../primitives/utils.js'
 import { hash256 } from '../primitives/Hash.js'
 import FeeModel from './FeeModel.js'
-import SatoshisPerKilobyte from './fee-models/SatoshisPerKilobyte.js'
+import LivePolicy from './fee-models/LivePolicy.js'
 import { Broadcaster, BroadcastResponse, BroadcastFailure } from './Broadcaster.js'
 import MerklePath from './MerklePath.js'
 import Spend from '../script/Spend.js'
@@ -411,7 +411,7 @@ export default class Transaction {
 
   /**
    * Computes fees prior to signing.
-   * If no fee model is provided, uses a SatoshisPerKilobyte fee model that pays 1 sat/kb.
+   * If no fee model is provided, uses a LivePolicy fee model that fetches current rates from ARC.
    * If fee is a number, the transaction uses that value as fee.
    *
    * @param modelOrFee - The initialized fee model to use or fixed fee for the transaction
@@ -420,7 +420,7 @@ export default class Transaction {
    *
    */
   async fee (
-    modelOrFee: FeeModel | number = new SatoshisPerKilobyte(1),
+    modelOrFee: FeeModel | number = LivePolicy.getInstance(),
     changeDistribution: 'equal' | 'random' = 'equal'
   ): Promise<void> {
     this.cachedHash = undefined
@@ -774,7 +774,7 @@ export default class Transaction {
    *
    * @returns Whether the transaction is valid according to the rules of SPV.
    *
-   * @example tx.verify(new WhatsOnChain(), new SatoshisPerKilobyte(1))
+   * @example tx.verify(new WhatsOnChain(), LivePolicy.getInstance())
    */
   async verify (
     chainTracker: ChainTracker | 'scripts only' = defaultChainTracker(),
