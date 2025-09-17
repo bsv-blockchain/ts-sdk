@@ -819,7 +819,7 @@ export default class WalletWireProcessor implements WalletWire {
               const derivationPrefixBytes = paramsReader.read(
                 derivationPrefixLength
               )
-              output.paymentRemittance.derivationPrefix = Utils.toBase64(
+              output.paymentRemittance.derivationPrefix = Utils.toUTF8(
                 derivationPrefixBytes
               )
 
@@ -828,7 +828,7 @@ export default class WalletWireProcessor implements WalletWire {
               const derivationSuffixBytes = paramsReader.read(
                 derivationSuffixLength
               )
-              output.paymentRemittance.derivationSuffix = Utils.toBase64(
+              output.paymentRemittance.derivationSuffix = Utils.toUTF8(
                 derivationSuffixBytes
               )
             } else if (protocolFlag === 2) {
