@@ -843,13 +843,13 @@ export default class WalletWireTransceiver implements WalletInterface {
         )
         const derivationPrefixAsArray = Utils.toArray(
           out.paymentRemittance.derivationPrefix,
-          'base64'
+          'utf8'
         )
         paramWriter.writeVarIntNum(derivationPrefixAsArray.length)
         paramWriter.write(derivationPrefixAsArray)
         const derivationSuffixAsArray = Utils.toArray(
           out.paymentRemittance.derivationSuffix,
-          'base64'
+          'utf8'
         )
         paramWriter.writeVarIntNum(derivationSuffixAsArray.length)
         paramWriter.write(derivationSuffixAsArray)
