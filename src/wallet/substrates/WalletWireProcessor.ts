@@ -1782,6 +1782,27 @@ export default class WalletWireProcessor implements WalletWire {
             // Write certificate binary length and data
             resultWriter.writeVarIntNum(certBin.length)
             resultWriter.write(certBin)
+
+            if (cert.keyring && Object.keys(cert.keyring).length > 0) {
+              resultWriter.writeInt8(1) // Flag indicating keyring is present
+              const keyringEntries = Object.entries(cert.keyring)
+              resultWriter.writeVarIntNum(keyringEntries.length)
+              for (const [fieldName, fieldValue] of keyringEntries) {
+                const fieldNameBytes = Utils.toArray(fieldName, 'utf8')
+                resultWriter.writeVarIntNum(fieldNameBytes.length)
+                resultWriter.write(fieldNameBytes)
+
+                const fieldValueBytes = Utils.toArray(fieldValue, 'base64')
+                resultWriter.writeVarIntNum(fieldValueBytes.length)
+                resultWriter.write(fieldValueBytes)
+              }
+            } else {
+              resultWriter.writeInt8(0) // Flag indicating no keyring
+            }
+
+            const verifierBytes = Utils.toArray(cert.verifier, 'hex')
+            resultWriter.writeVarIntNum(verifierBytes.length)
+            resultWriter.write(verifierBytes)
           }
 
           // Return the response

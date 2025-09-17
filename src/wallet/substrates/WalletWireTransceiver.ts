@@ -11,6 +11,7 @@ import {
   BooleanDefaultTrue,
   Byte,
   CertificateFieldNameUnder50Bytes,
+  CertificateResult,
   CreateActionArgs,
   CreateActionResult,
   DescriptionString5to50Bytes,
@@ -1672,22 +1673,33 @@ export default class WalletWireTransceiver implements WalletInterface {
     )
     const resultReader = new Utils.Reader(result)
     const totalCertificates = resultReader.readVarIntNum()
-    const certificates: Array<{
-      type: Base64String
-      subject: PubKeyHex
-      serialNumber: Base64String
-      certifier: PubKeyHex
-      revocationOutpoint: OutpointString
-      signature: HexString
-      fields: Record<CertificateFieldNameUnder50Bytes, Base64String>
-    }> = []
+    const certificates: Array<CertificateResult> = []
     for (let i = 0; i < totalCertificates; i++) {
       const certificateLength = resultReader.readVarIntNum()
       const certificateBin = resultReader.read(certificateLength)
       const cert = Certificate.fromBinary(certificateBin)
+      const keyringForVerifier: Record<string, string> = {}
+      if (resultReader.readInt8() === 1) {
+        const numFields = resultReader.readVarIntNum()
+        for (let i = 0; i < numFields; i++) {
+          const fieldKeyLength = resultReader.readVarIntNum()
+          const fieldKey = Utils.toUTF8(resultReader.read(fieldKeyLength))
+          const fieldValueLength = resultReader.readVarIntNum()
+          keyringForVerifier[fieldKey] = Utils.toBase64(
+              resultReader.read(fieldValueLength)
+          )
+        }
+      }
+      const verifierLength = resultReader.readVarIntNum()
+      let verifier: string | undefined = undefined
+      if (verifierLength > 0) {
+        verifier = Utils.toUTF8(resultReader.read(verifierLength))
+      }
       certificates.push({
         ...cert,
-        signature: cert.signature as string
+        signature: cert.signature as string,
+        keyring: keyringForVerifier,
+        verifier,
       })
     }
     return {
