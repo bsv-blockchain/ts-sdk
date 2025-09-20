@@ -77,6 +77,7 @@ export class Beef {
   txs: BeefTx[] = []
   version: number = BEEF_V2
   atomicTxid: string | undefined = undefined
+  private txidIndex: Map<string, BeefTx> | undefined = undefined
 
   constructor (version: number = BEEF_V2) {
     this.version = version
@@ -87,7 +88,25 @@ export class Beef {
    * @returns `BeefTx` in `txs` with `txid`.
    */
   findTxid (txid: string): BeefTx | undefined {
-    return this.txs.find((tx) => tx.txid === txid)
+    return this.ensureTxidIndex().get(txid)
+  }
+
+  private ensureTxidIndex (): Map<string, BeefTx> {
+    if (this.txidIndex == null) {
+      this.txidIndex = new Map<string, BeefTx>()
+      for (const tx of this.txs) {
+        this.txidIndex.set(tx.txid, tx)
+      }
+    }
+    return this.txidIndex
+  }
+
+  private deleteFromIndex (txid: string): void {
+    this.txidIndex?.delete(txid)
+  }
+
+  private addToIndex (tx: BeefTx): void {
+    this.txidIndex?.set(tx.txid, tx)
   }
 
   /**
@@ -107,6 +126,7 @@ export class Beef {
     if (btx.isTxidOnly) {
       return btx
     }
+    this.deleteFromIndex(txid)
     this.txs.splice(i, 1)
     btx = this.mergeTxidOnly(txid)
     return btx
@@ -254,6 +274,7 @@ export class Beef {
     const newTx: BeefTx = new BeefTx(rawTx, bumpIndex)
     this.removeExistingTxid(newTx.txid)
     this.txs.push(newTx)
+    this.addToIndex(newTx)
     this.tryToValidateBumpIndex(newTx)
     return newTx
   }
@@ -277,6 +298,7 @@ export class Beef {
     }
     const newTx = new BeefTx(tx, bumpIndex)
     this.txs.push(newTx)
+    this.addToIndex(newTx)
     this.tryToValidateBumpIndex(newTx)
     bumpIndex = newTx.bumpIndex
     if (bumpIndex === undefined) {
@@ -296,15 +318,17 @@ export class Beef {
   removeExistingTxid (txid: string): void {
     const existingTxIndex = this.txs.findIndex((t) => t.txid === txid)
     if (existingTxIndex >= 0) {
+      this.deleteFromIndex(txid)
       this.txs.splice(existingTxIndex, 1)
     }
   }
 
   mergeTxidOnly (txid: string): BeefTx {
-    let tx = this.txs.find((t) => t.txid === txid)
+    let tx = this.findTxid(txid)
     if (tx == null) {
       tx = new BeefTx(txid)
       this.txs.push(tx)
+      this.addToIndex(tx)
       this.tryToValidateBumpIndex(tx)
     }
     return tx
@@ -743,6 +767,7 @@ export class Beef {
     c.version = this.version
     c.bumps = Array.from(this.bumps)
     c.txs = Array.from(this.txs)
+    c.txidIndex = undefined
     return c
   }
 
@@ -754,6 +779,7 @@ export class Beef {
     for (let i = 0; i < this.txs.length;) {
       const tx = this.txs[i]
       if (tx.isTxidOnly && knownTxids.includes(tx.txid)) {
+        this.deleteFromIndex(tx.txid)
         this.txs.splice(i, 1)
       } else {
         i++

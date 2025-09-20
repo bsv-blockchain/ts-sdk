@@ -158,6 +158,16 @@ All notable changes to this project will be documented in this file. The format 
 ### Security
 
 ---
+
+### [1.7.7] - 2025-09-19
+
+### Added
+
+- Atomic BEEF bemchmark for long chains
+- Performance enhancements when dealing with long BEEF chains
+
+---
+
 ### [1.7.6] - 2025-09-09
 
 ### Fixed

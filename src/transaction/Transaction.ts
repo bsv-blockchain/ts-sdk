@@ -912,49 +912,49 @@ export default class Transaction {
     const writer = new Writer()
     writer.writeUInt32LE(BEEF_V1)
     const BUMPs: MerklePath[] = []
+    const bumpIndexByInstance = new Map<MerklePath, number>()
+    const bumpIndexByRoot = new Map<string, number>()
     const txs: Array<{ tx: Transaction, pathIndex?: number }> = []
+    const seenTxids = new Set<string>()
+
+    const getBumpIndex = (merklePath: MerklePath): number => {
+      const existingByInstance = bumpIndexByInstance.get(merklePath)
+      if (existingByInstance !== undefined) {
+        return existingByInstance
+      }
+
+      const key = `${merklePath.blockHeight}:${merklePath.computeRoot()}`
+      const existingByRoot = bumpIndexByRoot.get(key)
+      if (existingByRoot !== undefined) {
+        BUMPs[existingByRoot].combine(merklePath)
+        bumpIndexByInstance.set(merklePath, existingByRoot)
+        return existingByRoot
+      }
+
+      const newIndex = BUMPs.length
+      BUMPs.push(merklePath)
+      bumpIndexByInstance.set(merklePath, newIndex)
+      bumpIndexByRoot.set(key, newIndex)
+      return newIndex
+    }
 
     // Recursive function to add paths and input transactions for a TX
     const addPathsAndInputs = (tx: Transaction): void => {
+      const txid = tx.id('hex')
+      if (seenTxids.has(txid)) {
+        return
+      }
+
       const obj: { tx: Transaction, pathIndex?: number } = { tx }
-      const hasProof = typeof tx.merklePath === 'object'
-      if (hasProof) {
-        let added = false
-        // If this proof is identical to another one previously added, we use that first. Otherwise, we try to merge it with proofs from the same block.
-        for (let i = 0; i < BUMPs.length; i++) {
-          if (BUMPs[i] === tx.merklePath) {
-            // Literally the same
-            obj.pathIndex = i
-            added = true
-            break
-          }
-          if (tx.merklePath !== null && tx.merklePath !== undefined && BUMPs[i].blockHeight === tx.merklePath.blockHeight) {
-            // Probably the same...
-            const rootA = BUMPs[i].computeRoot()
-            const rootB = tx.merklePath.computeRoot()
-            if (rootA === rootB) {
-              // Definitely the same... combine them to save space
-              BUMPs[i].combine(tx.merklePath)
-              obj.pathIndex = i
-              added = true
-              break
-            }
-          }
-        }
-        // Finally, if the proof is not yet added, add a new path.
-        if (!added) {
-          obj.pathIndex = BUMPs.length
-          if (tx.merklePath !== null && tx.merklePath !== undefined) {
-            BUMPs.push(tx.merklePath)
-          }
-        }
+      const merklePath = tx.merklePath
+      const hasProof = typeof merklePath === 'object'
+
+      if (hasProof && merklePath != null) {
+        obj.pathIndex = getBumpIndex(merklePath)
       }
-      const duplicate = txs.some((x) => x.tx.id('hex') === tx.id('hex'))
-      if (!duplicate) {
-        txs.unshift(obj)
-      }
+
       if (!hasProof) {
-        for (let i = 0; i < tx.inputs.length; i++) {
+        for (let i = tx.inputs.length - 1; i >= 0; i--) {
           const input = tx.inputs[i]
           if (typeof input.sourceTransaction === 'object') {
             addPathsAndInputs(input.sourceTransaction)
@@ -963,6 +963,9 @@ export default class Transaction {
           }
         }
       }
+
+      seenTxids.add(txid)
+      txs.push(obj)
     }
 
     addPathsAndInputs(this)
