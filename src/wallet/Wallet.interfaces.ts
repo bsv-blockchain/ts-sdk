@@ -500,13 +500,13 @@ export interface ListActionsResult {
 }
 
 /**
- * @param {Base64String} derivationPrefix - Payment-level derivation prefix used by the sender for key derivation (for payments).
- * @param {Base64String} derivationSuffix - Specific output-level derivation suffix used by the sender for key derivation (for payments).
+ * @param {string} derivationPrefix - Payment-level derivation prefix used by the sender for key derivation (for payments).
+ * @param {string} derivationSuffix - Specific output-level derivation suffix used by the sender for key derivation (for payments).
  * @param {PubKeyHex} senderIdentityKey - Public identity key of the sender (for payments).
  */
 export interface WalletPayment {
-  derivationPrefix: Base64String
-  derivationSuffix: Base64String
+  derivationPrefix: string
+  derivationSuffix: string
   senderIdentityKey: PubKeyHex
 }
 
