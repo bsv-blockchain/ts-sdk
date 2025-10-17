@@ -63,12 +63,9 @@ const OP = {
 
   // data manipulation ops
   OP_CAT: 0x7e,
-  OP_SUBSTR: 0x7f, // Replaced in BSV
-  OP_SPLIT: 0x7f,
-  OP_LEFT: 0x80, // Replaced in BSV
-  OP_NUM2BIN: 0x80,
-  OP_RIGHT: 0x81, // Replaced in BSV
-  OP_BIN2NUM: 0x81,
+  OP_SPLIT: 0x7f, // after monolith upgrade (May 2018)
+  OP_NUM2BIN: 0x80, // after monolith upgrade (May 2018)
+  OP_BIN2NUM: 0x81, // after monolith upgrade (May 2018)
   OP_SIZE: 0x82,
 
   // bit logic
@@ -127,11 +124,14 @@ const OP = {
 
   // expansion
   OP_NOP1: 0xb0,
-  OP_NOP2: 0xb1,
-  OP_NOP3: 0xb2,
-  OP_NOP4: 0xb3,
-  OP_NOP5: 0xb4,
-  OP_NOP6: 0xb5,
+  OP_NOP2: 0xb1, // Used on BTC for OP_CHECKLOCKTIMEVERIFY
+  OP_NOP3: 0xb2, // Used on BTC for OP_CHECKSEQUENCEVERIFY
+  OP_NOP4: 0xb3, // OP_NOP4 allocated to restore OP_SUBSTR in 2025 CHRONICLE upgrade
+  OP_SUBSTR: 0xb3, // OP_NOP4 allocated to restore OP_SUBSTR in 2025 CHRONICLE upgrade
+  OP_NOP5: 0xb4, // OP_NOP5 allocated to restore OP_LEFT in 2025 CHRONICLE upgrade
+  OP_LEFT: 0xb4, // OP_NOP5 allocated to restore OP_LEFT in 2025 CHRONICLE upgrade
+  OP_NOP6: 0xb5, // OP_NOP6 allocated to restore OP_RIGHT in 2025 CHRONICLE upgrade
+  OP_RIGHT: 0xb5, // OP_NOP6 allocated to restore OP_RIGHT in 2025 CHRONICLE upgrade
   OP_NOP7: 0xb6,
   OP_NOP8: 0xb7,
   OP_NOP9: 0xb8,
