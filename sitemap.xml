@@ -2,282 +2,282 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/MARKDOWN_VALIDATION_GUIDE/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/performance/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/beef/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/chain-tracking/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/decentralized-identity/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/fees/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/identity-certificates/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/key-management/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/script-templates/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/sdk-philosophy/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/signatures/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/spv-verification/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/transaction-encoding/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/transaction-structure/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/trust-model/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/verification/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/concepts/wallet-integration/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/guides/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/guides/development-wallet-setup/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/guides/direct-transaction-creation/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/guides/http-client-configuration/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/guides/large-transactions/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/guides/multisig-transactions/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/guides/security-best-practices/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/guides/transaction-batching/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/guides/transaction-signing-methods/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/arc-config/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/auth/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/brc-100/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/compat/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/configuration/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/debugging/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/errors/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/identity/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/kvstore/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/messages/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/network-config/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/op-codes/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/overlay-tools/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/primitives/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/registry/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/script/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/storage/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/totp/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/transaction-signatures/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/transaction/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/wallet/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/advanced-transaction/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/aes-encryption/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/authfetch-tutorial/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/ecdh-key-exchange/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/elliptic-curve-fundamentals/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/error-handling/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/first-transaction-low-level/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/first-transaction/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/hashes-and-hmacs/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/identity-management/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/key-management/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/protowallet-development/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/script-construction/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/spv-merkle-proofs/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/testnet-transactions-low-level/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/transaction-broadcasting/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/transaction-types/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/type-42/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/tutorials/uhrp-storage/</loc>
-         <lastmod>2025-10-23</lastmod>
+         <lastmod>2025-10-28</lastmod>
     </url>
 </urlset>
