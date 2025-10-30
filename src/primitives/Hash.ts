@@ -1103,6 +1103,70 @@ export const sha512hmac = (
   return new SHA512HMAC(key).update(msg, enc).digest()
 }
 
+/**
+ * HKDF (HMAC-based Key Derivation Function) implementation using SHA-256.
+ * Implements RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
+ * 
+ * HKDF follows the "extract-then-expand" paradigm:
+ * - Extract: Takes input keying material and a salt, producing a pseudorandom key (PRK)
+ * - Expand: Expands the PRK into multiple output keying material (OKM) values
+ * 
+ * @function hkdf
+ * @param ikm - Input Keying Material: The source key material from which the output key will be derived
+ * @param length - The desired length of the output key in bytes (max 255 * 32 = 8160 bytes for SHA256)
+ * @param salt - Optional salt value (a non-secret random value). If not provided, a string of HashLen zeros is used
+ * @param info - Optional context and application specific information (can be empty)
+ * 
+ * @returns The derived key as a number array
+ * 
+ * @throws {Error} If the requested length is too large (> 255 * HashLen)
+ * 
+ * @example
+ * // Derive a 32-byte key from an input key material
+ * const ikm = [0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b];
+ * const salt = [0x00, 0x01, 0x02, 0x03];
+ * const info = [0xf0, 0xf1, 0xf2, 0xf3];
+ * const derivedKey = hkdf(ikm, 32, salt, info);
+ */
+export const hkdf = (
+  ikm: number[],
+  length: number,
+  salt?: number[],
+  info?: number[]
+): number[] => {
+  // RFC 5869 states the hash function's output length
+  const hashLen = 32 // SHA-256 output length in bytes
+
+  // Validate the requested length
+  if (length > 255 * hashLen) {
+    throw new Error(`Requested length (${length}) is too large. Maximum is ${255 * hashLen} bytes.`)
+  }
+
+  // Step 1: Extract
+  // If salt is not provided, use a string of HashLen zeros
+  const extractSalt = salt ?? new Array(hashLen).fill(0)
+  // PRK = HMAC-Hash(salt, IKM)
+  const prk = sha256hmac(extractSalt, ikm)
+
+  // Step 2: Expand
+  // N = ceil(L/HashLen)
+  const n = Math.ceil(length / hashLen)
+  const infoBytes = info ?? []
+  
+  let okm: number[] = []
+  let t: number[] = []
+  
+  for (let i = 1; i <= n; i++) {
+    // T(i) = HMAC-Hash(PRK, T(i-1) | info | i)
+    const input = [...t, ...infoBytes, i]
+    t = sha256hmac(prk, input)
+    okm = okm.concat(t)
+  }
+
+  // Return the first L bytes of the output keying material
+  return okm.slice(0, length)
+}
+
 // BEGIN fast-pbkdf2 helpers
 // Utils
 function isBytes (a: unknown): a is Uint8Array {

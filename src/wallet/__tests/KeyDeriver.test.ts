@@ -118,13 +118,15 @@ describe('KeyDeriver', () => {
     )
   })
 
-  test('should derive the correct symmetric key', () => {
+  test('should derive the correct symmetric key using HKDF', () => {
     const derivedSymmetricKey = keyDeriver.deriveSymmetricKey(
       protocolID,
       keyID,
       counterpartyPublicKey
     )
     expect(derivedSymmetricKey).toBeInstanceOf(SymmetricKey)
+    
+    // Verify the key was derived using HKDF
     const priv = rootPrivateKey.deriveChild(
       counterpartyPublicKey,
       '0-testprotocol-12345'
@@ -133,8 +135,13 @@ describe('KeyDeriver', () => {
       rootPrivateKey,
       '0-testprotocol-12345'
     )
+    const sharedSecret = priv.deriveSharedSecret(pub)
+    const ikm = sharedSecret.x?.toArray()
+    const info = Utils.toArray('0-testprotocol-12345', 'utf8')
+    const expectedKey = Hash.hkdf(ikm ?? [], 32, undefined, info)
+    
     expect(derivedSymmetricKey.toHex()).toEqual(
-      new SymmetricKey(priv.deriveSharedSecret(pub).x?.toArray()).toHex()
+      new SymmetricKey(expectedKey).toHex()
     )
   })
 

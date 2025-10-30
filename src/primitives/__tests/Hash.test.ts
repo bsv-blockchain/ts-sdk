@@ -129,4 +129,98 @@ describe('Hash', function () {
       })
     }
   })
+
+  describe('HKDF (RFC 5869 Test Vectors)', () => {
+    // Test Case 1: Basic test case with SHA-256
+    it('Test Case 1: Basic test', () => {
+      const ikm = toArray('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex')
+      const salt = toArray('000102030405060708090a0b0c', 'hex')
+      const info = toArray('f0f1f2f3f4f5f6f7f8f9', 'hex')
+      const length = 42
+
+      const okm = hash.hkdf(ikm, length, salt, info)
+      
+      expect(toHex(okm)).toEqual(
+        '3cb25f25faacd57a90434f64d0362f2a' +
+        '2d2d0a90cf1a5a4c5db02d56ecc4c5bf' +
+        '34007208d5b887185865'
+      )
+    })
+
+    // Test Case 2: Test with longer inputs/outputs
+    it('Test Case 2: Longer inputs/outputs', () => {
+      const ikm = toArray(
+        '000102030405060708090a0b0c0d0e0f' +
+        '101112131415161718191a1b1c1d1e1f' +
+        '202122232425262728292a2b2c2d2e2f' +
+        '303132333435363738393a3b3c3d3e3f' +
+        '404142434445464748494a4b4c4d4e4f',
+        'hex'
+      )
+      const salt = toArray(
+        '606162636465666768696a6b6c6d6e6f' +
+        '707172737475767778797a7b7c7d7e7f' +
+        '808182838485868788898a8b8c8d8e8f' +
+        '909192939495969798999a9b9c9d9e9f' +
+        'a0a1a2a3a4a5a6a7a8a9aaabacadaeaf',
+        'hex'
+      )
+      const info = toArray(
+        'b0b1b2b3b4b5b6b7b8b9babbbcbdbebf' +
+        'c0c1c2c3c4c5c6c7c8c9cacbcccdcecf' +
+        'd0d1d2d3d4d5d6d7d8d9dadbdcdddedf' +
+        'e0e1e2e3e4e5e6e7e8e9eaebecedeeef' +
+        'f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff',
+        'hex'
+      )
+      const length = 82
+
+      const okm = hash.hkdf(ikm, length, salt, info)
+      
+      expect(toHex(okm)).toEqual(
+        'b11e398dc80327a1c8e7f78c596a4934' +
+        '4f012eda2d4efad8a050cc4c19afa97c' +
+        '59045a99cac7827271cb41c65e590e09' +
+        'da3275600c2f09b8367793a9aca3db71' +
+        'cc30c58179ec3e87c14c01d5c1f3434f' +
+        '1d87'
+      )
+    })
+
+    // Test Case 3: Test with empty salt and info
+    it('Test Case 3: Empty salt and info', () => {
+      const ikm = toArray('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex')
+      const salt = undefined
+      const info = undefined
+      const length = 42
+
+      const okm = hash.hkdf(ikm, length, salt, info)
+      
+      expect(toHex(okm)).toEqual(
+        '8da4e775a563c18f715f802a063c5a31' +
+        'b8a11f5c5ee1879ec3454e5f3c738d2d' +
+        '9d201395faa4b61a96c8'
+      )
+    })
+
+    // Test Case 4: Verify KDF can produce 32-byte keys
+    it('Test Case 4: 32-byte output', () => {
+      const ikm = toArray('0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c', 'hex')
+      const length = 32
+
+      const okm = hash.hkdf(ikm, length)
+      
+      expect(okm.length).toEqual(32)
+    })
+
+    // Test Case 5: Error handling - length too large
+    it('Test Case 5: Should throw error for length too large', () => {
+      const ikm = toArray('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex')
+      const length = 255 * 32 + 1 // Exceeds maximum
+
+      expect(() => hash.hkdf(ikm, length)).toThrow(
+        /Requested length.*is too large/
+      )
+    })
+  })
 })
