@@ -1106,21 +1106,21 @@ export const sha512hmac = (
 /**
  * HKDF (HMAC-based Key Derivation Function) implementation using SHA-256.
  * Implements RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
- * 
+ *
  * HKDF follows the "extract-then-expand" paradigm:
  * - Extract: Takes input keying material and a salt, producing a pseudorandom key (PRK)
  * - Expand: Expands the PRK into multiple output keying material (OKM) values
- * 
+ *
  * @function hkdf
  * @param ikm - Input Keying Material: The source key material from which the output key will be derived
  * @param length - The desired length of the output key in bytes (max 255 * 32 = 8160 bytes for SHA256)
  * @param salt - Optional salt value (a non-secret random value). If not provided, a string of HashLen zeros is used
  * @param info - Optional context and application specific information (can be empty)
- * 
+ *
  * @returns The derived key as a number array
- * 
+ *
  * @throws {Error} If the requested length is too large (> 255 * HashLen)
- * 
+ *
  * @example
  * // Derive a 32-byte key from an input key material
  * const ikm = [0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b];
@@ -1152,10 +1152,10 @@ export const hkdf = (
   // N = ceil(L/HashLen)
   const n = Math.ceil(length / hashLen)
   const infoBytes = info ?? []
-  
+
   let okm: number[] = []
   let t: number[] = []
-  
+
   for (let i = 1; i <= n; i++) {
     // T(i) = HMAC-Hash(PRK, T(i-1) | info | i)
     const input = [...t, ...infoBytes, i]

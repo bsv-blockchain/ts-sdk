@@ -171,12 +171,13 @@ export class KeyDeriver implements KeyDeriverApi {
   /**
    * Derives a symmetric key based on protocol ID, key ID, and counterparty.
    * Note: Symmetric keys should not be derivable by everyone due to security risks.
-   * 
-   * This method uses HKDF (HMAC-based Key Derivation Function) as recommended by
-   * NIST SP 800-56C to derive a symmetric key from the ECDH shared secret. This is
-   * more secure than using the x-coordinate directly as it removes structure from
-   * the elliptic curve point.
-   * 
+   *
+   * This method follows BRC-2 specification: it computes an ECDH shared secret, then
+   * hashes the X and Y coordinates of the resulting elliptic curve point with SHA-256
+   * to create a symmetric encryption key. This approach is more secure than using the
+   * X coordinate directly, as it removes structure from the elliptic curve point through
+   * the one-way hash function.
+   *
    * @param {WalletProtocol} protocolID - The protocol ID including a security level and protocol name.
    * @param {string} keyID - The key identifier.
    * @param {Counterparty} counterparty - The counterparty's public key or a predefined value ('self' or 'anyone').
@@ -204,24 +205,20 @@ export class KeyDeriver implements KeyDeriverApi {
       keyID,
       counterparty
     )
-    
+
     // Get the shared secret point from ECDH
     const sharedSecret = derivedPrivateKey.deriveSharedSecret(derivedPublicKey)
-    if (sharedSecret == null || sharedSecret.x == null) {
+    if (sharedSecret == null || sharedSecret.x == null || sharedSecret.y == null) {
       throw new Error('Failed to derive shared secret')
     }
-    
-    // Use the x-coordinate as input keying material (IKM) for HKDF
-    const ikm = sharedSecret.x.toArray()
-    
-    // Use protocol and key information as context for HKDF
-    const invoiceNumber = this.computeInvoiceNumber(protocolID, keyID)
-    const info = Utils.toArray(invoiceNumber, 'utf8')
-    
-    // Derive a 32-byte symmetric key using HKDF-SHA256
-    // No salt is used (defaults to zeros) as the shared secret is already pseudorandom
-    const derivedKey = Hash.hkdf(ikm, 32, undefined, info)
-    
+
+    // Following BRC-2 specification: hash the X and Y coordinates with SHA-256
+    // This removes structure from the elliptic curve point and creates a uniform random key
+    const xBytes = sharedSecret.x.toArray('be', 32)
+    const yBytes = sharedSecret.y.toArray('be', 32)
+    const combined = [...xBytes, ...yBytes]
+    const derivedKey = Hash.sha256(combined)
+
     return new SymmetricKey(derivedKey)
   }
 
