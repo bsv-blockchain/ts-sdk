@@ -500,6 +500,16 @@ export default class BigNumber {
   }
 
   /**
+   * Returns the signed BigInt representation of this BigNumber without any safety checks.
+   *
+   * @method toBigInt
+   * @returns bigint value for this BigNumber.
+   */
+  toBigInt (): bigint {
+    return this._getSignedValue()
+  }
+
+  /**
    * Converts the BigNumber instance to a JSON-formatted string.
    *
    * @method toJSON
@@ -762,34 +772,53 @@ export default class BigNumber {
     return res
   }
 
-  iushln (bits: number): this { this.assert(typeof bits === 'number' && bits >= 0); if (bits === 0) return this; this._magnitude <<= BigInt(bits); this._finishInitialization(); return this.strip() }
-  ishln (bits: number): this { this.assert(this._sign === 0, 'ishln requires positive number'); return this.iushln(bits) }
+  private static normalizeNonNegativeBigInt (value: number | bigint, label: string): bigint {
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0) throw new Error(`${label} must be a non-negative integer`)
+      return BigInt(value)
+    }
+    if (value < 0n) throw new Error(`${label} must be a non-negative integer`)
+    return value
+  }
 
-  iushrn (bits: number, hint?: number, extended?: BigNumber): this {
-    this.assert(typeof bits === 'number' && bits >= 0)
-    if (bits === 0) {
-      if (extended != null)extended._initializeState(0n, 0)
-      return this
-    }
-    if (extended != null) {
-      const m = (1n << BigInt(bits)) - 1n
-      const sOut = this._magnitude & m
-      extended._initializeState(sOut, 0)
-    }
-    this._magnitude >>= BigInt(bits)
+  iushln (bits: number | bigint): this {
+    const normalizedBits = BigNumber.normalizeNonNegativeBigInt(bits, 'Shift bits')
+    if (normalizedBits === 0n) return this
+    this._magnitude <<= normalizedBits
     this._finishInitialization()
     return this.strip()
   }
 
-  ishrn (bits: number, hint?: number, extended?: BigNumber): this {
+  ishln (bits: number | bigint): this {
+    this.assert(this._sign === 0, 'ishln requires positive number')
+    return this.iushln(bits)
+  }
+
+  iushrn (bits: number | bigint, hint?: number, extended?: BigNumber): this {
+    const normalizedBits = BigNumber.normalizeNonNegativeBigInt(bits, 'Shift bits')
+    if (normalizedBits === 0n) {
+      if (extended != null) extended._initializeState(0n, 0)
+      return this
+    }
+    if (extended != null) {
+      const m = (1n << normalizedBits) - 1n
+      const sOut = this._magnitude & m
+      extended._initializeState(sOut, 0)
+    }
+    this._magnitude >>= normalizedBits
+    this._finishInitialization()
+    return this.strip()
+  }
+
+  ishrn (bits: number | bigint, hint?: number, extended?: BigNumber): this {
     this.assert(this._sign === 0, 'ishrn requires positive number')
     return this.iushrn(bits, hint, extended)
   }
 
-  shln (bits: number): BigNumber { return this.clone().ishln(bits) }
-  ushln (bits: number): BigNumber { return this.clone().iushln(bits) }
-  shrn (bits: number): BigNumber { return this.clone().ishrn(bits) }
-  ushrn (bits: number): BigNumber { return this.clone().iushrn(bits) }
+  shln (bits: number | bigint): BigNumber { return this.clone().ishln(bits) }
+  ushln (bits: number | bigint): BigNumber { return this.clone().iushln(bits) }
+  shrn (bits: number | bigint): BigNumber { return this.clone().ishrn(bits) }
+  ushrn (bits: number | bigint): BigNumber { return this.clone().iushrn(bits) }
 
   testn (bit: number): boolean {
     this.assert(typeof bit === 'number' && bit >= 0)

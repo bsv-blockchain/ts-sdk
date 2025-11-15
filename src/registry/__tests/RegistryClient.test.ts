@@ -95,6 +95,7 @@ jest.mock('../../primitives/index.js', () => {
 })
 
 let walletMock: Partial<WalletInterface>
+const TEST_ORIGINATOR = 'test.originator.example'
 
 /**
  * Build minimal valid DefinitionData for each type
@@ -163,7 +164,7 @@ describe('RegistryClient', () => {
       getNetwork: jest.fn().mockResolvedValue({ network: 'main' })
     }
 
-    registryClient = new RegistryClient(walletMock as WalletInterface)
+    registryClient = new RegistryClient(walletMock as WalletInterface, {}, TEST_ORIGINATOR)
     
     // Mock the resolver instance since it's now initialized in constructor
     ; (registryClient as any).resolver = {
@@ -195,7 +196,8 @@ describe('RegistryClient', () => {
               lockingScript: 'mockLockingScriptHex'
             })
           ])
-        })
+        }),
+        TEST_ORIGINATOR
       )
       expect(TopicBroadcaster).toHaveBeenCalledWith(['tm_basketmap'], expect.objectContaining({
         networkPreset: 'main'
@@ -219,7 +221,8 @@ describe('RegistryClient', () => {
               lockingScript: 'mockLockingScriptHex'
             })
           ])
-        })
+        }),
+        TEST_ORIGINATOR
       )
 
       expect(TopicBroadcaster).toHaveBeenCalledWith(['tm_protomap'], expect.objectContaining({
@@ -244,7 +247,8 @@ describe('RegistryClient', () => {
               lockingScript: 'mockLockingScriptHex'
             })
           ])
-        })
+        }),
+        TEST_ORIGINATOR
       )
 
       expect(TopicBroadcaster).toHaveBeenCalledWith(['tm_certmap'], expect.objectContaining({
@@ -445,7 +449,8 @@ describe('RegistryClient', () => {
               inputDescription: 'Removing basket token'
             }
           ]
-        })
+        }),
+        TEST_ORIGINATOR
       )
 
       expect(TopicBroadcaster).toHaveBeenCalledWith(['tm_basketmap'], expect.objectContaining({
@@ -535,7 +540,8 @@ describe('RegistryClient', () => {
               inputDescription: 'Removing protocol token'
             }
           ]
-        })
+        }),
+        TEST_ORIGINATOR
       )
 
       expect(TopicBroadcaster).toHaveBeenCalledWith(['tm_protomap'], expect.objectContaining({
@@ -573,7 +579,8 @@ describe('RegistryClient', () => {
               inputDescription: 'Removing certificate token'
             }
           ]
-        })
+        }),
+        TEST_ORIGINATOR
       )
 
       expect(TopicBroadcaster).toHaveBeenCalledWith(['tm_certmap'], expect.objectContaining({
@@ -604,13 +611,14 @@ describe('RegistryClient', () => {
       expect(walletMock.createAction).toHaveBeenCalledWith(
         expect.objectContaining({
           description: 'Remove certificate item: testCertType'
-        })
+        }),
+        TEST_ORIGINATOR
       )
     })
 
     it('should use acceptDelayedBroadcast setting from constructor', async () => {
       // Create a new client with acceptDelayedBroadcast: true
-      const clientWithDelayedBroadcast = new RegistryClient(walletMock as WalletInterface, { acceptDelayedBroadcast: true })
+      const clientWithDelayedBroadcast = new RegistryClient(walletMock as WalletInterface, { acceptDelayedBroadcast: true }, TEST_ORIGINATOR)
       ; (clientWithDelayedBroadcast as any).resolver = {
         query: jest.fn().mockResolvedValue({ type: 'output-list', outputs: [] })
       }
@@ -622,7 +630,8 @@ describe('RegistryClient', () => {
           options: expect.objectContaining({
             acceptDelayedBroadcast: true
           })
-        })
+        }),
+        TEST_ORIGINATOR
       )
 
       expect(walletMock.signAction).toHaveBeenCalledWith(
@@ -630,7 +639,8 @@ describe('RegistryClient', () => {
           options: expect.objectContaining({
             acceptDelayedBroadcast: true
           })
-        })
+        }),
+        TEST_ORIGINATOR
       )
     })
   })

@@ -11,6 +11,9 @@ import MerklePath from '../../transaction/MerklePath'
 import ChainTracker from '../../transaction/ChainTracker'
 import spendValid from './spend.valid.vectors'
 import Script from '../../script/Script'
+import BigNumber from '../../primitives/BigNumber'
+import ScriptChunk from '../../script/ScriptChunk'
+import OP from '../../script/OP'
 
 export class MockChain implements ChainTracker {
   mock: { blockheaders: string[] }
@@ -31,6 +34,62 @@ export class MockChain implements ChainTracker {
     return this.mock.blockheaders.length
   }
 }
+
+const ZERO_TXID = '0'.repeat(64)
+
+const cloneChunks = (chunks: ScriptChunk[]): ScriptChunk[] =>
+  chunks.map((chunk) => ({
+    op: chunk.op,
+    data: Array.isArray(chunk.data) ? chunk.data.slice() : undefined
+  }))
+
+const lockingScriptFromAsm = (asm: string): LockingScript => {
+  const parsed = Script.fromASM(asm)
+  return new LockingScript(cloneChunks(parsed.chunks))
+}
+
+const pushChunkFromBytes = (bytes: number[]): ScriptChunk => {
+  if (bytes.length === 0) {
+    return { op: OP.OP_0, data: [] }
+  }
+  if (bytes.length === 1) {
+    if (bytes[0] >= 1 && bytes[0] <= 16) {
+      return { op: OP.OP_1 + (bytes[0] - 1) }
+    }
+    if (bytes[0] === 0x81) {
+      return { op: OP.OP_1NEGATE }
+    }
+  }
+  let op: number
+  if (bytes.length < OP.OP_PUSHDATA1) op = bytes.length
+  else if (bytes.length < Math.pow(2, 8)) op = OP.OP_PUSHDATA1
+  else if (bytes.length < Math.pow(2, 16)) op = OP.OP_PUSHDATA2
+  else op = OP.OP_PUSHDATA4
+  return {
+    op,
+    data: bytes.slice()
+  }
+}
+
+const createUnlockingScriptFromPushes = (pushes: number[][]): UnlockingScript =>
+  new UnlockingScript(pushes.map(pushChunkFromBytes))
+
+const createSpendWithPushes = (lockingAsm: string, unlockingPushes: number[][]): Spend =>
+  new Spend({
+    sourceTXID: ZERO_TXID,
+    sourceOutputIndex: 0,
+    sourceSatoshis: 1,
+    lockingScript: lockingScriptFromAsm(lockingAsm),
+    transactionVersion: 1,
+    otherInputs: [],
+    outputs: [],
+    inputIndex: 0,
+    unlockingScript: createUnlockingScriptFromPushes(unlockingPushes),
+    inputSequence: 0xffffffff,
+    lockTime: 0
+  })
+
+const scriptNumBytes = (value: bigint): number[] => new BigNumber(value).toScriptNum()
 
 describe('Spend', () => {
   it('Successfully validates a P2PKH spend', async () => {
@@ -390,6 +449,40 @@ describe('Spend', () => {
       expect(spend.validate()).toBe(true)
     })
   }
+
+  describe('bigint stack operand handling', () => {
+    it('OP_PICK rejects indexes that exceed the stack length without tripping JS safe-integer limits', () => {
+      const spend = createSpendWithPushes('OP_PICK', [
+        [0x01],
+        scriptNumBytes((1n << 60n) + 5n)
+      ])
+      expect(() => spend.validate()).toThrow('OP_PICK requires the top stack element to be 0 or a positive number less than the current size of the stack.')
+    })
+
+    it('OP_SPLIT surfaces its range error for very large positions', () => {
+      const spend = createSpendWithPushes('OP_SPLIT', [
+        [0x01, 0x02],
+        scriptNumBytes(1n << 60n)
+      ])
+      expect(() => spend.validate()).toThrow('OP_SPLIT requires the first stack item to be a non-negative number less than or equal to the size of the second-from-top stack item.')
+    })
+
+    it('OP_NUM2BIN enforces the max element size before reaching JS number limits', () => {
+      const spend = createSpendWithPushes('OP_NUM2BIN', [
+        [0x01],
+        scriptNumBytes(1n << 60n)
+      ])
+      expect(() => spend.validate()).toThrow("It's not currently possible to push data larger than 1073741824 bytes or negative size.")
+    })
+
+    it('OP_LSHIFT accepts shift counts larger than Number.MAX_SAFE_INTEGER when no shift work is required', () => {
+      const spend = createSpendWithPushes('OP_LSHIFT OP_DROP OP_TRUE', [
+        [],
+        scriptNumBytes(1n << 60n)
+      ])
+      expect(spend.validate()).toBe(true)
+    })
+  })
 
   it('Successfully validates a spend where sequence is set to undefined', async () => {
     const sourceTransaction = new Transaction(

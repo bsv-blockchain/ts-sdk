@@ -216,7 +216,7 @@ export class RegistryClient {
     constructor(private readonly wallet: WalletInterface = new WalletClient(), options: {
         acceptDelayedBroadcast?: boolean;
         resolver?: LookupResolver;
-    } = {}) 
+    } = {}, private readonly originator?: OriginatorDomainNameStringUnder250Bytes) 
     async registerDefinition(data: DefinitionData): Promise<BroadcastResponse | BroadcastFailure> 
     async resolve<T extends DefinitionType>(definitionType: T, query: RegistryQueryMapping[T]): Promise<DefinitionData[]> 
     async listOwnRegistryEntries(definitionType: DefinitionType): Promise<RegistryRecord[]> 
@@ -225,7 +225,7 @@ export class RegistryClient {
 }
 ```
 
-See also: [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [DefinitionData](./registry.md#type-definitiondata), [DefinitionType](./registry.md#type-definitiontype), [LookupResolver](./overlay-tools.md#class-lookupresolver), [RegistryQueryMapping](./registry.md#interface-registryquerymapping), [RegistryRecord](./registry.md#type-registryrecord), [WalletClient](./wallet.md#class-walletclient), [WalletInterface](./wallet.md#interface-walletinterface)
+See also: [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [DefinitionData](./registry.md#type-definitiondata), [DefinitionType](./registry.md#type-definitiontype), [LookupResolver](./overlay-tools.md#class-lookupresolver), [OriginatorDomainNameStringUnder250Bytes](./wallet.md#type-originatordomainnamestringunder250bytes), [RegistryQueryMapping](./registry.md#interface-registryquerymapping), [RegistryRecord](./registry.md#type-registryrecord), [WalletClient](./wallet.md#class-walletclient), [WalletInterface](./wallet.md#interface-walletinterface)
 
 #### Method listOwnRegistryEntries
 

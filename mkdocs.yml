@@ -48,106 +48,21 @@ plugins:
 
 nav:
   - Home: index.md
-  - Tutorials:
-    - tutorials/index.md
-    - Getting Started:
-      - First Transaction: tutorials/first-transaction.md
-      - Key Management: tutorials/key-management.md
-      - Transaction Broadcasting: tutorials/transaction-broadcasting.md
-      - Transaction Types: tutorials/transaction-types.md
-    - Cryptography:
-      - AES Encryption: tutorials/aes-encryption.md
-      - ECDH Key Exchange: tutorials/ecdh-key-exchange.md
-      - Elliptic Curve Fundamentals: tutorials/elliptic-curve-fundamentals.md
-      - Hashes and HMACs: tutorials/hashes-and-hmacs.md
-      - Type-42 Key Derivation: tutorials/type-42.md
-    - Advanced Topics:
-      - Advanced Transaction Construction: tutorials/advanced-transaction.md
-      - Script Construction: tutorials/script-construction.md
-      - SPV and Merkle Proofs: tutorials/spv-merkle-proofs.md
-      - Error Handling: tutorials/error-handling.md
-    - Low-Level APIs:
-      - First Transaction (Low-Level): tutorials/first-transaction-low-level.md
-      - Testnet Transactions (Low-Level): tutorials/testnet-transactions-low-level.md
-    - Specialized Tools:
-      - AuthFetch Tutorial: tutorials/authfetch-tutorial.md
-      - Identity Management: tutorials/identity-management.md
-      - ProtoWallet Development: tutorials/protowallet-development.md
-      - UHRP Storage: tutorials/uhrp-storage.md
-  - How-to Guides:
-    - guides/index.md
-    - Transaction Management:
-      - Advanced Transaction Signing: guides/advanced-transaction-signing.md
-      - Direct Transaction Creation: guides/direct-transaction-creation.md
-      - Large Transactions: guides/large-transactions.md
-      - Multi-signature Transactions: guides/multisig-transactions.md
-      - Transaction Batching: guides/transaction-batching.md
-      - Transaction Monitoring: guides/transaction-monitoring.md
-      - Transaction Signing Methods: guides/transaction-signing-methods.md
-    - Cryptographic Operations:
-      - Security Best Practices: guides/security-best-practices.md
-      - Complex Signatures: guides/complex-signatures.md
-      - Custom Key Derivation: guides/custom-key-derivation.md
-      - Encrypted Messages: guides/encrypted-messages.md
-    - Network and Broadcasting:
-      - Chain Tracking: guides/chain-tracking.md
-      - Custom Broadcasters: guides/custom-broadcasters.md
-    - Authentication and Communication:
-      - Authenticated API Communication: guides/authenticated-api-communication.md
-      - HTTP Client Configuration: guides/http-client-configuration.md
-    - Development and Integration:
-      - Development Wallet Setup: guides/development-wallet-setup.md
-      - React Integration: guides/react-integration.md
-      - Identity Verification Systems: guides/identity-verification-systems.md
-      - File Upload/Download: guides/file-upload-download.md
+  - WalletClient QuickStart: https://fast.brc.dev
+  - Swagger BRC-100 Interface: swagger/index.html
   - Reference:
-    - reference/index.md
-    - Standards and Interfaces:
-      - BRC-100 Wallet Interface: reference/brc-100.md
-    - Core Classes:
-      - Primitives: reference/primitives.md
-      - Script: reference/script.md
-      - Transaction: reference/transaction.md
-      - Transaction Signatures: reference/transaction-signatures.md
-      - OP Codes: reference/op-codes.md
-    - Module Reference:
-      - Auth: reference/auth.md
-      - Compat: reference/compat.md
-      - Identity: reference/identity.md
-      - KV Store: reference/kvstore.md
-      - Messages: reference/messages.md
-      - Overlay Tools: reference/overlay-tools.md
-      - Registry: reference/registry.md
-      - Storage: reference/storage.md
-      - TOTP: reference/totp.md
-      - Wallet: reference/wallet.md
-    - Configuration:
-      - ARC Config: reference/arc-config.md
-      - Configuration: reference/configuration.md
-      - Network Config: reference/network-config.md
-    - Development:
-      - Debugging: reference/debugging.md
-      - Errors: reference/errors.md
-  - Concepts:
-    - concepts/index.md
-    - Core Concepts:
-      - SDK Philosophy: concepts/sdk-philosophy.md
-      - Transaction Structure: concepts/transaction-structure.md
-      - Transaction Encoding: concepts/transaction-encoding.md
-      - Key Management: concepts/key-management.md
-      - Wallet Integration: concepts/wallet-integration.md
-    - Bitcoin Protocol:
-      - BEEF: concepts/beef.md
-      - Script Templates: concepts/script-templates.md
-      - Signatures: concepts/signatures.md
-      - Fees: concepts/fees.md
-      - Verification: concepts/verification.md
-    - Architecture:
-      - Chain Tracking: concepts/chain-tracking.md
-      - SPV Verification: concepts/spv-verification.md
-      - Trust Model: concepts/trust-model.md
-    - Identity and Certificates:
-      - Decentralized Identity: concepts/decentralized-identity.md
-      - Identity Certificates: concepts/identity-certificates.md
-  - API Documentation:
-    - Swagger UI: swagger/index.html
+    - Wallet: reference/wallet.md
+    - Primitives: reference/primitives.md
+    - Script: reference/script.md
+    - Transaction: reference/transaction.md
+    - Mutual Authentication: reference/auth.md
+    - Identity: reference/identity.md
+    - Overlay Tools: reference/overlay-tools.md
+    - Registry: reference/registry.md
+    - Storage: reference/storage.md
+    - KV Store: reference/kvstore.md
+    - Messages: reference/messages.md
+    - TOTP: reference/totp.md
+    - Compatibility: reference/compat.md
+  - Performance: performance.md
+

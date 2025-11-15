@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.7 - 2025-11-14](#197---2025-11-14)
+- [1.9.6 - 2025-11-13](#196---2025-11-13)
+- [1.9.5 - 2025-11-13](#195---2025-11-13)
 - [1.9.3 - 2025-11-11](#193---2025-11-11)
 - [1.9.2 - 2025-11-11](#192---2025-11-11)
 - [1.9.1 - 2025-11-10](#191---2025-11-10)
@@ -174,6 +177,31 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+### [1.9.7] - 2025-11-14
+
+### Added
+
+- Added handling of already spent transactions for the identity client's revoke method.
+- Added originator checks for all methods that may try to create a new wallet.
+
+---
+
+### [1.9.6] - 2025-11-13
+
+### Added
+
+- Script interpreter now routes script numbers through bigint-only paths (stack indexing, bit shifts, split/num2bin sizing, and CHECKMULTISIG counters) to avoid JS safe-number limits while keeping checks accurate.
+
+---
+
+### [1.9.5] - 2025-11-13
+
+### Added
+
+- Added support for revoking certificate revelation.
 
 ---
 

@@ -193,7 +193,7 @@ describe('IdentityClient', () => {
         certificate,
         fieldsToReveal,
         verifier: expect.any(String)
-      })
+      }, undefined)
 
       // Validate that createAction was called.
       expect(walletMock.createAction).toHaveBeenCalled()
@@ -503,7 +503,7 @@ describe('IdentityClient', () => {
           keyID: mockContact.identityKey,
           counterparty: 'self',
           data: expect.any(Uint8Array)
-        })
+        }, undefined)
 
         // Verify contact data was encrypted
         expect(walletMock.encrypt).toHaveBeenCalledWith({
@@ -511,7 +511,7 @@ describe('IdentityClient', () => {
           protocolID: [2, 'contact'],
           keyID: expect.any(String),
           counterparty: 'self'
-        })
+        }, undefined)
 
         // Verify new contact transaction was created
         expect(walletMock.createAction).toHaveBeenCalledWith(
@@ -523,7 +523,8 @@ describe('IdentityClient', () => {
                 outputDescription: `Contact: ${mockContact.name}`
               })
             ])
-          })
+          }),
+          undefined
         )
 
         // Verify contact is now available from cache
@@ -587,7 +588,8 @@ describe('IdentityClient', () => {
                 outpoint: 'txid.0'
               })
             ])
-          })
+          }),
+          undefined
         )
       })
     })
@@ -639,7 +641,7 @@ describe('IdentityClient', () => {
           includeCustomInstructions: true,
           tags: [],
           limit: 1000
-        })
+        }, undefined)
 
         // Verify subsequent call uses cache
         jest.clearAllMocks()
@@ -740,7 +742,8 @@ describe('IdentityClient', () => {
               })
             ]),
             outputs: [] // No outputs for deletion
-          })
+          }),
+          undefined
         )
 
         // Verify contact is removed from cache

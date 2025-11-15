@@ -1,17 +1,10 @@
-import { performance } from 'perf_hooks'
 import { Writer, Reader } from '../dist/esm/src/primitives/utils.js'
+import { runBenchmark } from './lib/benchmark-runner.js'
 
 function data (len, start = 0) {
   const arr = new Array(len)
   for (let i = 0; i < len; i++) arr[i] = (start + i) & 0xff
   return arr
-}
-
-function benchmark (name, fn) {
-  const start = performance.now()
-  fn()
-  const end = performance.now()
-  console.log(`${name}: ${(end - start).toFixed(2)}ms`)
 }
 
 const largePayloads = [data(2 * 1024 * 1024, 0), data(2 * 1024 * 1024, 1), data(2 * 1024 * 1024, 2)]
@@ -82,7 +75,15 @@ function rwMedium () {
   }
 }
 
-benchmark('mixed ops', mixedOps)
-benchmark('large payloads', rwLarge)
-benchmark('3000 small payloads', rwSmall)
-benchmark('400 medium payloads', rwMedium)
+async function main () {
+  const options = { minSampleMs: 300, samples: 9 }
+  await runBenchmark('mixed ops', mixedOps, options)
+  await runBenchmark('large payloads', rwLarge, options)
+  await runBenchmark('3000 small payloads', rwSmall, options)
+  await runBenchmark('400 medium payloads', rwMedium, options)
+}
+
+main().catch((err) => {
+  console.error(err)
+  process.exit(1)
+})

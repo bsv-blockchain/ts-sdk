@@ -418,7 +418,7 @@ export default class OverlayAdminTokenTemplate implements ScriptTemplate {
         domain: string;
         topicOrService: string;
     } 
-    constructor(wallet: WalletInterface) 
+    constructor(wallet: WalletInterface, originator?: OriginatorDomainNameStringUnder250Bytes) 
     async lock(protocol: "SHIP" | "SLAP", domain: string, topicOrService: string): Promise<LockingScript> 
     unlock(protocol: "SHIP" | "SLAP"): {
         sign: (tx: Transaction, inputIndex: number) => Promise<UnlockingScript>;
@@ -427,16 +427,16 @@ export default class OverlayAdminTokenTemplate implements ScriptTemplate {
 }
 ```
 
-See also: [LockingScript](./script.md#class-lockingscript), [PushDrop](./script.md#class-pushdrop), [ScriptTemplate](./script.md#interface-scripttemplate), [Transaction](./transaction.md#class-transaction), [UnlockingScript](./script.md#class-unlockingscript), [WalletInterface](./wallet.md#interface-walletinterface), [sign](./compat.md#variable-sign)
+See also: [LockingScript](./script.md#class-lockingscript), [OriginatorDomainNameStringUnder250Bytes](./wallet.md#type-originatordomainnamestringunder250bytes), [PushDrop](./script.md#class-pushdrop), [ScriptTemplate](./script.md#interface-scripttemplate), [Transaction](./transaction.md#class-transaction), [UnlockingScript](./script.md#class-unlockingscript), [WalletInterface](./wallet.md#interface-walletinterface), [sign](./compat.md#variable-sign)
 
 #### Constructor
 
 Constructs a new Overlay Admin template instance
 
 ```ts
-constructor(wallet: WalletInterface) 
+constructor(wallet: WalletInterface, originator?: OriginatorDomainNameStringUnder250Bytes) 
 ```
-See also: [WalletInterface](./wallet.md#interface-walletinterface)
+See also: [OriginatorDomainNameStringUnder250Bytes](./wallet.md#type-originatordomainnamestringunder250bytes), [WalletInterface](./wallet.md#interface-walletinterface)
 
 Argument Details
 

@@ -1,7 +1,7 @@
-import { performance } from 'perf_hooks'
 import Transaction from '../dist/esm/src/transaction/Transaction.js'
 import PrivateKey from '../dist/esm/src/primitives/PrivateKey.js'
 import P2PKH from '../dist/esm/src/script/templates/P2PKH.js'
+import { runBenchmark } from './lib/benchmark-runner.js'
 
 async function buildChain (depth) {
   const privateKey = new PrivateKey(1)
@@ -34,26 +34,6 @@ async function buildChain (depth) {
 
   return currentTx
 }
-
-async function measure (fn, iterations = 5) {
-  const times = []
-  for (let i = 0; i < iterations; i++) {
-    const start = performance.now()
-    const result = fn()
-    if (result instanceof Promise) {
-      await result
-    }
-    const end = performance.now()
-    times.push(end - start)
-  }
-  const total = times.reduce((sum, t) => sum + t, 0)
-  return {
-    average: total / times.length,
-    min: Math.min(...times),
-    max: Math.max(...times)
-  }
-}
-
 async function run () {
   const depth = Number.parseInt(process.argv[2] ?? '200', 10)
   const iterations = Number.parseInt(process.argv[3] ?? '5', 10)
@@ -64,12 +44,15 @@ async function run () {
   const initialSerialized = finalTx.toAtomicBEEF()
   Transaction.fromAtomicBEEF(initialSerialized)
 
-  const toStats = await measure(() => finalTx.toAtomicBEEF(), iterations)
   const serialized = finalTx.toAtomicBEEF()
-  const fromStats = await measure(() => Transaction.fromAtomicBEEF(serialized), iterations)
-
-  console.log(`Transaction.toAtomicBEEF avg: ${toStats.average.toFixed(2)}ms (min ${toStats.min.toFixed(2)}ms, max ${toStats.max.toFixed(2)}ms)`) 
-  console.log(`Transaction.fromAtomicBEEF avg: ${fromStats.average.toFixed(2)}ms (min ${fromStats.min.toFixed(2)}ms, max ${fromStats.max.toFixed(2)}ms)`) 
+  await runBenchmark('Transaction.toAtomicBEEF', () => finalTx.toAtomicBEEF(), {
+    minSampleMs: 200,
+    samples: Math.max(5, iterations)
+  })
+  await runBenchmark('Transaction.fromAtomicBEEF', () => Transaction.fromAtomicBEEF(serialized), {
+    minSampleMs: 200,
+    samples: Math.max(5, iterations)
+  })
 }
 
 run().catch((err) => {

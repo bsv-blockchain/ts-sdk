@@ -201,7 +201,7 @@ describe('MerklePath', () => {
   })
   it('Verifies valid bumps', async () => {
     for (const valid of validBumps) {
-      expect(() => MerklePath.fromHex(valid.bump)).not.toThrowError()
+      expect(() => MerklePath.fromHex(valid.bump)).not.toThrow()
     }
   })
   it('Validates a MerklePath for a block which only has 1 tx', () => {
@@ -222,7 +222,7 @@ describe('MerklePath', () => {
         'd5377a7aba0c0e0dbaef230f8917217b453484c83579e11a14c8299faa57ef02',
         1
       )
-    ).not.toThrowError()
+    ).not.toThrow()
   })
   it('Valid for Coinbase if currentHeight is more than 100 blocks prior', async () => {
     const mp = MerklePath.fromCoinbaseTxidAndHeight(

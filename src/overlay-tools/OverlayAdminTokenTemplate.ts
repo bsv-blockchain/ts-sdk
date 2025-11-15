@@ -1,5 +1,5 @@
 import PushDrop from '../script/templates/PushDrop.js'
-import { WalletInterface } from '../wallet/Wallet.interfaces.js'
+import { OriginatorDomainNameStringUnder250Bytes, WalletInterface } from '../wallet/Wallet.interfaces.js'
 import {
   LockingScript,
   ScriptTemplate,
@@ -48,8 +48,8 @@ export default class OverlayAdminTokenTemplate implements ScriptTemplate {
    * Constructs a new Overlay Admin template instance
    * @param wallet Wallet to use for locking and unlocking
    */
-  constructor (wallet: WalletInterface) {
-    this.pushDrop = new PushDrop(wallet)
+  constructor (wallet: WalletInterface, originator?: OriginatorDomainNameStringUnder250Bytes) {
+    this.pushDrop = new PushDrop(wallet, originator)
   }
 
   /**

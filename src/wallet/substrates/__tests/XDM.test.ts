@@ -1,46 +1,49 @@
-/**
- * @jest-environment jsdom
- */
-
 import XDMSubstrate from '../../../wallet/substrates/XDM'
 import { WalletError } from '../../../wallet/WalletError'
 import { Utils } from '../../../primitives/index'
 
 describe('XDMSubstrate', () => {
-  let xdmSubstrate
-  let originalWindow
-  let eventHandlers: Record<string, (event: any) => void> = {}
+  let xdmSubstrate: XDMSubstrate
+  let originalWindow: Window & typeof globalThis | undefined
+  let addEventListenerMock: jest.Mock
 
   beforeEach(() => {
-    // Save the original window object
     originalWindow = global.window
+    addEventListenerMock = jest.fn()
 
-    // Reset event handlers
-    eventHandlers = {}
-
-    // Mock window object
     global.window = {
       postMessage: jest.fn(),
       parent: {
         postMessage: jest.fn()
       } as unknown as Window,
-      addEventListener: jest.fn((event, handler) => {
-        eventHandlers[event] = handler
-      })
+      addEventListener: addEventListenerMock,
+      removeEventListener: jest.fn()
     } as unknown as Window & typeof globalThis
 
     jest.spyOn(window.parent, 'postMessage')
   })
 
   afterEach(() => {
-    // Restore the original window object
-    global.window = originalWindow
+    global.window = originalWindow as any
     jest.restoreAllMocks()
   })
 
+  const getMessageListener = () => {
+    const calls = addEventListenerMock.mock.calls
+    const lastCall = calls[calls.length - 1]
+    if (!lastCall) {
+      throw new Error('No message listener registered.')
+    }
+    return lastCall[1] as (event: MessageEvent) => void
+  }
+
+  const dispatchMessage = (event: Partial<MessageEvent> & { data: any }) => {
+    getMessageListener()(event as MessageEvent)
+  }
+
   describe('constructor', () => {
     it('should throw if window is not an object', () => {
-      delete (global as any).window
+      ;(global as any).window = undefined
       expect(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const _ = new XDMSubstrate()
@@ -48,7 +51,7 @@ describe('XDMSubstrate', () => {
     })
 
     it('should throw if window.postMessage is not an object', () => {
-      delete (global as any).window.postMessage
+      ;(global.window as any).postMessage = undefined
       expect(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const _ = new XDMSubstrate()
@@ -76,7 +79,7 @@ describe('XDMSubstrate', () => {
 
       jest.spyOn(Utils, 'toBase64').mockReturnValue(mockId)
 
-      xdmSubstrate.invoke(call, args)
+      xdmSubstrate.invoke(call as any, args) as any
       expect(window.parent.postMessage).toHaveBeenCalledWith(
         {
           type: 'CWI',
@@ -97,7 +100,7 @@ describe('XDMSubstrate', () => {
 
       jest.spyOn(Utils, 'toBase64').mockReturnValue(mockId)
 
-      const invokePromise = xdmSubstrate.invoke(call, args)
+      const invokePromise = xdmSubstrate.invoke(call as any, args)
 
       // Simulate receiving the message
       const event = {
@@ -111,7 +114,7 @@ describe('XDMSubstrate', () => {
         isTrusted: true
       }
 
-      eventHandlers.message(event)
+      dispatchMessage(event)
 
       const res = await invokePromise
 
@@ -127,7 +130,7 @@ describe('XDMSubstrate', () => {
 
       jest.spyOn(Utils, 'toBase64').mockReturnValue(mockId)
 
-      const invokePromise = xdmSubstrate.invoke(call, args)
+      const invokePromise = xdmSubstrate.invoke(call as any, args)
 
       // Simulate receiving the message
       const event = {
@@ -142,7 +145,7 @@ describe('XDMSubstrate', () => {
         isTrusted: true
       }
 
-      eventHandlers.message(event)
+      dispatchMessage(event)
 
       await expect(invokePromise).rejects.toThrow(WalletError)
       await expect(invokePromise).rejects.toThrow(errorDescription)
@@ -161,7 +164,7 @@ describe('XDMSubstrate', () => {
 
       jest.spyOn(Utils, 'toBase64').mockReturnValue(mockId)
 
-      const invokePromise = xdmSubstrate.invoke(call, args)
+      const invokePromise = xdmSubstrate.invoke(call as any, args)
 
       // Simulate receiving an unrelated message
       const event = {
@@ -175,7 +178,7 @@ describe('XDMSubstrate', () => {
         isTrusted: true
       }
 
-      eventHandlers.message(event)
+      dispatchMessage(event)
 
       // The promise should still be pending
       let isResolved = false
@@ -196,7 +199,7 @@ describe('XDMSubstrate', () => {
 
       jest.spyOn(Utils, 'toBase64').mockReturnValue(mockId)
 
-      const invokePromise = xdmSubstrate.invoke(call, args)
+      const invokePromise = xdmSubstrate.invoke(call as any, args)
 
       // Simulate receiving a message with wrong id
       const event = {
@@ -210,7 +213,7 @@ describe('XDMSubstrate', () => {
         isTrusted: true
       }
 
-      eventHandlers.message(event)
+      dispatchMessage(event)
 
       // The promise should still be pending
       let isResolved = false
@@ -231,7 +234,7 @@ describe('XDMSubstrate', () => {
 
       jest.spyOn(Utils, 'toBase64').mockReturnValue(mockId)
 
-      const invokePromise = xdmSubstrate.invoke(call, args)
+      const invokePromise = xdmSubstrate.invoke(call as any, args)
 
       // Simulate receiving a message with isTrusted false
       const event = {
@@ -245,7 +248,7 @@ describe('XDMSubstrate', () => {
         isTrusted: false
       }
 
-      eventHandlers.message(event)
+      dispatchMessage(event)
 
       // The promise should still be pending
       let isResolved = false
@@ -266,7 +269,7 @@ describe('XDMSubstrate', () => {
 
       jest.spyOn(Utils, 'toBase64').mockReturnValue(mockId)
 
-      const invokePromise = xdmSubstrate.invoke(call, args)
+      const invokePromise = xdmSubstrate.invoke(call as any, args)
 
       // Simulate receiving a message with isInvocation true
       const event = {
@@ -280,7 +283,7 @@ describe('XDMSubstrate', () => {
         isTrusted: true
       }
 
-      eventHandlers.message(event)
+      dispatchMessage(event)
 
       // The promise should still be pending
       let isResolved = false
@@ -331,7 +334,7 @@ describe('XDMSubstrate', () => {
           isTrusted: true
         }
 
-        eventHandlers.message(event)
+        dispatchMessage(event)
 
         const res = await invokePromise
         expect(res).toEqual(result)
@@ -371,7 +374,7 @@ describe('XDMSubstrate', () => {
           isTrusted: true
         }
 
-        eventHandlers.message(event)
+        dispatchMessage(event)
 
         await expect(invokePromise).rejects.toThrow(WalletError)
         await expect(invokePromise).rejects.toThrow(errorDescription)

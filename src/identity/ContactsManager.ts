@@ -32,9 +32,11 @@ export class ContactsManager {
   private readonly wallet: WalletInterface
   private readonly cache = new MemoryCache()
   private readonly CONTACTS_CACHE_KEY = 'metanet-contacts'
+  private readonly originator?: string
 
-  constructor (wallet?: WalletInterface) {
+  constructor (wallet?: WalletInterface, originator?: string) {
     this.wallet = wallet ?? new WalletClient()
+    this.originator = originator
   }
 
   /**
@@ -68,7 +70,7 @@ export class ContactsManager {
         keyID: identityKey,
         counterparty: 'self',
         data: Utils.toArray(identityKey, 'utf8')
-      })
+      }, this.originator)
       tags.push(`identityKey ${Utils.toHex(hashedIdentityKey)}`)
     }
 
@@ -79,7 +81,7 @@ export class ContactsManager {
       includeCustomInstructions: true,
       tags,
       limit
-    })
+    }, this.originator)
 
     if (outputs.outputs == null || outputs.outputs.length === 0) {
       this.cache.setItem(this.CONTACTS_CACHE_KEY, JSON.stringify([]))
@@ -104,7 +106,7 @@ export class ContactsManager {
           protocolID: CONTACT_PROTOCOL_ID,
           keyID,
           counterparty: 'self'
-        })
+        }, this.originator)
 
         // Parse the contact data
         const contactData: Contact = JSON.parse(Utils.toUTF8(plaintext))
@@ -157,7 +159,7 @@ export class ContactsManager {
       keyID: contact.identityKey,
       counterparty: 'self',
       data: Utils.toArray(contact.identityKey, 'utf8')
-    })
+    }, this.originator)
 
     // Check if this contact already exists (to update it)
     const outputs = await this.wallet.listOutputs({
@@ -166,7 +168,7 @@ export class ContactsManager {
       includeCustomInstructions: true,
       tags: [`identityKey ${Utils.toHex(hashedIdentityKey)}`],
       limit: 100 // Should only be one contact!
-    })
+    }, this.originator)
 
     let existingOutput: any = null
     let keyID = Utils.toBase64(Random(32))
@@ -185,7 +187,7 @@ export class ContactsManager {
             protocolID: CONTACT_PROTOCOL_ID,
             keyID,
             counterparty: 'self'
-          })
+          }, this.originator)
 
           const storedContact: Contact = JSON.parse(Utils.toUTF8(plaintext))
           if (storedContact.identityKey === contact.identityKey) {
@@ -209,10 +211,10 @@ export class ContactsManager {
       protocolID: CONTACT_PROTOCOL_ID,
       keyID,
       counterparty: 'self'
-    })
+    }, this.originator)
 
     // Create locking script for the new contact token
-    const lockingScript = await new PushDrop(this.wallet).lock(
+    const lockingScript = await new PushDrop(this.wallet, this.originator).lock(
       [ciphertext],
       CONTACT_PROTOCOL_ID,
       keyID,
@@ -224,7 +226,7 @@ export class ContactsManager {
       const [txid, outputIndex] = String(existingOutput.outpoint).split('.')
       const prevOutpoint = `${txid}.${outputIndex}` as const
 
-      const pushdrop = new PushDrop(this.wallet)
+      const pushdrop = new PushDrop(this.wallet, this.originator)
       const { signableTransaction } = await this.wallet.createAction({
         description: 'Update Contact',
         inputBEEF: outputs.BEEF as number[],
@@ -242,7 +244,7 @@ export class ContactsManager {
           customInstructions: JSON.stringify({ keyID })
         }],
         options: { acceptDelayedBroadcast: false, randomizeOutputs: false } // TODO: Support custom config as needed.
-      })
+      }, this.originator)
 
       if (signableTransaction == null) throw new Error('Unable to update contact')
 
@@ -255,7 +257,7 @@ export class ContactsManager {
       const { tx } = await this.wallet.signAction({
         reference: signableTransaction.reference,
         spends: { 0: { unlockingScript: unlockingScript.toHex() } }
-      })
+      }, this.originator)
 
       if (tx == null) throw new Error('Failed to update contact output')
     } else {
@@ -271,7 +273,7 @@ export class ContactsManager {
           customInstructions: JSON.stringify({ keyID })
         }],
         options: { acceptDelayedBroadcast: false, randomizeOutputs: false } // TODO: Support custom config as needed.
-      })
+      }, this.originator)
 
       if (tx == null) throw new Error('Failed to create contact output')
     }
@@ -302,7 +304,7 @@ export class ContactsManager {
       keyID: identityKey,
       counterparty: 'self',
       data: Utils.toArray(identityKey, 'utf8')
-    })
+    }, this.originator)
     tags.push(`identityKey ${Utils.toHex(hashedIdentityKey)}`)
 
     // Find and spend the contact's output
@@ -312,7 +314,7 @@ export class ContactsManager {
       includeCustomInstructions: true,
       tags,
       limit: 100 // Should only be one contact!
-    })
+    }, this.originator)
 
     if (outputs.outputs == null) return
 
@@ -330,14 +332,14 @@ export class ContactsManager {
           protocolID: CONTACT_PROTOCOL_ID,
           keyID,
           counterparty: 'self'
-        })
+        }, this.originator)
 
         const storedContact: Contact = JSON.parse(Utils.toUTF8(plaintext))
         if (storedContact.identityKey === identityKey) {
           // Found the contact's output, spend it without creating a new one
           const prevOutpoint = `${txid}.${outputIndex}` as const
 
-          const pushdrop = new PushDrop(this.wallet)
+          const pushdrop = new PushDrop(this.wallet, this.originator)
           const { signableTransaction } = await this.wallet.createAction({
             description: 'Delete Contact',
             inputBEEF: outputs.BEEF as number[],
@@ -348,7 +350,7 @@ export class ContactsManager {
             }],
             outputs: [], // No outputs = deletion
             options: { acceptDelayedBroadcast: false, randomizeOutputs: false } // TODO: Support custom config as needed.
-          })
+          }, this.originator)
 
           if (signableTransaction == null) throw new Error('Unable to delete contact')
 
@@ -361,7 +363,7 @@ export class ContactsManager {
           const { tx: deleteTx } = await this.wallet.signAction({
             reference: signableTransaction.reference,
             spends: { 0: { unlockingScript: unlockingScript.toHex() } }
-          })
+          }, this.originator)
 
           if (deleteTx == null) throw new Error('Failed to delete contact output')
           return

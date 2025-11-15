@@ -61,7 +61,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 export class ContactsManager {
-    constructor(wallet?: WalletInterface) 
+    constructor(wallet?: WalletInterface, originator?: string) 
     async getContacts(identityKey?: PubKeyHex, forceRefresh = false, limit = 1000): Promise<Contact[]> 
     async saveContact(contact: DisplayableIdentity, metadata?: Record<string, any>): Promise<void> 
     async removeContact(identityKey: string): Promise<void> 
@@ -134,6 +134,7 @@ export class IdentityClient {
     async publiclyRevealAttributes(certificate: WalletCertificate, fieldsToReveal: CertificateFieldNameUnder50Bytes[]): Promise<BroadcastResponse | BroadcastFailure> 
     async resolveByIdentityKey(args: DiscoverByIdentityKeyArgs, overrideWithContacts = true): Promise<DisplayableIdentity[]> 
     async resolveByAttributes(args: DiscoverByAttributesArgs, overrideWithContacts = true): Promise<DisplayableIdentity[]> 
+    async revokeCertificateRevelation(serialNumber: Base64String): Promise<void> 
     public async getContacts(identityKey?: PubKeyHex, forceRefresh = false, limit = 1000): Promise<Contact[]> 
     public async saveContact(contact: DisplayableIdentity, metadata?: Record<string, any>): Promise<void> 
     public async removeContact(identityKey: PubKeyHex): Promise<void> 
@@ -141,12 +142,9 @@ export class IdentityClient {
 }
 ```
 
-See also: [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [CertificateFieldNameUnder50Bytes](./wallet.md#type-certificatefieldnameunder50bytes), [Contact](./identity.md#type-contact), [DEFAULT_IDENTITY_CLIENT_OPTIONS](./identity.md#variable-default_identity_client_options), [DiscoverByAttributesArgs](./wallet.md#interface-discoverbyattributesargs), [DiscoverByIdentityKeyArgs](./wallet.md#interface-discoverbyidentitykeyargs), [DisplayableIdentity](./identity.md#interface-displayableidentity), [IdentityCertificate](./wallet.md#interface-identitycertificate), [OriginatorDomainNameStringUnder250Bytes](./wallet.md#type-originatordomainnamestringunder250bytes), [PubKeyHex](./wallet.md#type-pubkeyhex), [WalletCertificate](./wallet.md#interface-walletcertificate), [WalletInterface](./wallet.md#interface-walletinterface)
+See also: [Base64String](./wallet.md#type-base64string), [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [CertificateFieldNameUnder50Bytes](./wallet.md#type-certificatefieldnameunder50bytes), [Contact](./identity.md#type-contact), [DEFAULT_IDENTITY_CLIENT_OPTIONS](./identity.md#variable-default_identity_client_options), [DiscoverByAttributesArgs](./wallet.md#interface-discoverbyattributesargs), [DiscoverByIdentityKeyArgs](./wallet.md#interface-discoverbyidentitykeyargs), [DisplayableIdentity](./identity.md#interface-displayableidentity), [IdentityCertificate](./wallet.md#interface-identitycertificate), [OriginatorDomainNameStringUnder250Bytes](./wallet.md#type-originatordomainnamestringunder250bytes), [PubKeyHex](./wallet.md#type-pubkeyhex), [WalletCertificate](./wallet.md#interface-walletcertificate), [WalletInterface](./wallet.md#interface-walletinterface)
 
 #### Method getContacts
-
-TODO: Implement once revocation overlay is created
-Remove public certificate revelation from overlay services by spending the identity token
 
 Load all records from the contacts basket
 
@@ -161,8 +159,6 @@ A promise that resolves with an array of contacts
 
 Argument Details
 
-+ **serialNumber**
-  + Unique serial number of the certificate to revoke revelation
 + **identityKey**
   + Optional specific identity key to fetch
 + **forceRefresh**
@@ -266,6 +262,20 @@ Argument Details
   + Arguments for requesting the discovery based on the identity key.
 + **overrideWithContacts**
   + Whether to override the results with personal contacts if available.
+
+#### Method revokeCertificateRevelation
+
+Remove public certificate revelation from overlay services by spending the identity token
+
+```ts
+async revokeCertificateRevelation(serialNumber: Base64String): Promise<void> 
+```
+See also: [Base64String](./wallet.md#type-base64string)
+
+Argument Details
+
++ **serialNumber**
+  + Unique serial number of the certificate to revoke revelation
 
 #### Method saveContact
 

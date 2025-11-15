@@ -1,15 +1,8 @@
-import { performance } from 'perf_hooks'
 import Transaction from '../dist/esm/src/transaction/Transaction.js'
 import PrivateKey from '../dist/esm/src/primitives/PrivateKey.js'
 import P2PKH from '../dist/esm/src/script/templates/P2PKH.js'
 import MerklePath from '../dist/esm/src/transaction/MerklePath.js'
-
-async function benchmark (name, fn) {
-  const start = performance.now()
-  await fn()
-  const end = performance.now()
-  console.log(`${name}: ${(end - start).toFixed(2)}ms`)
-}
+import { runBenchmark } from './lib/benchmark-runner.js'
 
 async function deepInputChain () {
   const privateKey = new PrivateKey(1)
@@ -201,10 +194,14 @@ async function nestedInputs () {
 }
 
 async function main () {
-  await benchmark('deep chain verify', deepInputChain)
-  await benchmark('wide transaction verify', wideInputSet)
-  await benchmark('large tx verify', largeInputsOutputs)
-  await benchmark('nested inputs verify', nestedInputs)
+  const options = { samples: 3, minSampleMs: 150, warmupIterations: 1 }
+  await runBenchmark('deep chain verify', () => deepInputChain(), options)
+  await runBenchmark('wide transaction verify', () => wideInputSet(), options)
+  await runBenchmark('large tx verify', () => largeInputsOutputs(), options)
+  await runBenchmark('nested inputs verify', () => nestedInputs(), options)
 }
 
-main()
+main().catch((err) => {
+  console.error(err)
+  process.exit(1)
+})

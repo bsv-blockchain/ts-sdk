@@ -1132,7 +1132,7 @@ describe('Transaction', () => {
         // Attempt to deserialize a non-existent transaction
         expect(() => {
           Transaction.fromBEEF(beefData, '00'.repeat(32))
-        }).toThrowError(
+        }).toThrow(
           'Transaction with TXID 0000000000000000000000000000000000000000000000000000000000000000 not found in BEEF data.'
         )
       })
@@ -1230,7 +1230,7 @@ describe('Transaction', () => {
 
       expect(() => {
         Transaction.fromAtomicBEEF(atomicBEEFData)
-      }).toThrowError('beef must include at least one transaction.')
+      }).toThrow('beef must include at least one transaction.')
     })
 
     it('should allow selecting a specific TXID from BEEF data', async () => {
@@ -1284,7 +1284,7 @@ describe('Transaction', () => {
       // Attempt to deserialize a non-existent transaction
       expect(() => {
         Transaction.fromBEEF(beefData, '00'.repeat(32))
-      }).toThrowError('Transaction with TXID 0000000000000000000000000000000000000000000000000000000000000000 not found in BEEF data.')
+      }).toThrow('Transaction with TXID 0000000000000000000000000000000000000000000000000000000000000000 not found in BEEF data.')
     })
   })
 

@@ -1,6 +1,6 @@
-import { AuthFetch } from '../auth/clients/index.js'
 import { DEFAULT_IDENTITY_CLIENT_OPTIONS, defaultIdentity, DisplayableIdentity, KNOWN_IDENTITY_TYPES } from './types/index.js'
 import {
+  Base64String,
   CertificateFieldNameUnder50Bytes,
   DiscoverByAttributesArgs,
   DiscoverByIdentityKeyArgs,
@@ -15,14 +15,13 @@ import { BroadcastFailure, BroadcastResponse, Transaction } from '../transaction
 import Certificate from '../auth/certificates/Certificate.js'
 import { PushDrop } from '../script/index.js'
 import { PrivateKey, Utils } from '../primitives/index.js'
-import { TopicBroadcaster } from '../overlay-tools/index.js'
+import { LookupResolver, SHIPBroadcaster, TopicBroadcaster, withDoubleSpendRetry } from '../overlay-tools/index.js'
 import { ContactsManager, Contact } from './ContactsManager.js'
 
 /**
  * IdentityClient lets you discover who others are, and let the world know who you are.
  */
 export class IdentityClient {
-  private readonly authClient: AuthFetch
   private readonly wallet: WalletInterface
   private readonly contactsManager: ContactsManager
   constructor (
@@ -30,9 +29,9 @@ export class IdentityClient {
     private readonly options = DEFAULT_IDENTITY_CLIENT_OPTIONS,
     private readonly originator?: OriginatorDomainNameStringUnder250Bytes
   ) {
+    this.originator = originator
     this.wallet = wallet ?? new WalletClient()
-    this.authClient = new AuthFetch(this.wallet)
-    this.contactsManager = new ContactsManager(this.wallet)
+    this.contactsManager = new ContactsManager(this.wallet, this.originator)
   }
 
   /**
@@ -50,10 +49,14 @@ export class IdentityClient {
     fieldsToReveal: CertificateFieldNameUnder50Bytes[]
   ): Promise<BroadcastResponse | BroadcastFailure> {
     if (Object.keys(certificate.fields).length === 0) {
-      throw new Error('Public reveal failed: Certificate has no fields to reveal!')
+      throw new Error(
+        'Public reveal failed: Certificate has no fields to reveal!'
+      )
     }
     if (fieldsToReveal.length === 0) {
-      throw new Error('Public reveal failed: You must reveal at least one field!')
+      throw new Error(
+        'Public reveal failed: You must reveal at least one field!'
+      )
     }
     try {
       const masterCert = new Certificate(
@@ -72,15 +75,22 @@ export class IdentityClient {
 
     // Given we already have a master certificate from a certifier,
     // create an anyone verifiable certificate with selectively revealed fields
-    const { keyringForVerifier } = await this.wallet.proveCertificate({
-      certificate,
-      fieldsToReveal,
-      verifier: new PrivateKey(1).toPublicKey().toString()
-    })
+    const { keyringForVerifier } = await this.wallet.proveCertificate(
+      {
+        certificate,
+        fieldsToReveal,
+        verifier: new PrivateKey(1).toPublicKey().toString()
+      },
+      this.originator
+    )
 
     // Build the lockingScript with pushdrop.create() and the transaction with createAction()
-    const lockingScript = await new PushDrop(this.wallet).lock(
-      [Utils.toArray(JSON.stringify({ ...certificate, keyring: keyringForVerifier }))],
+    const lockingScript = await new PushDrop(this.wallet, this.originator).lock(
+      [
+        Utils.toArray(
+          JSON.stringify({ ...certificate, keyring: keyringForVerifier })
+        )
+      ],
       this.options.protocolID,
       this.options.keyID,
       'anyone',
@@ -90,22 +100,27 @@ export class IdentityClient {
     // TODO: Consider verification and if this is necessary
     // counterpartyCanVerifyMyOwnership: true
 
-    const { tx } = await this.wallet.createAction({
-      description: 'Create a new Identity Token',
-      outputs: [{
-        satoshis: this.options.tokenAmount,
-        lockingScript: lockingScript.toHex(),
-        outputDescription: 'Identity Token'
-      }],
-      options: {
-        randomizeOutputs: false
-      }
-    })
+    const { tx } = await this.wallet.createAction(
+      {
+        description: 'Create a new Identity Token',
+        outputs: [
+          {
+            satoshis: this.options.tokenAmount,
+            lockingScript: lockingScript.toHex(),
+            outputDescription: 'Identity Token'
+          }
+        ],
+        options: {
+          randomizeOutputs: false
+        }
+      },
+      this.originator
+    )
 
     if (tx !== undefined) {
       // Submit the transaction to an overlay
       const broadcaster = new TopicBroadcaster(['tm_identity'], {
-        networkPreset: (await (this.wallet.getNetwork({}))).network
+        networkPreset: (await this.wallet.getNetwork({})).network
       })
       return await broadcaster.broadcast(Transaction.fromAtomicBEEF(tx))
     }
@@ -113,12 +128,12 @@ export class IdentityClient {
   }
 
   /**
-  * Resolves displayable identity certificates, issued to a given identity key by a trusted certifier.
-  *
-  * @param {DiscoverByIdentityKeyArgs} args - Arguments for requesting the discovery based on the identity key.
-  * @param {boolean} [overrideWithContacts=true] - Whether to override the results with personal contacts if available.
-  * @returns {Promise<DisplayableIdentity[]>} The promise resolves to displayable identities.
-  */
+   * Resolves displayable identity certificates, issued to a given identity key by a trusted certifier.
+   *
+   * @param {DiscoverByIdentityKeyArgs} args - Arguments for requesting the discovery based on the identity key.
+   * @param {boolean} [overrideWithContacts=true] - Whether to override the results with personal contacts if available.
+   * @returns {Promise<DisplayableIdentity[]>} The promise resolves to displayable identities.
+   */
   async resolveByIdentityKey (
     args: DiscoverByIdentityKeyArgs,
     overrideWithContacts = true
@@ -131,8 +146,11 @@ export class IdentityClient {
       }
     }
 
-    const { certificates } = await this.wallet.discoverByIdentityKey(args, this.originator)
-    return certificates.map(cert => {
+    const { certificates } = await this.wallet.discoverByIdentityKey(
+      args,
+      this.originator
+    )
+    return certificates.map((cert) => {
       return IdentityClient.parseIdentity(cert)
     })
   }
@@ -150,98 +168,124 @@ export class IdentityClient {
   ): Promise<DisplayableIdentity[]> {
     // Run both queries in parallel for better performance
     const [contacts, certificatesResult] = await Promise.all([
-      overrideWithContacts ? this.contactsManager.getContacts() : Promise.resolve([]),
+      overrideWithContacts
+        ? this.contactsManager.getContacts()
+        : Promise.resolve([]),
       this.wallet.discoverByAttributes(args, this.originator)
     ])
 
     // Fast lookup by identityKey
     const contactByKey = new Map<PubKeyHex, Contact>(
-      contacts.map(contact => [contact.identityKey, contact] as const)
+      contacts.map((contact) => [contact.identityKey, contact] as const)
     )
 
     // Guard if certificates might be absent
     const certs = certificatesResult?.certificates ?? []
 
     // Parse certificates and substitute with contacts where available
-    return certs.map(cert =>
-      contactByKey.get(cert.subject) ?? IdentityClient.parseIdentity(cert)
+    return certs.map(
+      (cert) =>
+        contactByKey.get(cert.subject) ?? IdentityClient.parseIdentity(cert)
     )
   }
 
   /**
-   * TODO: Implement once revocation overlay is created
    * Remove public certificate revelation from overlay services by spending the identity token
    * @param serialNumber - Unique serial number of the certificate to revoke revelation
    */
-  // async revokeCertificateRevelation(
-  //   serialNumber: Base64String
-  // ): Promise<BroadcastResponse | BroadcastFailure> {
-  //   // 1. Find existing UTXO
-  //   const lookupResolver = new LookupResolver()
-  //   const result = await lookupResolver.query({
-  //     service: 'ls_identity',
-  //     query: {
-  //       serialNumber
-  //     }
-  //   })
+  async revokeCertificateRevelation (
+    serialNumber: Base64String
+  ): Promise<void> {
+    // 1. Find existing UTXO
+    const lookupResolver = new LookupResolver({
+      networkPreset: (await this.wallet.getNetwork({})).network
+    })
+    const result = await lookupResolver.query({
+      service: 'ls_identity',
+      query: {
+        serialNumber
+      }
+    })
 
-  //   let outpoint: string
-  //   let lockingScript: LockingScript | undefined
-  //   if (result.type === 'output-list') {
-  //     const tx = Transaction.fromAtomicBEEF(result.outputs[this.options.outputIndex].beef)
-  //     outpoint = `${tx.id('hex')}.${this.options.outputIndex}` // Consider better way
-  //     lockingScript = tx.outputs[this.options.outputIndex].lockingScript
-  //   }
+    if (result.type !== 'output-list') { throw new Error('Failed to get lookup result') }
 
-  //   if (lockingScript === undefined) {
-  //     throw new Error('Failed to get locking script for revelation output!')
-  //   }
+    const topicBroadcaster = new SHIPBroadcaster(['tm_identity'], {
+      networkPreset: (await this.wallet.getNetwork({})).network,
+      requireAcknowledgmentFromAllHostsForTopics: [],
+      requireAcknowledgmentFromAnyHostForTopics: [],
+      requireAcknowledgmentFromSpecificHostsForTopics: { tm_identity: [] }
+    })
 
-  //   // 2. Parse results
-  //   const { signableTransaction } = await this.wallet.createAction({
-  //     description: '',
-  //     inputs: [{
-  //       inputDescription: 'Spend certificate revelation token',
-  //       outpoint,
-  //       unlockingScriptLength: 73
-  //     }],
-  //     options: {
-  //       randomizeOutputs: false
-  //     }
-  //   })
+    await withDoubleSpendRetry(async () => {
+      const tx = Transaction.fromBEEF(result.outputs[0].beef)
+      const outpoint = `${tx.id('hex')}.${this.options.outputIndex}`
+      const lockingScript = tx.outputs[this.options.outputIndex].lockingScript
 
-  //   if (signableTransaction === undefined) {
-  //     throw new Error('Failed to create signable transaction')
-  //   }
+      if (lockingScript === undefined || outpoint === undefined) {
+        throw new Error('Failed to get locking script for revelation output!')
+      }
 
-  //   const partialTx = Transaction.fromBEEF(signableTransaction.tx)
+      // 2. Parse results
+      const { signableTransaction } = await this.wallet.createAction(
+        {
+          description: 'Spend certificate revelation token',
+          inputBEEF: result.outputs[0].beef,
+          inputs: [
+            {
+              inputDescription: 'Revelation token',
+              outpoint,
+              unlockingScriptLength: 74
+            }
+          ],
+          options: {
+            randomizeOutputs: false,
+            acceptDelayedBroadcast: false,
+            noSend: true
+          }
+        },
+        this.originator
+      )
 
-  //   const unlocker = new PushDrop(this.wallet).unlock(
-  //     this.options.protocolID,
-  //     this.options.keyID,
-  //     'self',
-  //     'all',
-  //     false,
-  //     1,
-  //     lockingScript
-  //   )
+      if (signableTransaction === undefined) {
+        throw new Error('Failed to create signable transaction')
+      }
 
-  //   const unlockingScript = await unlocker.sign(partialTx, this.options.outputIndex)
+      const partialTx = Transaction.fromBEEF(signableTransaction.tx)
 
-  //   const { tx: signedTx } = await this.wallet.signAction({
-  //     reference: signableTransaction.reference,
-  //     spends: {
-  //       [this.options.outputIndex]: {
-  //         unlockingScript: unlockingScript.toHex()
-  //       }
-  //     }
-  //   })
+      const unlocker = new PushDrop(this.wallet, this.originator).unlock(
+        this.options.protocolID,
+        this.options.keyID,
+        'anyone'
+      )
 
-  //   // 4. Return broadcast status
-  //   // Submit the transaction to an overlay
-  //   const broadcaster = new SHIPBroadcaster(['tm_identity'])
-  //   return await broadcaster.broadcast(Transaction.fromAtomicBEEF(signedTx as number[]))
-  // }
+      const unlockingScript = await unlocker.sign(
+        partialTx,
+        this.options.outputIndex
+      )
+
+      const { tx: signedTx } = await this.wallet.signAction(
+        {
+          reference: signableTransaction.reference,
+          spends: {
+            [this.options.outputIndex]: {
+              unlockingScript: unlockingScript.toHex()
+            }
+          },
+          options: {
+            acceptDelayedBroadcast: false,
+            noSend: true
+          }
+        },
+        this.originator
+      )
+
+      if (signedTx === undefined) {
+        throw new Error('Failed to sign transaction')
+      }
+
+      await topicBroadcaster.broadcast(Transaction.fromAtomicBEEF(signedTx))
+    }, topicBroadcaster)
+  }
 
   /**
    * Load all records from the contacts basket
@@ -250,8 +294,16 @@ export class IdentityClient {
    * @param limit Optional limit on number of contacts to fetch
    * @returns A promise that resolves with an array of contacts
    */
-  public async getContacts (identityKey?: PubKeyHex, forceRefresh = false, limit = 1000): Promise<Contact[]> {
-    return await this.contactsManager.getContacts(identityKey, forceRefresh, limit)
+  public async getContacts (
+    identityKey?: PubKeyHex,
+    forceRefresh = false,
+    limit = 1000
+  ): Promise<Contact[]> {
+    return await this.contactsManager.getContacts(
+      identityKey,
+      forceRefresh,
+      limit
+    )
   }
 
   /**
@@ -259,7 +311,10 @@ export class IdentityClient {
    * @param contact The displayable identity information for the contact
    * @param metadata Optional metadata to store with the contact (ex. notes, aliases, etc)
    */
-  public async saveContact (contact: DisplayableIdentity, metadata?: Record<string, any>): Promise<void> {
+  public async saveContact (
+    contact: DisplayableIdentity,
+    metadata?: Record<string, any>
+  ): Promise<void> {
     return await this.contactsManager.saveContact(contact, metadata)
   }
 
@@ -276,7 +331,9 @@ export class IdentityClient {
    * @param identityToParse - The Identity Certificate to parse
    * @returns - IdentityToDisplay
    */
-  static parseIdentity (identityToParse: IdentityCertificate): DisplayableIdentity {
+  static parseIdentity (
+    identityToParse: IdentityCertificate
+  ): DisplayableIdentity {
     const { type, decryptedFields, certifierInfo } = identityToParse
     let name, avatarURL, badgeLabel, badgeIconURL, badgeClickURL
 
@@ -330,7 +387,8 @@ export class IdentityClient {
       case KNOWN_IDENTITY_TYPES.anyone:
         name = 'Anyone'
         avatarURL = 'XUT4bpQ6cpBaXi1oMzZsXfpkWGbtp2JTUYAoN7PzhStFJ6wLfoeR'
-        badgeLabel = 'Represents the ability for anyone to access this information.'
+        badgeLabel =
+          'Represents the ability for anyone to access this information.'
         badgeIconURL = 'XUUV39HVPkpmMzYNTx7rpKzJvXfeiVyQWg2vfSpjBAuhunTCA9uG'
         badgeClickURL = 'https://projectbabbage.com/docs/anyone-identity' // TODO: Make this doc page exist
         break
@@ -341,23 +399,99 @@ export class IdentityClient {
         badgeIconURL = 'XUUV39HVPkpmMzYNTx7rpKzJvXfeiVyQWg2vfSpjBAuhunTCA9uG'
         badgeClickURL = 'https://projectbabbage.com/docs/self-identity' // TODO: Make this doc page exist
         break
-      default:
-        name = defaultIdentity.name
-        avatarURL = decryptedFields.profilePhoto
-        badgeLabel = defaultIdentity.badgeLabel
-        badgeIconURL = defaultIdentity.badgeIconURL
-        badgeClickURL = defaultIdentity.badgeClickURL // TODO: Make this doc page exist
+      default: {
+        const parsed = IdentityClient.tryToParseGenericIdentity(
+          type,
+          decryptedFields,
+          certifierInfo
+        )
+        name = parsed.name
+        avatarURL = parsed.avatarURL
+        badgeLabel = parsed.badgeLabel
+        badgeIconURL = parsed.badgeIconURL
+        badgeClickURL = parsed.badgeClickURL
         break
+      }
     }
 
     return {
       name,
       avatarURL,
-      abbreviatedKey: identityToParse.subject.length > 0 ? `${identityToParse.subject.substring(0, 10)}...` : '',
+      abbreviatedKey:
+        identityToParse.subject.length > 0
+          ? `${identityToParse.subject.substring(0, 10)}...`
+          : '',
       identityKey: identityToParse.subject,
       badgeIconURL,
       badgeLabel,
       badgeClickURL
     }
+  }
+
+  /**
+   * Helper to check if a value is a non-empty string
+   */
+  private static hasValue (value: any): value is string {
+    return value !== undefined && value !== null && value !== ''
+  }
+
+  /**
+   * Try to parse identity information from unknown certificate types
+   * by checking common field names
+   */
+  private static tryToParseGenericIdentity (
+    type: string,
+    decryptedFields: Record<string, any>,
+    certifierInfo: any
+  ): {
+      name: string
+      avatarURL: string
+      badgeLabel: string
+      badgeIconURL: string
+      badgeClickURL: string
+    } {
+    // Try to construct a name from common field patterns
+    const firstName = decryptedFields.firstName
+    const lastName = decryptedFields.lastName
+    const fullName =
+      IdentityClient.hasValue(firstName) && IdentityClient.hasValue(lastName)
+        ? `${firstName} ${lastName}`
+        : IdentityClient.hasValue(firstName)
+          ? firstName
+          : IdentityClient.hasValue(lastName)
+            ? lastName
+            : undefined
+
+    const name = IdentityClient.hasValue(decryptedFields.name)
+      ? decryptedFields.name
+      : IdentityClient.hasValue(decryptedFields.userName)
+        ? decryptedFields.userName
+        : (fullName ??
+          (IdentityClient.hasValue(decryptedFields.email)
+            ? decryptedFields.email
+            : defaultIdentity.name))
+
+    // Try to find an avatar/photo from common field names
+    const avatarURL = IdentityClient.hasValue(decryptedFields.profilePhoto)
+      ? decryptedFields.profilePhoto
+      : IdentityClient.hasValue(decryptedFields.avatar)
+        ? decryptedFields.avatar
+        : IdentityClient.hasValue(decryptedFields.icon)
+          ? decryptedFields.icon
+          : IdentityClient.hasValue(decryptedFields.photo)
+            ? decryptedFields.photo
+            : defaultIdentity.avatarURL
+
+    // Generate badge information
+    const badgeLabel = IdentityClient.hasValue(certifierInfo?.name)
+      ? `${type} certified by ${String(certifierInfo.name)}`
+      : defaultIdentity.badgeLabel
+
+    const badgeIconURL = IdentityClient.hasValue(certifierInfo?.iconUrl)
+      ? certifierInfo.iconUrl
+      : defaultIdentity.badgeIconURL
+    const badgeClickURL = defaultIdentity.badgeClickURL
+
+    return { name, avatarURL, badgeLabel, badgeIconURL, badgeClickURL }
   }
 }

@@ -83,7 +83,7 @@ describe('MasterCertificate', () => {
           fields,
           masterKeyring
         )
-      )).toThrowError(/Master keyring must contain a value for every field/)
+      )).toThrow(/Master keyring must contain a value for every field/)
     })
   })
 

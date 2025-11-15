@@ -16,6 +16,7 @@ import TransactionOutput from '../transaction/TransactionOutput.js'
 // These constants control the current behavior of the interpreter.
 const maxScriptElementSize = 1024 * 1024 * 1024
 const maxMultisigKeyCount = Math.pow(2, 31) - 1
+const maxMultisigKeyCountBigInt = BigInt(maxMultisigKeyCount)
 const requireMinimalPush = true
 const requirePushOnlyUnlockingScripts = true
 const requireLowSSignatures = true
@@ -581,13 +582,14 @@ export default class Spend {
         case OP.OP_ROLL: {
           if (this.stack.length < 2) this.scriptEvaluationError(`${OP[currentOpcode] as string} requires at least two items to be on the stack.`)
           bn = BigNumber.fromScriptNum(this.popStack(), requireMinimalPush)
-          n = bn.toNumber()
-          if (n < 0 || n >= this.stack.length) {
+          const nBigInt = bn.toBigInt()
+          if (nBigInt < 0n || nBigInt >= BigInt(this.stack.length)) {
             this.scriptEvaluationError(`${OP[currentOpcode] as string} requires the top stack element to be 0 or a positive number less than the current size of the stack.`)
           }
-          const itemToMoveOrCopy = this.stack[this.stack.length - 1 - n]
+          const nIndex = Number(nBigInt)
+          const itemToMoveOrCopy = this.stack[this.stack.length - 1 - nIndex]
           if (currentOpcode === OP.OP_ROLL) {
-            this.stack.splice(this.stack.length - 1 - n, 1)
+            this.stack.splice(this.stack.length - 1 - nIndex, 1)
             this.stackMem -= itemToMoveOrCopy.length
             this.pushStack(itemToMoveOrCopy)
           } else { // OP_PICK
@@ -654,16 +656,16 @@ export default class Spend {
           if (this.stack.length < 2) this.scriptEvaluationError(`${OP[currentOpcode] as string} requires at least two items to be on the stack.`)
           bn2 = BigNumber.fromScriptNum(this.popStack(), requireMinimalPush) // n (shift amount)
           buf1 = this.popStack() // value to shift
-          n = bn2.toNumber()
-          if (n < 0) this.scriptEvaluationError(`${OP[currentOpcode] as string} requires the top item on the stack not to be negative.`)
+          const shiftBits = bn2.toBigInt()
+          if (shiftBits < 0n) this.scriptEvaluationError(`${OP[currentOpcode] as string} requires the top item on the stack not to be negative.`)
           if (buf1.length === 0) {
             this.pushStack([])
             break
           }
           bn1 = new BigNumber(buf1)
           let shiftedBn: BigNumber
-          if (currentOpcode === OP.OP_LSHIFT) shiftedBn = bn1.ushln(n)
-          else shiftedBn = bn1.ushrn(n)
+          if (currentOpcode === OP.OP_LSHIFT) shiftedBn = bn1.ushln(shiftBits)
+          else shiftedBn = bn1.ushrn(shiftBits)
 
           const shiftedArr = shiftedBn.toArray('le', buf1.length)
           this.pushStack(shiftedArr)
@@ -817,10 +819,13 @@ export default class Spend {
             this.scriptEvaluationError(`${OP[currentOpcode] as string} requires at least 1 item for nKeys.`)
           }
 
-          nKeysCount = BigNumber.fromScriptNum(this.stackTop(-i), requireMinimalPush).toNumber()
-          if (nKeysCount < 0 || nKeysCount > maxMultisigKeyCount) {
+          const nKeysCountBN = BigNumber.fromScriptNum(this.stackTop(-i), requireMinimalPush)
+          const nKeysCountBigInt = nKeysCountBN.toBigInt()
+          if (nKeysCountBigInt < 0n || nKeysCountBigInt > maxMultisigKeyCountBigInt) {
             this.scriptEvaluationError(`${OP[currentOpcode] as string} requires a key count between 0 and ${maxMultisigKeyCount}.`)
           }
+          nKeysCount = Number(nKeysCountBigInt)
+          const declaredKeyCount = nKeysCount
           ikey = ++i
           i += nKeysCount
 
@@ -828,10 +833,13 @@ export default class Spend {
             this.scriptEvaluationError(`${OP[currentOpcode] as string} stack too small for nKeys and keys. Need ${i}, have ${this.stack.length}.`)
           }
 
-          nSigsCount = BigNumber.fromScriptNum(this.stackTop(-i), requireMinimalPush).toNumber()
-          if (nSigsCount < 0 || nSigsCount > nKeysCount) {
+          const nSigsCountBN = BigNumber.fromScriptNum(this.stackTop(-i), requireMinimalPush)
+          const nSigsCountBigInt = nSigsCountBN.toBigInt()
+          if (nSigsCountBigInt < 0n || nSigsCountBigInt > BigInt(nKeysCount)) {
             this.scriptEvaluationError(`${OP[currentOpcode] as string} requires the number of signatures to be no greater than the number of keys.`)
           }
+          nSigsCount = Number(nSigsCountBigInt)
+          const declaredSigCount = nSigsCount
           isig = ++i
           i += nSigsCount
           if (this.stack.length < i) {
@@ -883,9 +891,9 @@ export default class Spend {
 
           // Correct total items consumed by op (N_val, keys, M_val, sigs, dummy)
           const itemsConsumedByOp = 1 + // N_val
-                                  BigNumber.fromScriptNum(this.stackTop(-1), false).toNumber() + // keys
+                                  declaredKeyCount + // keys
                                   1 + // M_val
-                                  BigNumber.fromScriptNum(this.stackTop(-(1 + BigNumber.fromScriptNum(this.stackTop(-1), false).toNumber() + 1)), false).toNumber() + // sigs
+                                  declaredSigCount + // sigs
                                   1 // dummy
 
           let popCount = itemsConsumedByOp - 1 // Pop all except dummy
@@ -925,22 +933,24 @@ export default class Spend {
           const posBuf = this.popStack()
           const dataToSplit = this.popStack()
 
-          n = BigNumber.fromScriptNum(posBuf, requireMinimalPush).toNumber()
-          if (n < 0 || n > dataToSplit.length) {
+          const splitIndexBigInt = BigNumber.fromScriptNum(posBuf, requireMinimalPush).toBigInt()
+          if (splitIndexBigInt < 0n || splitIndexBigInt > BigInt(dataToSplit.length)) {
             this.scriptEvaluationError('OP_SPLIT requires the first stack item to be a non-negative number less than or equal to the size of the second-from-top stack item.')
           }
+          const splitIndex = Number(splitIndexBigInt)
 
-          this.pushStack(dataToSplit.slice(0, n))
-          this.pushStack(dataToSplit.slice(n))
+          this.pushStack(dataToSplit.slice(0, splitIndex))
+          this.pushStack(dataToSplit.slice(splitIndex))
           break
         }
         case OP.OP_NUM2BIN: {
           if (this.stack.length < 2) this.scriptEvaluationError('OP_NUM2BIN requires at least two items to be on the stack.')
 
-          size = BigNumber.fromScriptNum(this.popStack(), requireMinimalPush).toNumber()
-          if (size > maxScriptElementSize || size < 0) { // size can be 0
+          const sizeBigInt = BigNumber.fromScriptNum(this.popStack(), requireMinimalPush).toBigInt()
+          if (sizeBigInt > BigInt(maxScriptElementSize) || sizeBigInt < 0n) { // size can be 0
             this.scriptEvaluationError(`It's not currently possible to push data larger than ${maxScriptElementSize} bytes or negative size.`)
           }
+          size = Number(sizeBigInt)
 
           let rawnum = this.popStack() // This is the number to convert
           rawnum = minimallyEncode(rawnum) // Get its minimal scriptnum form

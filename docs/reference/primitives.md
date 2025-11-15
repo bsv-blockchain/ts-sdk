@@ -120,6 +120,7 @@ export default class BigNumber {
     inspect(): string 
     toString(base: number | "hex" = 10, padding: number = 1): string 
     toNumber(): number 
+    toBigInt(): bigint 
     toJSON(): string 
     toArray(endian: "le" | "be" = "be", length?: number): number[] 
     bitLength(): number { if (this._magnitude === 0n)
@@ -164,15 +165,14 @@ export default class BigNumber {
     sqr(): BigNumber 
     isqr(): this 
     pow(num: BigNumber): BigNumber 
-    iushln(bits: number): this { this.assert(typeof bits === "number" && bits >= 0); if (bits === 0)
-        return this; this._magnitude <<= BigInt(bits); this._finishInitialization(); return this.strip(); }
-    ishln(bits: number): this 
-    iushrn(bits: number, hint?: number, extended?: BigNumber): this 
-    ishrn(bits: number, hint?: number, extended?: BigNumber): this 
-    shln(bits: number): BigNumber 
-    ushln(bits: number): BigNumber 
-    shrn(bits: number): BigNumber 
-    ushrn(bits: number): BigNumber 
+    iushln(bits: number | bigint): this 
+    ishln(bits: number | bigint): this 
+    iushrn(bits: number | bigint, hint?: number, extended?: BigNumber): this 
+    ishrn(bits: number | bigint, hint?: number, extended?: BigNumber): this 
+    shln(bits: number | bigint): BigNumber 
+    ushln(bits: number | bigint): BigNumber 
+    shrn(bits: number | bigint): BigNumber 
+    ushrn(bits: number | bigint): BigNumber 
     testn(bit: number): boolean 
     imaskn(bits: number): this 
     maskn(bits: number): BigNumber 
@@ -584,6 +584,18 @@ Argument Details
   + Endianness of the output array, defaults to 'be'.
 + **length**
   + Optional length of the output array.
+
+#### Method toBigInt
+
+Returns the signed BigInt representation of this BigNumber without any safety checks.
+
+```ts
+toBigInt(): bigint 
+```
+
+Returns
+
+bigint value for this BigNumber.
 
 #### Method toBitArray
 

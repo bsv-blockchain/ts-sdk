@@ -3,7 +3,8 @@ import {
   WalletProtocol,
   WalletClient,
   PubKeyHex,
-  SecurityLevel
+  SecurityLevel,
+  OriginatorDomainNameStringUnder250Bytes
 } from '../wallet/index.js'
 import { Utils } from '../primitives/index.js'
 import {
@@ -51,7 +52,8 @@ export class RegistryClient {
 
   constructor (
     private readonly wallet: WalletInterface = new WalletClient(),
-    options: { acceptDelayedBroadcast?: boolean, resolver?: LookupResolver } = {}
+    options: { acceptDelayedBroadcast?: boolean, resolver?: LookupResolver } = {},
+    private readonly originator?: OriginatorDomainNameStringUnder250Bytes
   ) {
     this.acceptDelayedBroadcast = options.acceptDelayedBroadcast ?? false
     this.resolver = options.resolver ?? new LookupResolver()
@@ -91,7 +93,7 @@ export class RegistryClient {
    */
   async registerDefinition (data: DefinitionData): Promise<BroadcastResponse | BroadcastFailure> {
     const registryOperator = await this.getIdentityKey()
-    const pushdrop = new PushDrop(this.wallet)
+    const pushdrop = new PushDrop(this.wallet, this.originator)
 
     // Convert definition data into PushDrop fields
     const fields = this.buildPushDropFields(data, registryOperator)
@@ -117,7 +119,7 @@ export class RegistryClient {
         acceptDelayedBroadcast: this.acceptDelayedBroadcast,
         randomizeOutputs: false
       }
-    })
+    }, this.originator)
     if (tx === undefined) {
       throw new Error(`Failed to create ${data.definitionType} registration transaction!`)
     }
@@ -262,7 +264,7 @@ export class RegistryClient {
         acceptDelayedBroadcast: this.acceptDelayedBroadcast,
         randomizeOutputs: false
       }
-    })
+    }, this.originator)
 
     if (signableTransaction === undefined) {
       throw new Error('Failed to create signable transaction.')
@@ -270,7 +272,7 @@ export class RegistryClient {
     const partialTx = Transaction.fromAtomicBEEF(signableTransaction.tx)
 
     // Prepare the unlocker
-    const pushdrop = new PushDrop(this.wallet)
+    const pushdrop = new PushDrop(this.wallet, this.originator)
     const unlocker = pushdrop.unlock(
       this.mapDefinitionTypeToWalletProtocol(registryRecord.definitionType),
       REGISTRANT_KEY_ID,
@@ -291,7 +293,7 @@ export class RegistryClient {
       options: {
         acceptDelayedBroadcast: this.acceptDelayedBroadcast
       }
-    })
+    }, this.originator)
 
     if (signedTx === undefined) {
       throw new Error('Failed to finalize the transaction signature.')
@@ -344,7 +346,7 @@ export class RegistryClient {
             ? (registryRecord.name !== undefined ? registryRecord.name : registryRecord.type)
             : 'unknown'
 
-    const pushdrop = new PushDrop(this.wallet)
+    const pushdrop = new PushDrop(this.wallet, this.originator)
 
     // Build the new locking script with updated data
     const fields = this.buildPushDropFields(updatedData, currentIdentityKey)
@@ -374,7 +376,7 @@ export class RegistryClient {
         acceptDelayedBroadcast: this.acceptDelayedBroadcast,
         randomizeOutputs: false
       }
-    })
+    }, this.originator)
 
     if (signableTransaction === undefined) {
       throw new Error('Failed to create signable transaction.')
@@ -403,7 +405,7 @@ export class RegistryClient {
       options: {
         acceptDelayedBroadcast: this.acceptDelayedBroadcast
       }
-    })
+    }, this.originator)
 
     if (signedTx === undefined) {
       throw new Error('Failed to finalize the transaction signature.')

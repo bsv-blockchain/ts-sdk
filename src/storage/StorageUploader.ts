@@ -112,7 +112,7 @@ export class StorageUploader {
 
     const response = await fetch(uploadURL, {
       method: 'PUT',
-      body,
+      body: body as BodyInit,
       headers: {
         'Content-Type': file.type,
         ...requiredHeaders
