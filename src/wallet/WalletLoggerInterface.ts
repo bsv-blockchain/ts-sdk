@@ -73,4 +73,4 @@ export interface WalletLoggerLog {
   isEnd?: boolean
 }
 
-export type MakeLogger = (log?: string | WalletLoggerInterface) => WalletLoggerInterface
+export type MakeWalletLogger = (log?: string | WalletLoggerInterface) => WalletLoggerInterface
