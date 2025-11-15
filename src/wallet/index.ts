@@ -11,3 +11,4 @@ export { default as WERR_INSUFFICIENT_FUNDS } from './WERR_INSUFFICIENT_FUNDS.js
 export * from './WalletError.js'
 export * as Validation from './validationHelpers.js'
 export * from './substrates/index.js'
+export * from './WalletLoggerInterface.js'

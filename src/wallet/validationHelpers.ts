@@ -46,6 +46,7 @@ import {
 import * as Utils from '../primitives/utils.js'
 import WERR_INVALID_PARAMETER from './WERR_INVALID_PARAMETER.js'
 import Beef from '../transaction/Beef.js'
+import { WalletLoggerInterface } from './WalletLoggerInterface.js'
 
 export function parseWalletOutpoint (outpoint: string): {
   txid: string
@@ -365,8 +366,10 @@ export function isHexString (s: string): boolean {
  */
 export type DescriptionString5to2000Bytes = string
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface ValidWalletSignerArgs {}
+export interface ValidWalletSignerArgs {
+  // Optional logger instance for this request
+  logger?: WalletLoggerInterface
+}
 
 export interface ValidCreateActionInput {
   outpoint: OutPoint
@@ -523,7 +526,7 @@ export interface ValidSignActionArgs extends ValidProcessActionArgs {
  * @returns validated arguments
  * @throws primarily WERR_INVALID_PARAMETER if args are invalid.
  */
-export function validateCreateActionArgs (args: CreateActionArgs): ValidCreateActionArgs {
+export function validateCreateActionArgs (args: CreateActionArgs, logger?: WalletLoggerInterface): ValidCreateActionArgs {
   const vargs: ValidCreateActionArgs = {
     description: validateStringLength(args.description, 'description', 5, 2000),
     inputBEEF: args.inputBEEF,
@@ -533,6 +536,7 @@ export function validateCreateActionArgs (args: CreateActionArgs): ValidCreateAc
     version: defaultOne(args.version),
     labels: defaultEmpty(args.labels?.map(l => validateLabel(l))),
     options: validateCreateActionOptions(args.options),
+    logger,
     isSendWith: false,
     isDelayed: false,
     isNoSend: false,
@@ -554,6 +558,36 @@ export function validateCreateActionArgs (args: CreateActionArgs): ValidCreateAc
 
   return vargs
 }
+
+export function logCreateActionArgs (args: CreateActionArgs): object {
+  const o: any = {
+    description: args.description,
+  }
+  if (args.labels) o.labels = args.labels
+  if (args.inputBEEF) o.inputBEEF = Beef.fromBinary(args.inputBEEF).toLogString();
+  if (args.lockTime !== undefined) o.lockTime = args.lockTime;
+  if (args.version !== undefined) o.version = args.version;
+  if (args.inputs) {
+
+  }
+  if (args.outputs) {
+
+  }
+  /*
+    options: validateCreateActionOptions(args.options),
+    isSendWith: false,
+    isDelayed: false,
+    isNoSend: false,
+    isNewTx: false,
+    isRemixChange: false,
+    isSignAction: false,
+    randomVals: undefined,
+    includeAllSourceTransactions: false,
+    isTestWerrReviewActions: false
+  */
+  return o
+}
+
 
 /**
  * Set all default true/false booleans to true or false if undefined.
