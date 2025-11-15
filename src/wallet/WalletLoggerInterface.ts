@@ -43,7 +43,16 @@ export interface WalletLoggerInterface {
    */
   merge?: (log: WalletLoggerInterface) => void
 
-  logCatch?: (eu: unknown) => void
+  /**
+   * Optional. Logging levels that may influence what is logged.
+   * 
+   * 'error' Only requests resulting in an exception should be logged.
+   * 'warn' Also log requests that succeed but with an abnormal condition.
+   * 'info' Also log normal successful requests.
+   * 'debug' Add input parm and result details where possible.
+   * 'trace' Instead of adding debug details, focus on execution path and timing.
+   */
+  level?: 'error' | 'warn' | 'info' | 'debug' | 'trace'
 
   /**
    * Valid if an accumulating logger. Count of `group` calls without matching `groupEnd`.
