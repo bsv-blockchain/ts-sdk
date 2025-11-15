@@ -559,36 +559,6 @@ export function validateCreateActionArgs (args: CreateActionArgs, logger?: Walle
   return vargs
 }
 
-export function logCreateActionArgs (args: CreateActionArgs): object {
-  const o: any = {
-    description: args.description,
-  }
-  if (args.labels) o.labels = args.labels
-  if (args.inputBEEF) o.inputBEEF = Beef.fromBinary(args.inputBEEF).toLogString();
-  if (args.lockTime !== undefined) o.lockTime = args.lockTime;
-  if (args.version !== undefined) o.version = args.version;
-  if (args.inputs) {
-
-  }
-  if (args.outputs) {
-
-  }
-  /*
-    options: validateCreateActionOptions(args.options),
-    isSendWith: false,
-    isDelayed: false,
-    isNoSend: false,
-    isNewTx: false,
-    isRemixChange: false,
-    isSignAction: false,
-    randomVals: undefined,
-    includeAllSourceTransactions: false,
-    isTestWerrReviewActions: false
-  */
-  return o
-}
-
-
 /**
  * Set all default true/false booleans to true or false if undefined.
  * Set all possibly undefined numbers to their default values.

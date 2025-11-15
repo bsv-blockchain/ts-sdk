@@ -11,19 +11,19 @@ export interface WalletLoggerInterface {
    * If one or more `label`s are provided, those are printed first without the
    * additional indentation.
    */
-  group(...label: any[]): void
+  group: (...label: any[]) => void
   /**
    * Decreases indentation of subsequent lines.
    */
-  groupEnd(): void
+  groupEnd: () => void
   /**
    * Log a message.
    */
-  log(message?: any, ...optionalParams: any[]): void
+  log: (message?: any, ...optionalParams: any[]) => void
   /**
    * Log an error message.
    */
-  error(message?: any, ...optionalParams: any[]): void
+  error: (message?: any, ...optionalParams: any[]) => void
   /**
    * Loggers may accumulate data instead of immediately handling it.
    *
@@ -35,17 +35,17 @@ export interface WalletLoggerInterface {
 
   /**
    * Merge log data from another logger.
-   * 
+   *
    * Typically used to merge log data from network request.
-   * 
-   * @param log 
-   * @returns 
+   *
+   * @param log
+   * @returns
    */
   merge?: (log: WalletLoggerInterface) => void
 
   /**
    * Optional. Logging levels that may influence what is logged.
-   * 
+   *
    * 'error' Only requests resulting in an exception should be logged.
    * 'warn' Also log requests that succeed but with an abnormal condition.
    * 'info' Also log normal successful requests.
