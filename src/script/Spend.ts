@@ -667,7 +667,7 @@ export default class Spend {
           if (currentOpcode === OP.OP_LSHIFT) shiftedBn = bn1.ushln(shiftBits)
           else shiftedBn = bn1.ushrn(shiftBits)
 
-          const shiftedArr = shiftedBn.toArray('le', buf1.length)
+          const shiftedArr = shiftedBn.toArray('be', buf1.length)
           this.pushStack(shiftedArr)
           break
         }
