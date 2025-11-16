@@ -180,6 +180,14 @@ All notable changes to this project will be documented in this file. The format 
 
 ---
 
+### [1.9.8] - 2025-11-15
+
+### Added
+
+- Added WalletLoggerInterface with change to validationHelpers to inject logging into wallet requests.
+
+---
+
 ### [1.9.7] - 2025-11-14
 
 ### Added

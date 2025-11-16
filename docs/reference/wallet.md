@@ -6,39 +6,40 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | | | |
 | --- | --- | --- |
-| [AbortActionArgs](#interface-abortactionargs) | [ListActionsResult](#interface-listactionsresult) | [ValidDiscoverByIdentityKeyArgs](#interface-validdiscoverbyidentitykeyargs) |
-| [AbortActionResult](#interface-abortactionresult) | [ListCertificatesArgs](#interface-listcertificatesargs) | [ValidInternalizeActionArgs](#interface-validinternalizeactionargs) |
-| [AcquireCertificateArgs](#interface-acquirecertificateargs) | [ListCertificatesResult](#interface-listcertificatesresult) | [ValidInternalizeOutput](#interface-validinternalizeoutput) |
-| [AuthenticatedResult](#interface-authenticatedresult) | [ListOutputsArgs](#interface-listoutputsargs) | [ValidListActionsArgs](#interface-validlistactionsargs) |
-| [BasketInsertion](#interface-basketinsertion) | [ListOutputsResult](#interface-listoutputsresult) | [ValidListCertificatesArgs](#interface-validlistcertificatesargs) |
-| [CertificateResult](#interface-certificateresult) | [OutPoint](#interface-outpoint) | [ValidListOutputsArgs](#interface-validlistoutputsargs) |
-| [CreateActionArgs](#interface-createactionargs) | [ProveCertificateArgs](#interface-provecertificateargs) | [ValidProcessActionArgs](#interface-validprocessactionargs) |
-| [CreateActionInput](#interface-createactioninput) | [ProveCertificateResult](#interface-provecertificateresult) | [ValidProcessActionOptions](#interface-validprocessactionoptions) |
-| [CreateActionOptions](#interface-createactionoptions) | [RelinquishCertificateArgs](#interface-relinquishcertificateargs) | [ValidProveCertificateArgs](#interface-validprovecertificateargs) |
-| [CreateActionOutput](#interface-createactionoutput) | [RelinquishCertificateResult](#interface-relinquishcertificateresult) | [ValidRelinquishCertificateArgs](#interface-validrelinquishcertificateargs) |
-| [CreateActionResult](#interface-createactionresult) | [RelinquishOutputArgs](#interface-relinquishoutputargs) | [ValidRelinquishOutputArgs](#interface-validrelinquishoutputargs) |
-| [CreateHmacArgs](#interface-createhmacargs) | [RelinquishOutputResult](#interface-relinquishoutputresult) | [ValidSignActionArgs](#interface-validsignactionargs) |
-| [CreateHmacResult](#interface-createhmacresult) | [RevealCounterpartyKeyLinkageArgs](#interface-revealcounterpartykeylinkageargs) | [ValidSignActionOptions](#interface-validsignactionoptions) |
-| [CreateSignatureArgs](#interface-createsignatureargs) | [RevealCounterpartyKeyLinkageResult](#interface-revealcounterpartykeylinkageresult) | [ValidWalletPayment](#interface-validwalletpayment) |
-| [CreateSignatureResult](#interface-createsignatureresult) | [RevealSpecificKeyLinkageArgs](#interface-revealspecifickeylinkageargs) | [ValidWalletSignerArgs](#interface-validwalletsignerargs) |
-| [DiscoverByAttributesArgs](#interface-discoverbyattributesargs) | [RevealSpecificKeyLinkageResult](#interface-revealspecifickeylinkageresult) | [VerifyHmacArgs](#interface-verifyhmacargs) |
-| [DiscoverByIdentityKeyArgs](#interface-discoverbyidentitykeyargs) | [ReviewActionResult](#interface-reviewactionresult) | [VerifyHmacResult](#interface-verifyhmacresult) |
-| [DiscoverCertificatesResult](#interface-discovercertificatesresult) | [SendWithResult](#interface-sendwithresult) | [VerifySignatureArgs](#interface-verifysignatureargs) |
-| [GetHeaderArgs](#interface-getheaderargs) | [SignActionArgs](#interface-signactionargs) | [VerifySignatureResult](#interface-verifysignatureresult) |
-| [GetHeaderResult](#interface-getheaderresult) | [SignActionOptions](#interface-signactionoptions) | [WalletAction](#interface-walletaction) |
-| [GetHeightResult](#interface-getheightresult) | [SignActionResult](#interface-signactionresult) | [WalletActionInput](#interface-walletactioninput) |
-| [GetNetworkResult](#interface-getnetworkresult) | [SignActionSpend](#interface-signactionspend) | [WalletActionOutput](#interface-walletactionoutput) |
-| [GetPublicKeyArgs](#interface-getpublickeyargs) | [SignableTransaction](#interface-signabletransaction) | [WalletCertificate](#interface-walletcertificate) |
-| [GetPublicKeyResult](#interface-getpublickeyresult) | [ValidAbortActionArgs](#interface-validabortactionargs) | [WalletDecryptArgs](#interface-walletdecryptargs) |
-| [GetVersionResult](#interface-getversionresult) | [ValidAcquireCertificateArgs](#interface-validacquirecertificateargs) | [WalletDecryptResult](#interface-walletdecryptresult) |
-| [IdentityCertificate](#interface-identitycertificate) | [ValidAcquireDirectCertificateArgs](#interface-validacquiredirectcertificateargs) | [WalletEncryptArgs](#interface-walletencryptargs) |
-| [IdentityCertifier](#interface-identitycertifier) | [ValidAcquireIssuanceCertificateArgs](#interface-validacquireissuancecertificateargs) | [WalletEncryptResult](#interface-walletencryptresult) |
-| [InternalizeActionArgs](#interface-internalizeactionargs) | [ValidBasketInsertion](#interface-validbasketinsertion) | [WalletEncryptionArgs](#interface-walletencryptionargs) |
-| [InternalizeActionResult](#interface-internalizeactionresult) | [ValidCreateActionArgs](#interface-validcreateactionargs) | [WalletErrorObject](#interface-walleterrorobject) |
-| [InternalizeOutput](#interface-internalizeoutput) | [ValidCreateActionInput](#interface-validcreateactioninput) | [WalletInterface](#interface-walletinterface) |
-| [KeyDeriverApi](#interface-keyderiverapi) | [ValidCreateActionOptions](#interface-validcreateactionoptions) | [WalletOutput](#interface-walletoutput) |
-| [KeyLinkageResult](#interface-keylinkageresult) | [ValidCreateActionOutput](#interface-validcreateactionoutput) | [WalletPayment](#interface-walletpayment) |
-| [ListActionsArgs](#interface-listactionsargs) | [ValidDiscoverByAttributesArgs](#interface-validdiscoverbyattributesargs) | [WalletWire](#interface-walletwire) |
+| [AbortActionArgs](#interface-abortactionargs) | [ListCertificatesArgs](#interface-listcertificatesargs) | [ValidInternalizeOutput](#interface-validinternalizeoutput) |
+| [AbortActionResult](#interface-abortactionresult) | [ListCertificatesResult](#interface-listcertificatesresult) | [ValidListActionsArgs](#interface-validlistactionsargs) |
+| [AcquireCertificateArgs](#interface-acquirecertificateargs) | [ListOutputsArgs](#interface-listoutputsargs) | [ValidListCertificatesArgs](#interface-validlistcertificatesargs) |
+| [AuthenticatedResult](#interface-authenticatedresult) | [ListOutputsResult](#interface-listoutputsresult) | [ValidListOutputsArgs](#interface-validlistoutputsargs) |
+| [BasketInsertion](#interface-basketinsertion) | [OutPoint](#interface-outpoint) | [ValidProcessActionArgs](#interface-validprocessactionargs) |
+| [CertificateResult](#interface-certificateresult) | [ProveCertificateArgs](#interface-provecertificateargs) | [ValidProcessActionOptions](#interface-validprocessactionoptions) |
+| [CreateActionArgs](#interface-createactionargs) | [ProveCertificateResult](#interface-provecertificateresult) | [ValidProveCertificateArgs](#interface-validprovecertificateargs) |
+| [CreateActionInput](#interface-createactioninput) | [RelinquishCertificateArgs](#interface-relinquishcertificateargs) | [ValidRelinquishCertificateArgs](#interface-validrelinquishcertificateargs) |
+| [CreateActionOptions](#interface-createactionoptions) | [RelinquishCertificateResult](#interface-relinquishcertificateresult) | [ValidRelinquishOutputArgs](#interface-validrelinquishoutputargs) |
+| [CreateActionOutput](#interface-createactionoutput) | [RelinquishOutputArgs](#interface-relinquishoutputargs) | [ValidSignActionArgs](#interface-validsignactionargs) |
+| [CreateActionResult](#interface-createactionresult) | [RelinquishOutputResult](#interface-relinquishoutputresult) | [ValidSignActionOptions](#interface-validsignactionoptions) |
+| [CreateHmacArgs](#interface-createhmacargs) | [RevealCounterpartyKeyLinkageArgs](#interface-revealcounterpartykeylinkageargs) | [ValidWalletPayment](#interface-validwalletpayment) |
+| [CreateHmacResult](#interface-createhmacresult) | [RevealCounterpartyKeyLinkageResult](#interface-revealcounterpartykeylinkageresult) | [ValidWalletSignerArgs](#interface-validwalletsignerargs) |
+| [CreateSignatureArgs](#interface-createsignatureargs) | [RevealSpecificKeyLinkageArgs](#interface-revealspecifickeylinkageargs) | [VerifyHmacArgs](#interface-verifyhmacargs) |
+| [CreateSignatureResult](#interface-createsignatureresult) | [RevealSpecificKeyLinkageResult](#interface-revealspecifickeylinkageresult) | [VerifyHmacResult](#interface-verifyhmacresult) |
+| [DiscoverByAttributesArgs](#interface-discoverbyattributesargs) | [ReviewActionResult](#interface-reviewactionresult) | [VerifySignatureArgs](#interface-verifysignatureargs) |
+| [DiscoverByIdentityKeyArgs](#interface-discoverbyidentitykeyargs) | [SendWithResult](#interface-sendwithresult) | [VerifySignatureResult](#interface-verifysignatureresult) |
+| [DiscoverCertificatesResult](#interface-discovercertificatesresult) | [SignActionArgs](#interface-signactionargs) | [WalletAction](#interface-walletaction) |
+| [GetHeaderArgs](#interface-getheaderargs) | [SignActionOptions](#interface-signactionoptions) | [WalletActionInput](#interface-walletactioninput) |
+| [GetHeaderResult](#interface-getheaderresult) | [SignActionResult](#interface-signactionresult) | [WalletActionOutput](#interface-walletactionoutput) |
+| [GetHeightResult](#interface-getheightresult) | [SignActionSpend](#interface-signactionspend) | [WalletCertificate](#interface-walletcertificate) |
+| [GetNetworkResult](#interface-getnetworkresult) | [SignableTransaction](#interface-signabletransaction) | [WalletDecryptArgs](#interface-walletdecryptargs) |
+| [GetPublicKeyArgs](#interface-getpublickeyargs) | [ValidAbortActionArgs](#interface-validabortactionargs) | [WalletDecryptResult](#interface-walletdecryptresult) |
+| [GetPublicKeyResult](#interface-getpublickeyresult) | [ValidAcquireCertificateArgs](#interface-validacquirecertificateargs) | [WalletEncryptArgs](#interface-walletencryptargs) |
+| [GetVersionResult](#interface-getversionresult) | [ValidAcquireDirectCertificateArgs](#interface-validacquiredirectcertificateargs) | [WalletEncryptResult](#interface-walletencryptresult) |
+| [IdentityCertificate](#interface-identitycertificate) | [ValidAcquireIssuanceCertificateArgs](#interface-validacquireissuancecertificateargs) | [WalletEncryptionArgs](#interface-walletencryptionargs) |
+| [IdentityCertifier](#interface-identitycertifier) | [ValidBasketInsertion](#interface-validbasketinsertion) | [WalletErrorObject](#interface-walleterrorobject) |
+| [InternalizeActionArgs](#interface-internalizeactionargs) | [ValidCreateActionArgs](#interface-validcreateactionargs) | [WalletInterface](#interface-walletinterface) |
+| [InternalizeActionResult](#interface-internalizeactionresult) | [ValidCreateActionInput](#interface-validcreateactioninput) | [WalletLoggerInterface](#interface-walletloggerinterface) |
+| [InternalizeOutput](#interface-internalizeoutput) | [ValidCreateActionOptions](#interface-validcreateactionoptions) | [WalletLoggerLog](#interface-walletloggerlog) |
+| [KeyDeriverApi](#interface-keyderiverapi) | [ValidCreateActionOutput](#interface-validcreateactionoutput) | [WalletOutput](#interface-walletoutput) |
+| [KeyLinkageResult](#interface-keylinkageresult) | [ValidDiscoverByAttributesArgs](#interface-validdiscoverbyattributesargs) | [WalletPayment](#interface-walletpayment) |
+| [ListActionsArgs](#interface-listactionsargs) | [ValidDiscoverByIdentityKeyArgs](#interface-validdiscoverbyidentitykeyargs) | [WalletWire](#interface-walletwire) |
+| [ListActionsResult](#interface-listactionsresult) | [ValidInternalizeActionArgs](#interface-validinternalizeactionargs) |  |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -1469,8 +1470,11 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 export interface ValidWalletSignerArgs {
+    logger?: WalletLoggerInterface;
 }
 ```
+
+See also: [WalletLoggerInterface](./wallet.md#interface-walletloggerinterface)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -1992,6 +1996,152 @@ Continuously waits until the user is authenticated, returning the result once co
 waitForAuthentication: (args: object, originator?: OriginatorDomainNameStringUnder250Bytes) => Promise<AuthenticatedResult>
 ```
 See also: [AuthenticatedResult](./wallet.md#interface-authenticatedresult), [OriginatorDomainNameStringUnder250Bytes](./wallet.md#type-originatordomainnamestringunder250bytes)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Interface: WalletLoggerInterface
+
+A console-like interface for logging within wallet operations.
+
+Intended to reflect a subset of standard `Console` interface methods used by `Wallet`
+
+```ts
+export interface WalletLoggerInterface {
+    group: (...label: any[]) => void;
+    groupEnd: () => void;
+    log: (message?: any, ...optionalParams: any[]) => void;
+    error: (message?: any, ...optionalParams: any[]) => void;
+    flush?: () => object | undefined;
+    merge?: (log: WalletLoggerInterface) => void;
+    level?: "error" | "warn" | "info" | "debug" | "trace";
+    indent?: number;
+    isOrigin?: boolean;
+    isError?: boolean;
+    logs?: WalletLoggerLog[];
+}
+```
+
+See also: [WalletLoggerLog](./wallet.md#interface-walletloggerlog)
+
+#### Property error
+
+Log an error message.
+
+```ts
+error: (message?: any, ...optionalParams: any[]) => void
+```
+
+#### Property flush
+
+Loggers may accumulate data instead of immediately handling it.
+
+Loggers that do not accumulate should not implement this method.
+
+```ts
+flush?: () => object | undefined
+```
+
+#### Property group
+
+Increases indentation of subsequent lines.
+
+If one or more `label`s are provided, those are printed first without the
+additional indentation.
+
+```ts
+group: (...label: any[]) => void
+```
+
+#### Property groupEnd
+
+Decreases indentation of subsequent lines.
+
+```ts
+groupEnd: () => void
+```
+
+#### Property indent
+
+Valid if an accumulating logger. Count of `group` calls without matching `groupEnd`.
+
+```ts
+indent?: number
+```
+
+#### Property isError
+
+True if this is an accumulating logger and an error was logged.
+
+```ts
+isError?: boolean
+```
+
+#### Property isOrigin
+
+True if this is an accumulating logger and the logger belongs to the object servicing the initial request.
+
+```ts
+isOrigin?: boolean
+```
+
+#### Property level
+
+Optional. Logging levels that may influence what is logged.
+
+'error' Only requests resulting in an exception should be logged.
+'warn' Also log requests that succeed but with an abnormal condition.
+'info' Also log normal successful requests.
+'debug' Add input parm and result details where possible.
+'trace' Instead of adding debug details, focus on execution path and timing.
+
+```ts
+level?: "error" | "warn" | "info" | "debug" | "trace"
+```
+
+#### Property log
+
+Log a message.
+
+```ts
+log: (message?: any, ...optionalParams: any[]) => void
+```
+
+#### Property logs
+
+Optional array of accumulated logged data and errors.
+
+```ts
+logs?: WalletLoggerLog[]
+```
+See also: [WalletLoggerLog](./wallet.md#interface-walletloggerlog)
+
+#### Property merge
+
+Merge log data from another logger.
+
+Typically used to merge log data from network request.
+
+```ts
+merge?: (log: WalletLoggerInterface) => void
+```
+See also: [WalletLoggerInterface](./wallet.md#interface-walletloggerinterface)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Interface: WalletLoggerLog
+
+```ts
+export interface WalletLoggerLog {
+    when: number;
+    indent: number;
+    log: string;
+    isError?: boolean;
+    isBegin?: boolean;
+    isEnd?: boolean;
+}
+```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -4750,10 +4900,10 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 Validate the arguments for creating a new action.
 
 ```ts
-export function validateCreateActionArgs(args: CreateActionArgs): ValidCreateActionArgs 
+export function validateCreateActionArgs(args: CreateActionArgs, logger?: WalletLoggerInterface): ValidCreateActionArgs 
 ```
 
-See also: [CreateActionArgs](./wallet.md#interface-createactionargs), [ValidCreateActionArgs](./wallet.md#interface-validcreateactionargs)
+See also: [CreateActionArgs](./wallet.md#interface-createactionargs), [ValidCreateActionArgs](./wallet.md#interface-validcreateactionargs), [WalletLoggerInterface](./wallet.md#interface-walletloggerinterface)
 
 Returns
 
@@ -5376,21 +5526,21 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | | | |
 | --- | --- | --- |
-| [AcquireCertificateResult](#type-acquirecertificateresult) | [EntityIconURLStringMax500Bytes](#type-entityiconurlstringmax500bytes) | [PositiveIntegerOrZero](#type-positiveintegerorzero) |
-| [AcquisitionProtocol](#type-acquisitionprotocol) | [EntityNameStringMax100Bytes](#type-entitynamestringmax100bytes) | [ProtocolString5To400Bytes](#type-protocolstring5to400bytes) |
-| [ActionStatus](#type-actionstatus) | [ErrorCodeString10To40Bytes](#type-errorcodestring10to40bytes) | [PubKeyHex](#type-pubkeyhex) |
-| [AtomicBEEF](#type-atomicbeef) | [ErrorDescriptionString20To200Bytes](#type-errordescriptionstring20to200bytes) | [ReviewActionResultStatus](#type-reviewactionresultstatus) |
-| [BEEF](#type-beef) | [HexString](#type-hexstring) | [SatoshiValue](#type-satoshivalue) |
-| [Base64String](#type-base64string) | [ISOTimestampString](#type-isotimestampstring) | [SecurityLevel](#type-securitylevel) |
-| [BasketStringUnder300Bytes](#type-basketstringunder300bytes) | [KeyIDStringUnder800Bytes](#type-keyidstringunder800bytes) | [SendWithResultStatus](#type-sendwithresultstatus) |
-| [BooleanDefaultFalse](#type-booleandefaultfalse) | [KeyringRevealer](#type-keyringrevealer) | [TXIDHexString](#type-txidhexstring) |
-| [BooleanDefaultTrue](#type-booleandefaulttrue) | [LabelStringUnder300Bytes](#type-labelstringunder300bytes) | [TrustSelf](#type-trustself) |
-| [Byte](#type-byte) | [OriginatorDomainNameStringUnder250Bytes](#type-originatordomainnamestringunder250bytes) | [VersionString7To30Bytes](#type-versionstring7to30bytes) |
-| [CallType](#type-calltype) | [OutpointString](#type-outpointstring) | [WalletCounterparty](#type-walletcounterparty) |
-| [CertificateFieldNameUnder50Bytes](#type-certificatefieldnameunder50bytes) | [OutputTagStringUnder300Bytes](#type-outputtagstringunder300bytes) | [WalletErrorCode](#type-walleterrorcode) |
-| [Counterparty](#type-counterparty) | [PositiveInteger](#type-positiveinteger) | [WalletNetwork](#type-walletnetwork) |
-| [DescriptionString5to2000Bytes](#type-descriptionstring5to2000bytes) | [PositiveIntegerDefault10Max10000](#type-positiveintegerdefault10max10000) | [WalletProtocol](#type-walletprotocol) |
-| [DescriptionString5to50Bytes](#type-descriptionstring5to50bytes) | [PositiveIntegerMax10](#type-positiveintegermax10) |  |
+| [AcquireCertificateResult](#type-acquirecertificateresult) | [EntityIconURLStringMax500Bytes](#type-entityiconurlstringmax500bytes) | [PositiveIntegerMax10](#type-positiveintegermax10) |
+| [AcquisitionProtocol](#type-acquisitionprotocol) | [EntityNameStringMax100Bytes](#type-entitynamestringmax100bytes) | [PositiveIntegerOrZero](#type-positiveintegerorzero) |
+| [ActionStatus](#type-actionstatus) | [ErrorCodeString10To40Bytes](#type-errorcodestring10to40bytes) | [ProtocolString5To400Bytes](#type-protocolstring5to400bytes) |
+| [AtomicBEEF](#type-atomicbeef) | [ErrorDescriptionString20To200Bytes](#type-errordescriptionstring20to200bytes) | [PubKeyHex](#type-pubkeyhex) |
+| [BEEF](#type-beef) | [HexString](#type-hexstring) | [ReviewActionResultStatus](#type-reviewactionresultstatus) |
+| [Base64String](#type-base64string) | [ISOTimestampString](#type-isotimestampstring) | [SatoshiValue](#type-satoshivalue) |
+| [BasketStringUnder300Bytes](#type-basketstringunder300bytes) | [KeyIDStringUnder800Bytes](#type-keyidstringunder800bytes) | [SecurityLevel](#type-securitylevel) |
+| [BooleanDefaultFalse](#type-booleandefaultfalse) | [KeyringRevealer](#type-keyringrevealer) | [SendWithResultStatus](#type-sendwithresultstatus) |
+| [BooleanDefaultTrue](#type-booleandefaulttrue) | [LabelStringUnder300Bytes](#type-labelstringunder300bytes) | [TXIDHexString](#type-txidhexstring) |
+| [Byte](#type-byte) | [MakeWalletLogger](#type-makewalletlogger) | [TrustSelf](#type-trustself) |
+| [CallType](#type-calltype) | [OriginatorDomainNameStringUnder250Bytes](#type-originatordomainnamestringunder250bytes) | [VersionString7To30Bytes](#type-versionstring7to30bytes) |
+| [CertificateFieldNameUnder50Bytes](#type-certificatefieldnameunder50bytes) | [OutpointString](#type-outpointstring) | [WalletCounterparty](#type-walletcounterparty) |
+| [Counterparty](#type-counterparty) | [OutputTagStringUnder300Bytes](#type-outputtagstringunder300bytes) | [WalletErrorCode](#type-walleterrorcode) |
+| [DescriptionString5to2000Bytes](#type-descriptionstring5to2000bytes) | [PositiveInteger](#type-positiveinteger) | [WalletNetwork](#type-walletnetwork) |
+| [DescriptionString5to50Bytes](#type-descriptionstring5to50bytes) | [PositiveIntegerDefault10Max10000](#type-positiveintegerdefault10max10000) | [WalletProtocol](#type-walletprotocol) |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5620,6 +5770,17 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ```ts
 export type LabelStringUnder300Bytes = string
 ```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Type: MakeWalletLogger
+
+```ts
+export type MakeWalletLogger = (log?: string | WalletLoggerInterface) => WalletLoggerInterface
+```
+
+See also: [WalletLoggerInterface](./wallet.md#interface-walletloggerinterface)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
