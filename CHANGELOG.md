@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.9 - 2025-11-15](#199---2025-11-15)
+- [1.9.8 - 2025-11-15](#198---2025-11-15)
 - [1.9.7 - 2025-11-14](#197---2025-11-14)
 - [1.9.6 - 2025-11-13](#196---2025-11-13)
 - [1.9.5 - 2025-11-13](#195---2025-11-13)
@@ -177,6 +179,14 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+### [1.9.9] - 2025-11-15
+
+### Fixed
+
+- Ensured `OP_LSHIFT` and `OP_RSHIFT` maintain the original stack element endianness and added regression tests covering the bug.
 
 ---
 

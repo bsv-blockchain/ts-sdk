@@ -248,6 +248,24 @@ describe('Spend', () => {
     expect(valid).toBe(true)
   })
 
+  it('maintains endianness when shifting right', () => {
+    const spend = createSpendWithPushes(
+      'OP_1 OP_RSHIFT 0080 OP_EQUAL',
+      [[0x01, 0x00]]
+    )
+
+    expect(spend.validate()).toBe(true)
+  })
+
+  it('maintains endianness when shifting left', () => {
+    const spend = createSpendWithPushes(
+      'OP_1 OP_LSHIFT 0100 OP_EQUAL',
+      [[0x00, 0x80]]
+    )
+
+    expect(spend.validate()).toBe(true)
+  })
+
   it('Successfully validates an R-puzzle spend (HASH256)', async () => {
     const k = new PrivateKey(2)
     const c = new Curve()

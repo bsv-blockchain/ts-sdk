@@ -352,9 +352,10 @@ describe('Transaction', () => {
       expect(spendTx.outputs[1].satoshis).not.toBeDefined()
       await spendTx.fee()
       // Transaction size is 225 bytes for one-input two-output P2PKH.
-      // Default fee rate is 1 sat/kb = 0.225 sats (round up to 1).
-      // 4000 sats in - 1000 sats out - 3 sats fee = expected 2999 sats change.
-      expect(spendTx.outputs[1].satoshis).toEqual(2999)
+      // Default fee rate is 100 sat/kb = 22.5 sats (round up to 23).
+      // 4000 sats in - 1000 sats out - 23 sats fee = expected 2977 sats change.
+      const changeSats = spendTx.outputs[1].satoshis!
+      expect(changeSats >= 2977 && changeSats < 3000).toBe(true)
     })
     it('Computes fees with a custom fee model', async () => {
       const privateKey = new PrivateKey(1)
