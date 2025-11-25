@@ -332,4 +332,55 @@ describe('Certificate', () => {
     expect(certificateWithMismatch.certifier).toBe(certifierPubKey)
     expect(await certificateWithMismatch.verify()).toBe(true)
   })
+
+  it('should create a Certificate from an object using fromObject()', () => {
+    const certificateObject = {
+      type: 'Q29tbW9uU291cmNlIGlkZW50aXR5',
+      subject: '028e2e075e1e57ba4c62c90125468109f9b4e2a7741da3dd76ccd0c73b2a8a37ad',
+      serialNumber: 'UegX3uufsqHsbEKeBSxUd9AziLSyru86TnwfhPoZJYE=',
+      certifier: '03c644fe2fd97673a5d86555a58587e7936390be6582ece262bc387014bcff6fe4',
+      revocationOutpoint: '0245242bd144a85053b4c1e4a0ed5467c79a4d172680ca77a970ebabd682d564.0',
+      signature: '304402202c86ef816c469fe657289ddea12d2c444f006ef5ab5851f00107c7724eb67ea602202786244c077567c8f3ec5da78bd61ce0c35bf1eeac0488e026c03b21c403b0fd',
+      fields: {
+        displayName: 'eqsSpUgTKk891y1EkyCPPg+C4YoVZJvB0EQ4iore7VofkM5TB9Ctj7x2PgBaWI0A9tfATDO9',
+        email: 'n6HVUvyHkIDMvB4ERxVGxmX6lgRBM+e7kbbC5DiRCKe5a60BJeXr05g4POq6OHYO9Wl/b1Xxe+JKsejl',
+        phoneNumber: '5yWyN9kOGaZs5G6yvXUWnWj4rm7kDAug4YIsn4BQLKGYRzDx8s1dytb43ega6BnSp0gUTnskcjiM8ekqul2a',
+        lat: 'lc3u6SFKQ5Mpxp5vc+6s4aXe7lOyQQLfN+CbOu4XlBYsj7Jlc78gt4sGCwDSxbzvA41eElCjlc2Our5bpLcsg1I6',
+        lng: 'FmY3iM/2/LDfYNEeXpcj7Epn933tRHz50WoBkBrqYv6jmZ6dXE6RRYId9TcaxIvB0D7Y14aD5vjSV6Bx48hdic5g'
+      }
+    }
+
+    const certificate = Certificate.fromObject(certificateObject)
+
+    expect(certificate.type).toEqual(certificateObject.type)
+    expect(certificate.serialNumber).toEqual(certificateObject.serialNumber)
+    expect(certificate.subject).toEqual(certificateObject.subject)
+    expect(certificate.certifier).toEqual(certificateObject.certifier)
+    expect(certificate.revocationOutpoint).toEqual(certificateObject.revocationOutpoint)
+    expect(certificate.signature).toEqual(certificateObject.signature)
+    expect(certificate.fields).toEqual(certificateObject.fields)
+  })
+
+  it('should create a Certificate from an object without signature using fromObject()', () => {
+    const certificateObject = {
+      type: 'Q29tbW9uU291cmNlIGlkZW50aXR5',
+      subject: '028e2e075e1e57ba4c62c90125468109f9b4e2a7741da3dd76ccd0c73b2a8a37ad',
+      serialNumber: 'UegX3uufsqHsbEKeBSxUd9AziLSyru86TnwfhPoZJYE=',
+      certifier: '03c644fe2fd97673a5d86555a58587e7936390be6582ece262bc387014bcff6fe4',
+      revocationOutpoint: '0245242bd144a85053b4c1e4a0ed5467c79a4d172680ca77a970ebabd682d564.0',
+      fields: {
+        displayName: 'eqsSpUgTKk891y1EkyCPPg+C4YoVZJvB0EQ4iore7VofkM5TB9Ctj7x2PgBaWI0A9tfATDO9'
+      }
+    }
+
+    const certificate = Certificate.fromObject(certificateObject)
+
+    expect(certificate.type).toEqual(certificateObject.type)
+    expect(certificate.serialNumber).toEqual(certificateObject.serialNumber)
+    expect(certificate.subject).toEqual(certificateObject.subject)
+    expect(certificate.certifier).toEqual(certificateObject.certifier)
+    expect(certificate.revocationOutpoint).toEqual(certificateObject.revocationOutpoint)
+    expect(certificate.signature).toBeUndefined()
+    expect(certificate.fields).toEqual(certificateObject.fields)
+  })
 })
