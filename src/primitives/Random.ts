@@ -7,7 +7,6 @@
  * - Modern browsers via globalThis.crypto, self.crypto, or window.crypto
  * - Web Workers and Service Workers via self.crypto
  * - Deno and Bun via globalThis.crypto
- * - React Native (requires react-native-get-random-values polyfill)
  *
  * @throws {Error} If no secure random number generator is available
  */
