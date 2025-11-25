@@ -72,34 +72,6 @@ class Rand {
       return
     }
 
-    // React Native support - try to load polyfill
-    if (typeof navigator !== 'undefined' && (navigator as any).product === 'ReactNative') {
-      try {
-        // Try to require the polyfill - this will populate globalThis.crypto
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        require('react-native-get-random-values')
-
-        if (typeof (globalThis as any).crypto?.getRandomValues === 'function') {
-          this._rand = (n) => {
-            /* eslint-disable-next-line */
-            return this.getRandomValues(globalThis as any, n)
-          }
-          return
-        }
-      } catch (e) {
-        // Polyfill not available - provide helpful error
-        this._rand = (): never => {
-          throw new Error(
-            'React Native detected but crypto is not available. ' +
-            'Please install and import "react-native-get-random-values" at the top of your entry file:\n' +
-            'npm install react-native-get-random-values\n' +
-            'Then add: import "react-native-get-random-values" to your index.js/App.js'
-          )
-        }
-        return
-      }
-    }
-
     // No crypto available
     this._rand = noRand
   }
