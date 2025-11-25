@@ -218,6 +218,15 @@ export default class Certificate {
         protocolID: WalletProtocol;
         keyID: string;
     } 
+    static fromObject(obj: {
+        type: Base64String;
+        serialNumber: Base64String;
+        subject: PubKeyHex;
+        certifier: PubKeyHex;
+        revocationOutpoint: OutpointString;
+        fields: Record<CertificateFieldNameUnder50Bytes, Base64String>;
+        signature?: HexString;
+    }): Certificate 
 }
 ```
 
@@ -329,6 +338,32 @@ Argument Details
 
 + **bin**
   + The binary data representing the certificate.
+
+#### Method fromObject
+
+Creates a Certificate instance from a plain object representation.
+
+```ts
+static fromObject(obj: {
+    type: Base64String;
+    serialNumber: Base64String;
+    subject: PubKeyHex;
+    certifier: PubKeyHex;
+    revocationOutpoint: OutpointString;
+    fields: Record<CertificateFieldNameUnder50Bytes, Base64String>;
+    signature?: HexString;
+}): Certificate 
+```
+See also: [Base64String](./wallet.md#type-base64string), [Certificate](./auth.md#class-certificate), [CertificateFieldNameUnder50Bytes](./wallet.md#type-certificatefieldnameunder50bytes), [HexString](./wallet.md#type-hexstring), [OutpointString](./wallet.md#type-outpointstring), [PubKeyHex](./wallet.md#type-pubkeyhex)
+
+Returns
+
+A new Certificate instance.
+
+Argument Details
+
++ **obj**
+  + The object containing certificate data.
 
 #### Method getCertificateFieldEncryptionDetails
 
