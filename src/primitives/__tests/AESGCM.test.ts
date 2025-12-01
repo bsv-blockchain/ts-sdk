@@ -665,6 +665,31 @@ describe('AESGCM IV validation', () => {
     }).toThrow(new Error('Initialization vector must not be empty'))
   })
 
+  it('AESGCM throws when key is empty', () => {
+    const iv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+
+    expect(() => {
+      AESGCM(plaintext, aad, iv, [])
+    }).toThrow(new Error('Key must not be empty'))
+  })
+
+  it('AESGCMDecrypt throws when key is empty', () => {
+    const iv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    const { result: ciphertext, authenticationTag } = AESGCM(plaintext, aad, iv, key)
+
+    expect(() => {
+      AESGCMDecrypt(ciphertext, aad, iv, authenticationTag, [])
+    }).toThrow(new Error('Key must not be empty'))
+  })
+
+  it('AESGCMDecrypt throws when cipher text is empty', () => {
+    const iv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+
+    expect(() => {
+      AESGCMDecrypt([], aad, iv, [], key)
+    }).toThrow(new Error('Cipher text must not be empty'))
+  })
+
   it('AESGCM still work with a valid IV', () => {
     const iv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     const { result: ciphertext, authenticationTag } = AESGCM(plaintext, aad, iv, key)
