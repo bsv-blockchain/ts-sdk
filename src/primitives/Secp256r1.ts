@@ -1,5 +1,6 @@
 import Random from './Random.js'
 import { sha256 } from './Hash.js'
+import { toArray, toHex } from './utils.js'
 
 export type P256Point = { x: bigint, y: bigint } | null
 
@@ -203,7 +204,7 @@ export default class Secp256r1 {
   private randomScalar (): bigint {
     while (true) {
       const bytes = Random(32)
-      const k = BigInt('0x' + Buffer.from(bytes).toString('hex'))
+      const k = BigInt('0x' + toHex(bytes))
       if (k > 0n && k < this.n) return k
     }
   }
@@ -284,21 +285,21 @@ export default class Secp256r1 {
   }
 
   private messageToBigInt (message: ByteSource, prehashed: boolean): bigint {
-    const bytes = this.toBuffer(message)
-    const digest = prehashed ? bytes : Buffer.from(sha256(bytes))
-    const hex = digest.toString('hex')
+    const bytes = this.toBytes(message)
+    const digest = prehashed ? bytes : new Uint8Array(sha256(bytes))
+    const hex = toHex(Array.from(digest))
     return BigInt('0x' + hex) % this.n
   }
 
-  private toBuffer (data: ByteSource): Buffer {
+  private toBytes (data: ByteSource): Uint8Array {
     if (typeof data === 'string') {
-      if (HEX_REGEX.test(data) && data.length % 2 === 0) {
-        return Buffer.from(data, 'hex')
-      }
-      return Buffer.from(data, 'utf8')
+      const isHex = HEX_REGEX.test(data) && data.length % 2 === 0
+      return Uint8Array.from(toArray(data, isHex ? 'hex' : 'utf8'))
     }
-    if (data instanceof Uint8Array) return Buffer.from(data)
-    if (ArrayBuffer.isView(data)) return Buffer.from(data.buffer, data.byteOffset, data.byteLength)
+    if (data instanceof Uint8Array) return data
+    if (ArrayBuffer.isView(data)) {
+      return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+    }
     throw new Error('Unsupported message format')
   }
 
