@@ -22,8 +22,8 @@ export default class SymmetricKey extends BigNumber {
    * @example
    * const symmetricKey = SymmetricKey.fromRandom();
    */
-  static fromRandom (): SymmetricKey {
-    return new SymmetricKey(Random(32))
+  static fromRandom(): SymmetricKey {
+    return new SymmetricKey(Random(32));
   }
 
   /**
@@ -40,25 +40,20 @@ export default class SymmetricKey extends BigNumber {
    * const key = new SymmetricKey(1234);
    * const encryptedMessage = key.encrypt('plainText', 'utf8');
    */
-  encrypt (msg: number[] | string, enc?: 'hex'): string | number[] {
-    const iv = Random(32)
-    msg = toArray(msg, enc)
-    const keyBytes = this.toArray('be', 32)
-    const { result, authenticationTag } = AESGCM(
-      msg,
-      [],
-      iv,
-      keyBytes
-    )
-    const totalLength = iv.length + result.length + authenticationTag.length
-    const combined = new Array(totalLength)
-    let offset = 0
+  encrypt(msg: number[] | string, enc?: 'hex'): string | number[] {
+    const iv = Random(32);
+    msg = toArray(msg, enc);
+    const keyBytes = this.toArray('be', 32);
+    const { result, authenticationTag } = AESGCM(msg, [], iv, keyBytes);
+    const totalLength = iv.length + result.length + authenticationTag.length;
+    const combined = new Array(totalLength);
+    let offset = 0;
     for (const chunk of [iv, result, authenticationTag]) {
       for (let i = 0; i < chunk.length; i++) {
-        combined[offset++] = chunk[i]
+        combined[offset++] = chunk[i];
       }
     }
-    return encode(combined, enc)
+    return encode(combined, enc);
   }
 
   /**
@@ -77,22 +72,35 @@ export default class SymmetricKey extends BigNumber {
    *
    * @throws {Error} Will throw an error if the decryption fails, likely due to message tampering or incorrect decryption key.
    */
-  decrypt (msg: number[] | string, enc?: 'hex' | 'utf8'): string | number[] {
-    msg = toArray(msg, enc)
-    const iv = msg.slice(0, 32)
-    const tagStart = msg.length - 16
-    const ciphertext = msg.slice(32, tagStart)
-    const messageTag = msg.slice(tagStart)
+  decrypt(msg: number[] | string, enc?: 'hex' | 'utf8'): string | number[] {
+    msg = toArray(msg, enc);
+
+    if (msg.length < 48) {
+      throw new Error('Ciphertext too short');
+    }
+
+    const ivLength = 32;
+    const tagLength = 16;
+
+    const iv = msg.slice(0, ivLength);
+    const tagStart = msg.length - tagLength;
+    const ciphertext = msg.slice(ivLength, tagStart);
+    const messageTag = msg.slice(tagStart);
+
+    if (tagStart < ivLength) {
+      throw new Error('Malformed ciphertext');
+    }
+
     const result = AESGCMDecrypt(
       ciphertext,
       [],
       iv,
       messageTag,
-      this.toArray('be', 32)
-    )
+      this.toArray('be', 32),
+    );
     if (result === null) {
-      throw new Error('Decryption failed!')
+      throw new Error('Decryption failed!');
     }
-    return encode(result, enc)
+    return encode(result, enc);
   }
 }
