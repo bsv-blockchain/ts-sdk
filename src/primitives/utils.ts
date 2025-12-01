@@ -232,14 +232,12 @@ function utf8ToArray (str: string): number[] {
  * @returns {string} - The UTF-8 encoded string.
  */
 export const toUTF8 = (arr: number[]): string => {
-  let result = ''
+  let result = ""
   let skip = 0
 
   for (let i = 0; i < arr.length; i++) {
     const byte = arr[i]
 
-    // this byte is part of a multi-byte sequence, skip it
-    // added to avoid modifying i within the loop which is considered unsafe.
     if (skip > 0) {
       skip--
       continue
@@ -253,11 +251,9 @@ export const toUTF8 = (arr: number[]): string => {
 
     // 2-byte sequence (110xxxxx 10xxxxxx)
     if (byte >= 0xc0 && byte <= 0xdf) {
-      if (i + 1 >= arr.length) {
-        throw new Error("Truncated UTF-8: expected 2 bytes")
-      }
-      const byte2 = arr[i + 1]
-      skip = 1
+      const avail = arr.length - (i + 1) // number of bytes available after current
+      const byte2 = avail >= 1 ? arr[i + 1] : 0
+      skip = Math.min(1, avail)
 
       const codePoint = ((byte & 0x1f) << 6) | (byte2 & 0x3f)
       result += String.fromCharCode(codePoint)
@@ -266,12 +262,10 @@ export const toUTF8 = (arr: number[]): string => {
 
     // 3-byte sequence (1110xxxx 10xxxxxx 10xxxxxx)
     if (byte >= 0xe0 && byte <= 0xef) {
-      if (i + 2 >= arr.length) {
-        throw new Error("Truncated UTF-8: expected 3 bytes")
-      }
-      const byte2 = arr[i + 1]
-      const byte3 = arr[i + 2]
-      skip = 2
+      const avail = arr.length - (i + 1)
+      const byte2 = avail >= 1 ? arr[i + 1] : 0
+      const byte3 = avail >= 2 ? arr[i + 2] : 0
+      skip = Math.min(2, avail)
 
       const codePoint =
         ((byte & 0x0f) << 12) | ((byte2 & 0x3f) << 6) | (byte3 & 0x3f)
@@ -281,13 +275,11 @@ export const toUTF8 = (arr: number[]): string => {
 
     // 4-byte sequence (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
     if (byte >= 0xf0 && byte <= 0xf7) {
-      if (i + 3 >= arr.length) {
-        throw new Error("Truncated UTF-8: expected 4 bytes")
-      }
-      const byte2 = arr[i + 1]
-      const byte3 = arr[i + 2]
-      const byte4 = arr[i + 3]
-      skip = 3
+      const avail = arr.length - (i + 1)
+      const byte2 = avail >= 1 ? arr[i + 1] : 0
+      const byte3 = avail >= 2 ? arr[i + 2] : 0
+      const byte4 = avail >= 3 ? arr[i + 3] : 0
+      skip = Math.min(3, avail)
 
       const codePoint =
         ((byte & 0x07) << 18) |
@@ -301,8 +293,7 @@ export const toUTF8 = (arr: number[]): string => {
       continue
     }
 
-    // invalid leading byte for UTF-8
-    // throw new Error(`Invalid UTF-8 leading byte: 0x${byte.toString(16)}`)
+    // If it's an invalid leading byte, keep prior behavior: do nothing / skip
   }
 
   return result
