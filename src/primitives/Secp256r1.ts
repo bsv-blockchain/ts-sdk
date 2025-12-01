@@ -1,5 +1,5 @@
 import Random from './Random.js'
-import { sha256 } from './Hash.js'
+import { sha256, sha256hmac } from './Hash.js'
 import { toArray, toHex } from './utils.js'
 
 export type P256Point = { x: bigint, y: bigint } | null
@@ -237,24 +237,25 @@ export default class Secp256r1 {
   sign (message: ByteSource, privateKey: string | bigint, opts: { prehashed?: boolean, nonce?: bigint } = {}): { r: string, s: string } {
     const { prehashed = false, nonce } = opts
     const d = this.toScalar(privateKey)
-    const z = this.messageToBigInt(message, prehashed)
-    let k = nonce ?? this.randomScalar()
+    const digest = this.normalizeMessage(message, prehashed)
+    const z = this.bytesToScalar(digest)
+    let k = nonce ?? this.deterministicNonce(d, digest)
 
     while (true) {
       const p = this.multiplyBase(k)
       if (this.isInfinity(p)) {
-        k = nonce ?? this.randomScalar()
+        k = nonce ?? this.deterministicNonce(d, digest)
         continue
       }
       const r = this.mod(p.x, this.n)
       if (r === 0n) {
-        k = nonce ?? this.randomScalar()
+        k = nonce ?? this.deterministicNonce(d, digest)
         continue
       }
       const kinv = this.modInv(k, this.n)
       let s = this.mod(kinv * (z + r * d), this.n)
       if (s === 0n) {
-        k = nonce ?? this.randomScalar()
+        k = nonce ?? this.deterministicNonce(d, digest)
         continue
       }
       if (s > HALF_N) s = this.n - s // enforce low-s
@@ -267,14 +268,19 @@ export default class Secp256r1 {
    */
   verify (message: ByteSource, signature: { r: string | bigint, s: string | bigint }, publicKey: P256Point | string, opts: { prehashed?: boolean } = {}): boolean {
     const { prehashed = false } = opts
-    const q = typeof publicKey === 'string' ? this.pointFromHex(publicKey) : publicKey
+    let q: P256Point
+    try {
+      q = typeof publicKey === 'string' ? this.pointFromHex(publicKey) : publicKey
+    } catch {
+      return false
+    }
     if ((q == null) || !this.isOnCurve(q)) return false
 
     const r = typeof signature.r === 'bigint' ? signature.r : BigInt('0x' + signature.r)
     const s = typeof signature.s === 'bigint' ? signature.s : BigInt('0x' + signature.s)
     if (r <= 0n || r >= this.n || s <= 0n || s >= this.n) return false
 
-    const z = this.messageToBigInt(message, prehashed)
+    const z = this.bytesToScalar(this.normalizeMessage(message, prehashed))
     const w = this.modInv(s, this.n)
     const u1 = this.mod(z * w, this.n)
     const u2 = this.mod(r * w, this.n)
@@ -284,11 +290,30 @@ export default class Secp256r1 {
     return v === r
   }
 
-  private messageToBigInt (message: ByteSource, prehashed: boolean): bigint {
+  private normalizeMessage (message: ByteSource, prehashed: boolean): Uint8Array {
     const bytes = this.toBytes(message)
-    const digest = prehashed ? bytes : new Uint8Array(sha256(bytes))
-    const hex = toHex(Array.from(digest))
+    if (prehashed) return bytes
+    return new Uint8Array(sha256(bytes))
+  }
+
+  private bytesToScalar (bytes: Uint8Array): bigint {
+    const hex = toHex(Array.from(bytes))
     return BigInt('0x' + hex) % this.n
+  }
+
+  private deterministicNonce (priv: bigint, msgDigest: Uint8Array): bigint {
+    const keyBytes = toArray(this.to32BytesHex(priv), 'hex')
+    let counter = 0
+    while (counter < 1024) { // safety bound
+      const data = counter === 0
+        ? Array.from(msgDigest)
+        : Array.from(msgDigest).concat([counter & 0xff])
+      const hmac = sha256hmac(keyBytes, data)
+      const k = BigInt('0x' + toHex(hmac)) % this.n
+      if (k > 0n) return k
+      counter++
+    }
+    throw new Error('Failed to derive deterministic nonce')
   }
 
   private toBytes (data: ByteSource): Uint8Array {
