@@ -209,6 +209,50 @@ describe('utils', () => {
   })
 })
 
+describe('toArray base64', () => {
+  it('decodes empty string to empty array', () => {
+    expect(toArray('', 'base64')).toEqual([])
+  })
+
+  it('decodes standard padded base64 strings', () => {
+    expect(toArray('Zg==', 'base64')).toEqual([102])
+    expect(toArray('Zm8=', 'base64')).toEqual([102, 111])
+    expect(toArray('Zm9v', 'base64')).toEqual([102, 111, 111])
+    expect(toArray('SGVsbG8=', 'base64')).toEqual([72, 101, 108, 108, 111])
+  })
+
+  it('decodes base64 without padding', () => {
+    expect(toArray('SGVsbG8', 'base64')).toEqual([72, 101, 108, 108, 111])
+    expect(toArray('QQ', 'base64')).toEqual([65])
+    expect(toArray('Zm8', 'base64')).toEqual([102, 111])
+  })
+
+  it('decodes URL-safe base64', () => {
+    expect(toArray('_w==', 'base64')).toEqual([255])
+  })
+
+  it('ignores whitespace and newlines', () => {
+    expect(toArray('S G V s b G 8 =\n', 'base64')).toEqual([72, 101, 108, 108, 111])
+  })
+
+  it('throws on invalid padding', () => {
+    expect(() => toArray('SGVsbG8===', 'base64')).toThrow(new Error('Invalid base64 padding'))
+    expect(() => toArray('SGV=sbG8=', 'base64')).toThrow(new Error('Invalid base64 padding'))
+  })
+
+  it('throws on invalid length (1 mod 4)', () => {
+    expect(() => toArray('abcde', 'base64')).toThrow(new Error('Invalid base64 length'))
+  })
+
+  it('throws on invalid characters', () => {
+    expect(() => toArray('A?==', 'base64')).toThrow(new Error('Invalid base64 character at index 1'))
+  })
+
+  it('throws when non-zero padding bits are present', () => {
+    expect(() => toArray('QZ', 'base64')).toThrow(new Error('Invalid base64: non-zero padding bits'))
+  })
+})
+
 describe('verifyNotNull', () => {
   it('should return the value if it is not null or undefined', () => {
     expect(verifyNotNull(42)).toBe(42)
