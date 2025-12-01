@@ -44,12 +44,7 @@ export default class SymmetricKey extends BigNumber {
     const iv = Random(32)
     msg = toArray(msg, enc)
     const keyBytes = this.toArray('be', 32)
-    const { result, authenticationTag } = AESGCM(
-      msg,
-      [],
-      iv,
-      keyBytes
-    )
+    const { result, authenticationTag } = AESGCM(msg, [], iv, keyBytes)
     const totalLength = iv.length + result.length + authenticationTag.length
     const combined = new Array(totalLength)
     let offset = 0
@@ -79,10 +74,23 @@ export default class SymmetricKey extends BigNumber {
    */
   decrypt (msg: number[] | string, enc?: 'hex' | 'utf8'): string | number[] {
     msg = toArray(msg, enc)
-    const iv = msg.slice(0, 32)
-    const tagStart = msg.length - 16
-    const ciphertext = msg.slice(32, tagStart)
+
+    const ivLength = 32
+    const tagLength = 16
+
+    if (msg.length < ivLength + tagLength) {
+      throw new Error('Ciphertext too short')
+    }
+
+    const iv = msg.slice(0, ivLength)
+    const tagStart = msg.length - tagLength
+    const ciphertext = msg.slice(ivLength, tagStart)
     const messageTag = msg.slice(tagStart)
+
+    if (tagStart < ivLength) {
+      throw new Error('Malformed ciphertext')
+    }
+
     const result = AESGCMDecrypt(
       ciphertext,
       [],
