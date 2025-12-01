@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.11 - 2025-11-24](#1911---2025-11-24)
+- [1.9.10 - 2025-11-17](#1910---2025-11-17)
 - [1.9.9 - 2025-11-15](#199---2025-11-15)
 - [1.9.8 - 2025-11-15](#198---2025-11-15)
 - [1.9.7 - 2025-11-14](#197---2025-11-14)
@@ -179,6 +181,21 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+### [1.9.11] - 2025-11-24
+
+### Removed
+
+- Removed dependency on react-native-get-random-values polyfill from Random.ts
+
+
+---
+### [1.9.10] - 2025-11-17
+
+### Added
+
+- Added `Certificate.fromObject` method for creating Certificate instances from plain objects.
 
 ---
 

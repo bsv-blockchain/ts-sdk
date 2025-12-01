@@ -280,4 +280,32 @@ export default class Certificate {
       keyID: serialNumber ? `${serialNumber} ${fieldName}` : fieldName
     }
   }
+
+  /**
+   * Creates a Certificate instance from a plain object representation.
+   * 
+   * @param obj - The object containing certificate data.
+   * @returns A new Certificate instance.
+   */
+  static fromObject(obj: { 
+    type: Base64String, 
+    serialNumber: Base64String, 
+    subject: PubKeyHex, 
+    certifier: PubKeyHex, 
+    revocationOutpoint: OutpointString, 
+    fields: Record<CertificateFieldNameUnder50Bytes, Base64String>, 
+    signature?: HexString 
+  }): Certificate {
+    const cert = new Certificate(
+      obj.type, 
+      obj.serialNumber, 
+      obj.subject, 
+      obj.certifier, 
+      obj.revocationOutpoint, 
+      obj.fields, 
+      obj.signature
+    );
+
+    return cert;
+  }
 }
