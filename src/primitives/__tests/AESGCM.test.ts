@@ -8,7 +8,8 @@ import {
   incrementLeastSignificantThirtyTwoBits,
   checkBit,
   getBytes,
-  exclusiveOR
+  exclusiveOR,
+  AESGCMDecrypt
 } from '../../primitives/AESGCM'
 import { toArray } from '../../primitives/utils'
 
@@ -640,5 +641,35 @@ describe('getBytes', () => {
     expect([0x00, 0x00, 0x02, 0x01]).toEqual(getBytes(0x0201))
     expect([0x04, 0x03, 0x02, 0x01]).toEqual(getBytes(0x04030201))
     expect([0x04, 0x03, 0x02, 0x01]).toEqual(getBytes(0x0504030201))
+  })
+})
+
+describe('AESGCM IV validation', () => {
+  const key = new Array(16).fill(0x01)
+  const aad: number[] = []
+  const plaintext = [1, 2, 3, 4]
+
+  it('AESGCM throws when IV is empty', () => {
+    expect(() => {
+      AESGCM(plaintext, aad, [], key)
+    }).toThrow(new Error('Initialization vector must not be empty'))
+  })
+
+  it('AESGCMDecrypt throws when IV is empty', () => {
+    const iv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    const { result: ciphertext, authenticationTag } = AESGCM(plaintext, aad, iv, key)
+
+    // Now call decrypt but with an empty IV – this should be rejected
+    expect(() => {
+      AESGCMDecrypt(ciphertext, aad, [], authenticationTag, key)
+    }).toThrow(new Error('Initialization vector must not be empty'))
+  })
+
+  it('AESGCM still work with a valid IV', () => {
+    const iv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    const { result: ciphertext, authenticationTag } = AESGCM(plaintext, aad, iv, key)
+    const decrypted = AESGCMDecrypt(ciphertext, aad, iv, authenticationTag, key)
+
+    expect(decrypted).toEqual(plaintext)
   })
 })

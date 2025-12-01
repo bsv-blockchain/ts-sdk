@@ -87,10 +87,6 @@ export default class SymmetricKey extends BigNumber {
     const ciphertext = msg.slice(ivLength, tagStart)
     const messageTag = msg.slice(tagStart)
 
-    if (tagStart < ivLength) {
-      throw new Error('Malformed ciphertext')
-    }
-
     const result = AESGCMDecrypt(
       ciphertext,
       [],
