@@ -251,7 +251,7 @@ export const toUTF8 = (arr: number[]): string => {
 
     // 2-byte sequence (110xxxxx 10xxxxxx)
     if (byte >= 0xc0 && byte <= 0xdf) {
-      const avail = arr.length - (i + 1) // number of bytes available after current
+      const avail = arr.length - (i + 1)
       const byte2 = avail >= 1 ? arr[i + 1] : 0
       skip = Math.min(1, avail)
 
