@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.15 - 2025-12-01](#1915---2025-12-01)
 - [1.9.14 - 2025-12-01](#1914---2025-12-01)
 - [1.9.13 - 2025-12-01](#1913---2025-12-01)
 - [1.9.12 - 2025-12-01](#1912---2025-12-01)
@@ -184,6 +185,16 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+### [1.9.15] - 2025-12-01
+
+### Added
+
+- AESGCM checks for initialization vector and key length for both encryption and decryption.
+
+---
 
 ### [1.9.14] - 2025-12-01
 

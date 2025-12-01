@@ -333,6 +333,14 @@ export function AESGCM (
   initializationVector: number[],
   key: number[]
 ): { result: number[], authenticationTag: number[] } {
+  if (initializationVector.length === 0) {
+    throw new Error('Initialization vector must not be empty')
+  }
+
+  if (key.length === 0) {
+    throw new Error('Key must not be empty')
+  }
+
   let preCounterBlock
   let plainTag
   const hashSubKey = AES(createZeroBlock(16), key)
@@ -387,6 +395,18 @@ export function AESGCMDecrypt (
   authenticationTag: number[],
   key: number[]
 ): number[] | null {
+  if (cipherText.length === 0) {
+    throw new Error('Cipher text must not be empty')
+  }
+
+  if (initializationVector.length === 0) {
+    throw new Error('Initialization vector must not be empty')
+  }
+
+  if (key.length === 0) {
+    throw new Error('Key must not be empty')
+  }
+
   let preCounterBlock
   let compareTag
 
