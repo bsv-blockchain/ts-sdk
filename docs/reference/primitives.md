@@ -48,11 +48,11 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 | [BigNumber](#class-bignumber) | [Polynomial](#class-polynomial) | [SHA512](#class-sha512) |
 | [Curve](#class-curve) | [PrivateKey](#class-privatekey) | [SHA512HMAC](#class-sha512hmac) |
 | [DRBG](#class-drbg) | [PublicKey](#class-publickey) | [Schnorr](#class-schnorr) |
-| [JacobianPoint](#class-jacobianpoint) | [RIPEMD160](#class-ripemd160) | [Signature](#class-signature) |
-| [K256](#class-k256) | [Reader](#class-reader) | [SymmetricKey](#class-symmetrickey) |
-| [KeyShares](#class-keyshares) | [ReductionContext](#class-reductioncontext) | [TransactionSignature](#class-transactionsignature) |
-| [Mersenne](#class-mersenne) | [SHA1](#class-sha1) | [Writer](#class-writer) |
-| [MontgomoryMethod](#class-montgomorymethod) | [SHA1HMAC](#class-sha1hmac) |  |
+| [JacobianPoint](#class-jacobianpoint) | [RIPEMD160](#class-ripemd160) | [Secp256r1](#class-secp256r1) |
+| [K256](#class-k256) | [Reader](#class-reader) | [Signature](#class-signature) |
+| [KeyShares](#class-keyshares) | [ReductionContext](#class-reductioncontext) | [SymmetricKey](#class-symmetrickey) |
+| [Mersenne](#class-mersenne) | [SHA1](#class-sha1) | [TransactionSignature](#class-transactionsignature) |
+| [MontgomoryMethod](#class-montgomorymethod) | [SHA1HMAC](#class-sha1hmac) | [Writer](#class-writer) |
 | [Point](#class-point) | [SHA256](#class-sha256) |  |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -4321,6 +4321,141 @@ Argument Details
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
+### Class: Secp256r1
+
+Pure BigInt implementation of the NIST P-256 (secp256r1) curve with ECDSA sign/verify.
+
+This class is standalone (no dependency on the existing secp256k1 primitives) and exposes
+key generation, point encoding/decoding, scalar multiplication, and SHA-256 based ECDSA.
+
+```ts
+export default class Secp256r1 {
+    readonly p = P;
+    readonly n = N;
+    readonly a = A;
+    readonly b = B;
+    readonly g = G;
+    pointFromAffine(x: bigint, y: bigint): P256Point 
+    pointFromHex(hex: string): P256Point 
+    pointToHex(p: P256Point, compressed = false): string 
+    add(p1: P256Point, p2: P256Point): P256Point 
+    multiply(point: P256Point, scalar: bigint): P256Point 
+    multiplyBase(scalar: bigint): P256Point 
+    isOnCurve(p: P256Point): boolean 
+    generatePrivateKeyHex(): string 
+    publicKeyFromPrivate(privateKey: string | bigint): P256Point 
+    sign(message: ByteSource, privateKey: string | bigint, opts: {
+        prehashed?: boolean;
+        nonce?: bigint;
+    } = {}): {
+        r: string;
+        s: string;
+    } 
+    verify(message: ByteSource, signature: {
+        r: string | bigint;
+        s: string | bigint;
+    }, publicKey: P256Point | string, opts: {
+        prehashed?: boolean;
+    } = {}): boolean 
+}
+```
+
+See also: [P256Point](./primitives.md#type-p256point), [multiply](./primitives.md#variable-multiply), [sign](./compat.md#variable-sign), [verify](./compat.md#variable-verify)
+
+#### Method add
+
+Add two points (handles infinity).
+
+```ts
+add(p1: P256Point, p2: P256Point): P256Point 
+```
+See also: [P256Point](./primitives.md#type-p256point)
+
+#### Method generatePrivateKeyHex
+
+Generate a new random private key as 32-byte hex.
+
+```ts
+generatePrivateKeyHex(): string 
+```
+
+#### Method isOnCurve
+
+Check if a point lies on the curve (including infinity).
+
+```ts
+isOnCurve(p: P256Point): boolean 
+```
+See also: [P256Point](./primitives.md#type-p256point)
+
+#### Method multiply
+
+Scalar multiply an arbitrary point using double-and-add.
+
+```ts
+multiply(point: P256Point, scalar: bigint): P256Point 
+```
+See also: [P256Point](./primitives.md#type-p256point)
+
+#### Method multiplyBase
+
+Scalar multiply the base point.
+
+```ts
+multiplyBase(scalar: bigint): P256Point 
+```
+See also: [P256Point](./primitives.md#type-p256point)
+
+#### Method pointFromHex
+
+Decode a point from compressed or uncompressed hex.
+
+```ts
+pointFromHex(hex: string): P256Point 
+```
+See also: [P256Point](./primitives.md#type-p256point)
+
+#### Method pointToHex
+
+Encode a point to compressed or uncompressed hex. Infinity is encoded as `00`.
+
+```ts
+pointToHex(p: P256Point, compressed = false): string 
+```
+See also: [P256Point](./primitives.md#type-p256point)
+
+#### Method sign
+
+Create an ECDSA signature over a message. Uses SHA-256 unless `prehashed` is true.
+Returns low-s normalized signature hex parts.
+
+```ts
+sign(message: ByteSource, privateKey: string | bigint, opts: {
+    prehashed?: boolean;
+    nonce?: bigint;
+} = {}): {
+    r: string;
+    s: string;
+} 
+```
+
+#### Method verify
+
+Verify an ECDSA signature against a message and public key.
+
+```ts
+verify(message: ByteSource, signature: {
+    r: string | bigint;
+    s: string | bigint;
+}, publicKey: P256Point | string, opts: {
+    prehashed?: boolean;
+} = {}): boolean 
+```
+See also: [P256Point](./primitives.md#type-p256point)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Class: Signature
 
 Represents a digital signature.
@@ -4984,6 +5119,18 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ---
 ## Types
 
+### Type: P256Point
+
+```ts
+export type P256Point = {
+    x: bigint;
+    y: bigint;
+} | null
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ## Enums
 
 ## Variables

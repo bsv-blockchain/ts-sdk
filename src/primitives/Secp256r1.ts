@@ -1,4 +1,5 @@
-import crypto from 'crypto'
+import Random from './Random.js'
+import { sha256 } from './Hash.js'
 
 export type P256Point = { x: bigint, y: bigint } | null
 
@@ -19,6 +20,12 @@ const COMPRESSED_EVEN = '02'
 const COMPRESSED_ODD = '03'
 const UNCOMPRESSED = '04'
 
+/**
+ * Pure BigInt implementation of the NIST P-256 (secp256r1) curve with ECDSA sign/verify.
+ *
+ * This class is standalone (no dependency on the existing secp256k1 primitives) and exposes
+ * key generation, point encoding/decoding, scalar multiplication, and SHA-256 based ECDSA.
+ */
 export default class Secp256r1 {
   readonly p = P
   readonly n = N
@@ -50,7 +57,7 @@ export default class Secp256r1 {
     let b = this.mod(base, modulus)
     let e = exponent
     while (e > 0n) {
-      if (e & 1n) result = this.mod(result * b, modulus)
+      if ((e & 1n) === 1n) result = this.mod(result * b, modulus)
       e >>= 1n
       b = this.mod(b * b, modulus)
     }
@@ -77,6 +84,9 @@ export default class Secp256r1 {
     return point
   }
 
+  /**
+   * Decode a point from compressed or uncompressed hex.
+   */
   pointFromHex (hex: string): P256Point {
     if (hex.startsWith(UNCOMPRESSED)) {
       const x = BigInt('0x' + hex.slice(2, 66))
@@ -95,6 +105,9 @@ export default class Secp256r1 {
     throw new Error('Invalid point encoding')
   }
 
+  /**
+   * Encode a point to compressed or uncompressed hex. Infinity is encoded as `00`.
+   */
   pointToHex (p: P256Point, compressed = false): string {
     if (this.isInfinity(p)) return '00'
     const xHex = this.to32BytesHex(p.x)
@@ -104,6 +117,9 @@ export default class Secp256r1 {
     return prefix + xHex
   }
 
+  /**
+   * Add two affine points (handles infinity).
+   */
   private addPoints (p1: P256Point, p2: P256Point): P256Point {
     if (this.isInfinity(p1)) return p2
     if (this.isInfinity(p2)) return p1
@@ -133,17 +149,23 @@ export default class Secp256r1 {
     return { x: x3, y: y3 }
   }
 
+  /**
+   * Add two points (handles infinity).
+   */
   add (p1: P256Point, p2: P256Point): P256Point {
     return this.addPoints(p1, p2)
   }
 
+  /**
+   * Scalar multiply an arbitrary point using double-and-add.
+   */
   multiply (point: P256Point, scalar: bigint): P256Point {
     if (scalar === 0n || this.isInfinity(point)) return null
     let k = this.mod(scalar, this.n)
     let result: P256Point = null
     let addend: P256Point = point
     while (k > 0n) {
-      if (k & 1n) {
+      if ((k & 1n) === 1n) {
         result = this.addPoints(result, addend)
       }
       addend = this.doublePoint(addend)
@@ -152,10 +174,16 @@ export default class Secp256r1 {
     return result
   }
 
+  /**
+   * Scalar multiply the base point.
+   */
   multiplyBase (scalar: bigint): P256Point {
     return this.multiply(this.g, scalar)
   }
 
+  /**
+   * Check if a point lies on the curve (including infinity).
+   */
   isOnCurve (p: P256Point): boolean {
     try {
       this.assertOnCurve(p)
@@ -165,14 +193,17 @@ export default class Secp256r1 {
     }
   }
 
+  /**
+   * Generate a new random private key as 32-byte hex.
+   */
   generatePrivateKeyHex (): string {
     return this.to32BytesHex(this.randomScalar())
   }
 
   private randomScalar (): bigint {
     while (true) {
-      const bytes = crypto.randomBytes(32)
-      const k = BigInt('0x' + bytes.toString('hex'))
+      const bytes = Random(32)
+      const k = BigInt('0x' + Buffer.from(bytes).toString('hex'))
       if (k > 0n && k < this.n) return k
     }
   }
@@ -198,6 +229,10 @@ export default class Secp256r1 {
     return this.multiplyBase(d)
   }
 
+  /**
+   * Create an ECDSA signature over a message. Uses SHA-256 unless `prehashed` is true.
+   * Returns low-s normalized signature hex parts.
+   */
   sign (message: ByteSource, privateKey: string | bigint, opts: { prehashed?: boolean, nonce?: bigint } = {}): { r: string, s: string } {
     const { prehashed = false, nonce } = opts
     const d = this.toScalar(privateKey)
@@ -226,10 +261,13 @@ export default class Secp256r1 {
     }
   }
 
+  /**
+   * Verify an ECDSA signature against a message and public key.
+   */
   verify (message: ByteSource, signature: { r: string | bigint, s: string | bigint }, publicKey: P256Point | string, opts: { prehashed?: boolean } = {}): boolean {
     const { prehashed = false } = opts
     const q = typeof publicKey === 'string' ? this.pointFromHex(publicKey) : publicKey
-    if (!q || !this.isOnCurve(q)) return false
+    if ((q == null) || !this.isOnCurve(q)) return false
 
     const r = typeof signature.r === 'bigint' ? signature.r : BigInt('0x' + signature.r)
     const s = typeof signature.s === 'bigint' ? signature.s : BigInt('0x' + signature.s)
@@ -247,7 +285,7 @@ export default class Secp256r1 {
 
   private messageToBigInt (message: ByteSource, prehashed: boolean): bigint {
     const bytes = this.toBuffer(message)
-    const digest = prehashed ? bytes : crypto.createHash('sha256').update(bytes).digest()
+    const digest = prehashed ? bytes : Buffer.from(sha256(bytes))
     const hex = digest.toString('hex')
     return BigInt('0x' + hex) % this.n
   }
