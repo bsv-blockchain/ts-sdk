@@ -4,7 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Table of Contents
 
-- [Unreleased](#unreleased)"
+- [Unreleased](#unreleased)
+- [1.9.14 - 2025-12-01](#1914---2025-12-01)
 - [1.9.13 - 2025-12-01](#1913---2025-12-01)
 - [1.9.12 - 2025-12-01](#1912---2025-12-01)
 - [1.9.11 - 2025-11-24](#1911---2025-11-24)
@@ -183,7 +184,15 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+### [1.9.14] - 2025-12-01
+
+### Added
+
+- Added a standalone secp256r1 (P-256) BigInt implementation with ECDSA signing, verification, and tests.
+
 ---
+
 ### [1.9.13] - 2025-12-01
 
 ### Added
@@ -191,6 +200,7 @@ All notable changes to this project will be documented in this file. The format 
 - Changed the toArray function to throw on invalid base64 strings.
 
 ---
+
 ### [1.9.12] - 2025-12-01
 
 ### Added
@@ -198,6 +208,7 @@ All notable changes to this project will be documented in this file. The format 
 - Added decryption validation to SymmetricKey.
 
 ---
+
 ### [1.9.11] - 2025-11-24
 
 ### Removed
@@ -206,6 +217,7 @@ All notable changes to this project will be documented in this file. The format 
 
 
 ---
+
 ### [1.9.10] - 2025-11-17
 
 ### Added
