@@ -129,10 +129,10 @@ export function base64ToArray(msg: string): number[] {
     s = s.slice(0, padIndex)
   }
 
-  if (s.length % 4 === 1) 
-  {
-    throw new Error("Invalid base64 length")
-  }
+  // if (s.length % 4 === 1) 
+  // {
+  //   throw new Error("Invalid base64 length")
+  // }
 
   const result: number[] = []
   let bitBuffer = 0
@@ -177,9 +177,9 @@ export function base64ToArray(msg: string): number[] {
     }
   }
   // check for valid padding bits
-  if (bitCount !== 0 && bitBuffer !== 0) {
-    throw new Error("Invalid base64: non-zero padding bits")
-  }
+  // if (bitCount !== 0 && bitBuffer !== 0) {
+  //   throw new Error("Invalid base64: non-zero padding bits")
+  // }
 
   return result
 }
