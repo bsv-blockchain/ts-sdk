@@ -143,8 +143,6 @@ export function AES (input: number[], key: number[]): number[] {
   const state = [[], [], [], []]
   const output = []
 
-  // Since the BigNumber representation of keys ignores big endian zeroes,
-  // extend incoming key arrays with zeros to the smallest standard key size.
   const ekey = Array.from(key)
 
   if (ekey.length === 16) {
