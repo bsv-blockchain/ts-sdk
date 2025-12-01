@@ -102,5 +102,27 @@ describe('SymmetricKey', () => {
 
       expect(decrypted).toBe(plaintext)
     })
+    
+    it('throws "Ciphertext too short" for inputs shorter than IV + tag', () => {
+      const shortCipherArray = new Array(47).fill(0)
+      expect(() => {
+        KEYS[0].decrypt(shortCipherArray)
+      }).toThrow(new Error('Ciphertext too short'))
+    })
+
+    it('throws "Ciphertext too short" for hex-encoded inputs shorter than IV + tag', () => {
+      const shortBuffer = Buffer.alloc(47, 0)
+      const shortHex = shortBuffer.toString('hex')
+
+      expect(() => {
+        KEYS[0].decrypt(shortHex, 'hex')
+      }).toThrow(new Error('Ciphertext too short'))
+    })
+
+    it('still throws "Decryption failed!" for structurally valid but wrong ciphertext', () => {
+      expect(() => {
+        KEYS[2].decrypt(CIPHERTEXT_1, 'hex')
+      }).toThrow(new Error('Decryption failed!'))
+    })
   })
 })
