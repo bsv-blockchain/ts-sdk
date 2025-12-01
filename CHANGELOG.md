@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.12 - 2025-12-01](#1912---2025-12-01)
 - [1.9.11 - 2025-11-24](#1911---2025-11-24)
 - [1.9.10 - 2025-11-17](#1910---2025-11-17)
 - [1.9.9 - 2025-11-15](#199---2025-11-15)
@@ -181,6 +182,13 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+### [1.9.12] - 2025-12-01
+
+### Added
+
+- Added decryption validation to SymmetricKey.
 
 ---
 ### [1.9.11] - 2025-11-24
