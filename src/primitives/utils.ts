@@ -104,22 +104,81 @@ const hexToArray = (msg: string): number[] => {
   return res
 }
 
-const base64ToArray = (msg: string): number[] => {
-  const base64Chars =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-  const result: number[] = []
-  let currentBit = 0
-  let currentByte = 0
+export function base64ToArray(msg: string): number[] {
+  if (typeof msg !== "string") 
+  {
+    throw new TypeError("msg must be a string")
+  }
 
-  for (const char of msg.replace(/=+$/, '')) {
-    currentBit = (currentBit << 6) | base64Chars.indexOf(char)
-    currentByte += 6
+  //cleanse string
+  let s = msg.trim().replace(/[\r\n\t\f\v ]+/g, "")
+  s = s.replace(/-/g, "+").replace(/_/g, "/")
 
-    if (currentByte >= 8) {
-      currentByte -= 8
-      result.push((currentBit >> currentByte) & 0xff)
-      currentBit &= (1 << currentByte) - 1
+  //ensure padding is correct
+  const padIndex = s.indexOf("=")
+  if (padIndex !== -1) {
+    const pad = s.slice(padIndex)
+    if (!/^={1,2}$/.test(pad)) 
+    {
+      throw new Error("Invalid base64 padding")
     }
+    if (s.slice(0, padIndex).includes("=")) 
+    {
+      throw new Error("Invalid base64 padding")
+    }
+    s = s.slice(0, padIndex)
+  }
+
+  if (s.length % 4 === 1) 
+  {
+    throw new Error("Invalid base64 length")
+  }
+
+  const result: number[] = []
+  let bitBuffer = 0
+  let bitCount = 0
+
+  for (let i = 0; i < s.length; i++) 
+  {
+    const c = s.charCodeAt(i)
+    //using ascii map values rather than indexOf
+    let v = -1
+    if (c >= 65 && c <= 90) 
+    {
+      v = c - 65       // A-Z
+    }
+    else if (c >= 97 && c <= 122) 
+    {
+      v = c - 97 + 26  // a-z
+    }
+    else if (c >= 48 && c <= 57) 
+    {
+      v = c - 48 + 52  // 0-9
+    }
+    else if (c === 43)
+    {
+      v = 62           // +
+    }
+    else if (c === 47)
+    {
+      v = 63           // /
+    }
+    else 
+    {
+      throw new Error(`Invalid base64 character at index ${i}`)
+    }
+    bitBuffer = (bitBuffer << 6) | v
+    bitCount += 6
+
+    while (bitCount >= 8) {
+      bitCount -= 8
+      result.push((bitBuffer >> bitCount) & 0xff)
+      bitBuffer &= (1 << bitCount) - 1
+    }
+  }
+  // check for valid padding bits
+  if (bitCount !== 0 && bitBuffer !== 0) {
+    throw new Error("Invalid base64: non-zero padding bits")
   }
 
   return result
