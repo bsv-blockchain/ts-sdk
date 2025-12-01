@@ -75,12 +75,12 @@ export default class SymmetricKey extends BigNumber {
   decrypt (msg: number[] | string, enc?: 'hex' | 'utf8'): string | number[] {
     msg = toArray(msg, enc)
 
-    if (msg.length < 48) {
-      throw new Error('Ciphertext too short')
-    }
-
     const ivLength = 32
     const tagLength = 16
+
+    if (msg.length < ivLength + tagLength) {
+      throw new Error('Ciphertext too short')
+    }
 
     const iv = msg.slice(0, ivLength)
     const tagStart = msg.length - tagLength
