@@ -232,7 +232,7 @@ function utf8ToArray (str: string): number[] {
  * @returns {string} - The UTF-8 encoded string.
  */
 export const toUTF8 = (arr: number[]): string => {
-  let result = ""
+  let result = ''
   let skip = 0
 
   for (let i = 0; i < arr.length; i++) {
@@ -292,8 +292,6 @@ export const toUTF8 = (arr: number[]): string => {
       result += String.fromCharCode(surrogate1, surrogate2)
       continue
     }
-
-    // If it's an invalid leading byte, keep prior behavior: do nothing / skip
   }
 
   return result

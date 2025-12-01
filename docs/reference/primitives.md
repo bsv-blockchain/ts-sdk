@@ -6099,25 +6099,31 @@ toUTF8 = (arr: number[]): string => {
         }
         if (byte <= 127) {
             result += String.fromCharCode(byte);
+            continue;
         }
-        else if (byte >= 192 && byte <= 223) {
-            const byte2 = arr[i + 1];
-            skip = 1;
+        if (byte >= 192 && byte <= 223) {
+            const avail = arr.length - (i + 1);
+            const byte2 = avail >= 1 ? arr[i + 1] : 0;
+            skip = Math.min(1, avail);
             const codePoint = ((byte & 31) << 6) | (byte2 & 63);
             result += String.fromCharCode(codePoint);
+            continue;
         }
-        else if (byte >= 224 && byte <= 239) {
-            const byte2 = arr[i + 1];
-            const byte3 = arr[i + 2];
-            skip = 2;
+        if (byte >= 224 && byte <= 239) {
+            const avail = arr.length - (i + 1);
+            const byte2 = avail >= 1 ? arr[i + 1] : 0;
+            const byte3 = avail >= 2 ? arr[i + 2] : 0;
+            skip = Math.min(2, avail);
             const codePoint = ((byte & 15) << 12) | ((byte2 & 63) << 6) | (byte3 & 63);
             result += String.fromCharCode(codePoint);
+            continue;
         }
-        else if (byte >= 240 && byte <= 247) {
-            const byte2 = arr[i + 1];
-            const byte3 = arr[i + 2];
-            const byte4 = arr[i + 3];
-            skip = 3;
+        if (byte >= 240 && byte <= 247) {
+            const avail = arr.length - (i + 1);
+            const byte2 = avail >= 1 ? arr[i + 1] : 0;
+            const byte3 = avail >= 2 ? arr[i + 2] : 0;
+            const byte4 = avail >= 3 ? arr[i + 3] : 0;
+            skip = Math.min(3, avail);
             const codePoint = ((byte & 7) << 18) |
                 ((byte2 & 63) << 12) |
                 ((byte3 & 63) << 6) |
@@ -6125,6 +6131,7 @@ toUTF8 = (arr: number[]): string => {
             const surrogate1 = 55296 + ((codePoint - 65536) >> 10);
             const surrogate2 = 56320 + ((codePoint - 65536) & 1023);
             result += String.fromCharCode(surrogate1, surrogate2);
+            continue;
         }
     }
     return result;
