@@ -248,37 +248,61 @@ export const toUTF8 = (arr: number[]): string => {
     // 1-byte sequence (0xxxxxxx)
     if (byte <= 0x7f) {
       result += String.fromCharCode(byte)
-    } else if (byte >= 0xc0 && byte <= 0xdf) {
-      // 2-byte sequence (110xxxxx 10xxxxxx)
+      continue
+    }
+
+    // 2-byte sequence (110xxxxx 10xxxxxx)
+    if (byte >= 0xc0 && byte <= 0xdf) {
+      if (i + 1 >= arr.length) {
+        throw new Error("Truncated UTF-8: expected 2 bytes")
+      }
       const byte2 = arr[i + 1]
       skip = 1
+
       const codePoint = ((byte & 0x1f) << 6) | (byte2 & 0x3f)
       result += String.fromCharCode(codePoint)
-    } else if (byte >= 0xe0 && byte <= 0xef) {
-      // 3-byte sequence (1110xxxx 10xxxxxx 10xxxxxx)
+      continue
+    }
+
+    // 3-byte sequence (1110xxxx 10xxxxxx 10xxxxxx)
+    if (byte >= 0xe0 && byte <= 0xef) {
+      if (i + 2 >= arr.length) {
+        throw new Error("Truncated UTF-8: expected 3 bytes")
+      }
       const byte2 = arr[i + 1]
       const byte3 = arr[i + 2]
       skip = 2
+
       const codePoint =
         ((byte & 0x0f) << 12) | ((byte2 & 0x3f) << 6) | (byte3 & 0x3f)
       result += String.fromCharCode(codePoint)
-    } else if (byte >= 0xf0 && byte <= 0xf7) {
-      // 4-byte sequence (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
+      continue
+    }
+
+    // 4-byte sequence (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
+    if (byte >= 0xf0 && byte <= 0xf7) {
+      if (i + 3 >= arr.length) {
+        throw new Error("Truncated UTF-8: expected 4 bytes")
+      }
       const byte2 = arr[i + 1]
       const byte3 = arr[i + 2]
       const byte4 = arr[i + 3]
       skip = 3
+
       const codePoint =
         ((byte & 0x07) << 18) |
         ((byte2 & 0x3f) << 12) |
         ((byte3 & 0x3f) << 6) |
         (byte4 & 0x3f)
 
-      // Convert to UTF-16 surrogate pair
       const surrogate1 = 0xd800 + ((codePoint - 0x10000) >> 10)
       const surrogate2 = 0xdc00 + ((codePoint - 0x10000) & 0x3ff)
       result += String.fromCharCode(surrogate1, surrogate2)
+      continue
     }
+
+    // invalid leading byte for UTF-8
+    // throw new Error(`Invalid UTF-8 leading byte: 0x${byte.toString(16)}`)
   }
 
   return result
