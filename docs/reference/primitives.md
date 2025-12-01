@@ -4818,6 +4818,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 | [AES](#function-aes) |
 | [AESGCM](#function-aesgcm) |
 | [AESGCMDecrypt](#function-aesgcmdecrypt) |
+| [base64ToArray](#function-base64toarray) |
 | [ghash](#function-ghash) |
 | [pbkdf2](#function-pbkdf2) |
 | [red](#function-red) |
@@ -4854,6 +4855,15 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 export function AESGCMDecrypt(cipherText: number[], additionalAuthenticatedData: number[], initializationVector: number[], authenticationTag: number[], key: number[]): number[] | null 
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Function: base64ToArray
+
+```ts
+export function base64ToArray(msg: string): number[] 
 ```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -5852,6 +5862,8 @@ toArray = (msg: any, enc?: "hex" | "utf8" | "base64"): any[] => {
     }
 }
 ```
+
+See also: [base64ToArray](./primitives.md#function-base64toarray)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
