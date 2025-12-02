@@ -101,6 +101,54 @@ describe('Hash', function () {
     )
   })
 
+  describe('BaseHash padding and endianness', () => {
+    it('encodes length in big-endian for SHA1', () => {
+      const sha1 = new (hash as any).SHA1()
+      ;(sha1 as any).pendingTotal = 12345
+      const pad = (sha1 as any)._pad() as number[]
+      const padLength = (sha1 as any).padLength as number
+      const lengthBytes = pad.slice(-padLength)
+
+      const totalBits = BigInt(12345) * 8n
+      const expected = new Array<number>(padLength)
+      let tmp = totalBits
+      for (let i = padLength - 1; i >= 0; i--) {
+        expected[i] = Number(tmp & 0xffn)
+        tmp >>= 8n
+      }
+
+      expect(lengthBytes).toEqual(expected)
+    })
+
+    it('encodes length in little-endian for RIPEMD160', () => {
+      const ripemd = new (hash as any).RIPEMD160()
+      ;(ripemd as any).pendingTotal = 12345
+      const pad = (ripemd as any)._pad() as number[]
+      const padLength = (ripemd as any).padLength as number
+      const lengthBytes = pad.slice(-padLength)
+
+      const totalBits = BigInt(12345) * 8n
+      const expected = new Array<number>(padLength)
+      let tmp = totalBits
+      for (let i = 0; i < padLength; i++) {
+        expected[i] = Number(tmp & 0xffn)
+        tmp >>= 8n
+      }
+
+      expect(lengthBytes).toEqual(expected)
+    })
+
+    it('throws when message length exceeds maximum encodable bits', () => {
+      const sha1 = new (hash as any).SHA1()
+      ;(sha1 as any).padLength = 1
+      ;(sha1 as any).pendingTotal = 40
+
+      expect(() => {
+        ;(sha1 as any)._pad()
+      }).toThrow(new Error('Message too long for this hash function'))
+    })
+  })
+
   describe('PBKDF2 vectors', () => {
     for (let i = 0; i < PBKDF2Vectors.length; i++) {
       const v = PBKDF2Vectors[i]
