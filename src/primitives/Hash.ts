@@ -179,14 +179,14 @@ abstract class BaseHash {
     }
 
     // Append length
-    const maxBits = 1n << BigInt(this.padLength * 8)
+    const lengthBytes = this.padLength
+    const maxBits = 1n << BigInt(lengthBytes * 8)
     let totalBits = BigInt(len) * 8n
 
     if (totalBits >= maxBits) {
       throw new Error('Message too long for this hash function')
     }
-
-    const lengthBytes = this.padLength
+    
     if (this.endian === 'big') {
       const lenArray = new Array<number>(lengthBytes)
 
