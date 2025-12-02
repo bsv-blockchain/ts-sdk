@@ -237,7 +237,8 @@ export const toUTF8 = (arr: number[]): string => {
 
   for (let i = 0; i < arr.length; i++) {
     const byte = arr[i]
-
+    // this byte is part of a multi-byte sequence, skip it
+    // added to avoid modifying i within the loop which is considered unsafe.
     if (skip > 0) {
       skip--
       continue
@@ -287,6 +288,7 @@ export const toUTF8 = (arr: number[]): string => {
         ((byte3 & 0x3f) << 6) |
         (byte4 & 0x3f)
 
+      // Convert to UTF-16 surrogate pair
       const surrogate1 = 0xd800 + ((codePoint - 0x10000) >> 10)
       const surrogate2 = 0xdc00 + ((codePoint - 0x10000) & 0x3ff)
       result += String.fromCharCode(surrogate1, surrogate2)
