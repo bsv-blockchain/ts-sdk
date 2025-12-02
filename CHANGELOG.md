@@ -196,6 +196,14 @@ All notable changes to this project will be documented in this file. The format 
 
 ---
 
+### [1.9.16] - 2025-12-01
+
+### Added
+
+- AES unpadding of keys.
+
+---
+
 ### [1.9.15] - 2025-12-01
 
 ### Added

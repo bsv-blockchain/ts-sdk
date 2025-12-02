@@ -143,20 +143,16 @@ export function AES (input: number[], key: number[]): number[] {
   const state = [[], [], [], []]
   const output = []
 
-  // Since the BigNumber representation of keys ignores big endian zeroes,
-  // extend incoming key arrays with zeros to the smallest standard key size.
   const ekey = Array.from(key)
-  if (ekey.length <= 16) {
-    while (ekey.length < 16) ekey.unshift(0)
+
+  if (ekey.length === 16) {
     roundLimit = 11
-  } else if (ekey.length <= 24) {
-    while (ekey.length < 24) ekey.unshift(0)
+  } else if (ekey.length === 24) {
     roundLimit = 13
-  } else if (key.length <= 32) {
-    while (ekey.length < 32) ekey.unshift(0)
+  } else if (ekey.length === 32) {
     roundLimit = 15
   } else {
-    throw new Error('Illegal key length: ' + String(key.length))
+    throw new Error('Illegal key length: ' + String(ekey.length))
   }
 
   const w = keyExpansion(roundLimit, ekey)
