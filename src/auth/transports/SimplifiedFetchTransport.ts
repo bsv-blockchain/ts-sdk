@@ -3,7 +3,7 @@
 import { AuthMessage, RequestedCertificateSet, Transport } from '../types.js'
 import * as Utils from '../../primitives/utils.js'
 
-const defaultFetch: typeof fetch = 
+const defaultFetch: typeof fetch =
   typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function'
     ? globalThis.fetch.bind(globalThis)
     : fetch

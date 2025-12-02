@@ -7,7 +7,7 @@ export default class HTTPWalletWire implements WalletWire {
   httpClient: typeof fetch
   originator: string | undefined
 
-  constructor(
+  constructor (
     originator: string | undefined,
     baseUrl: string = 'http://localhost:3301',
     httpClient = fetch
@@ -17,7 +17,7 @@ export default class HTTPWalletWire implements WalletWire {
     this.originator = originator
   }
 
-  async transmitToWallet(message: number[]): Promise<number[]> {
+  async transmitToWallet (message: number[]): Promise<number[]> {
     const messageReader = new Utils.Reader(message)
     // Read call code
     const callCode = messageReader.readUInt8()

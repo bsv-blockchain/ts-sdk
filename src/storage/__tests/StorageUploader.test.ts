@@ -6,7 +6,7 @@ import { createHash } from 'crypto'
 /**
  * A helper for converting a string to a number[] of UTF-8 bytes
  */
-function stringToUtf8Array(str: string): number[] {
+function stringToUtf8Array (str: string): number[] {
   return Array.from(new TextEncoder().encode(str))
 }
 
@@ -27,7 +27,7 @@ describe('StorageUploader Tests', () => {
 
     // 1) Spy on the "authFetch.fetch" calls for /find, /list, /renew
     authFetchSpy = jest
-      .spyOn(uploader['authFetch'], 'fetch')
+      .spyOn(uploader.authFetch, 'fetch')
       .mockResolvedValue(new Response(null, { status: 200 }))
 
     // 2) Spy on the global "fetch" calls for file upload (uploadFile)

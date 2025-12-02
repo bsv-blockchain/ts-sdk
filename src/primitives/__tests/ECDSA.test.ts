@@ -63,31 +63,31 @@ describe('ECDSA', () => {
   })
 
   it('should accept custom k = 1 and k = n-1', () => {
-    const n = curve.n;
-    const one = new BigNumber(1);
+    const n = curve.n
+    const one = new BigNumber(1)
 
     // k = 1 → valid
-    const k1 = one;
-    const sig1 = ECDSA.sign(msg, key, undefined, k1);
-    expect(ECDSA.verify(msg, sig1, pub)).toBeTruthy();
+    const k1 = one
+    const sig1 = ECDSA.sign(msg, key, undefined, k1)
+    expect(ECDSA.verify(msg, sig1, pub)).toBeTruthy()
 
     // k = n-1 → valid
-    const km1 = n.subn(1);
-    const sig2 = ECDSA.sign(msg, key, undefined, km1);
-    expect(ECDSA.verify(msg, sig2, pub)).toBeTruthy();
-  });
+    const km1 = n.subn(1)
+    const sig2 = ECDSA.sign(msg, key, undefined, km1)
+    expect(ECDSA.verify(msg, sig2, pub)).toBeTruthy()
+  })
 
   it('should reject custom k < 1 or k > n-1', () => {
-    const n = curve.n;
+    const n = curve.n
 
     // k = 0 → invalid
     expect(() =>
       ECDSA.sign(msg, key, undefined, new BigNumber(0))
-    ).toThrow();
+    ).toThrow()
 
     // k = n → invalid
     expect(() =>
       ECDSA.sign(msg, key, undefined, n)
-    ).toThrow();
-  });
+    ).toThrow()
+  })
 })

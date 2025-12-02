@@ -58,7 +58,7 @@ type MResolver = jest.Mocked<InstanceType<typeof LookupResolver>>
 type MBroadcaster = jest.Mocked<InstanceType<typeof TopicBroadcaster>>
 type MProtoWallet = jest.Mocked<InstanceType<typeof ProtoWallet>>
 
-function makeMockTx(): MTx {
+function makeMockTx (): MTx {
   return {
     id: jest.fn().mockReturnValue(TEST_TXID),
     // Only the properties used by GlobalKVStore are needed
@@ -66,41 +66,41 @@ function makeMockTx(): MTx {
       {
         lockingScript: {
           toHex: jest.fn().mockReturnValue('mock_script'),
-          toArray: jest.fn().mockReturnValue([1, 2, 3]),
+          toArray: jest.fn().mockReturnValue([1, 2, 3])
         },
-        satoshis: 1,
-      },
+        satoshis: 1
+      }
     ],
-    inputs: [],
+    inputs: []
   } as any
 }
 
-function primeTransactionMocks(tx: MTx) {
+function primeTransactionMocks (tx: MTx) {
   ; (MockTransaction.fromAtomicBEEF as jest.Mock).mockReturnValue(tx)
-    ; (MockTransaction.fromBEEF as jest.Mock).mockReturnValue(tx)
+  ; (MockTransaction.fromBEEF as jest.Mock).mockReturnValue(tx)
 }
 
-function primeBeefMocks(beef: MBeef, tx: MTx) {
+function primeBeefMocks (beef: MBeef, tx: MTx) {
   beef.toBinary.mockReturnValue(Array.from(new Uint8Array([1, 2, 3])))
   beef.findTxid.mockReturnValue({ tx } as any)
   beef.findOutput = jest.fn().mockReturnValue(tx.outputs[0] as any)
   MockBeef.mockImplementation(() => beef)
-    ; (MockBeef as any).fromBinary = jest.fn().mockReturnValue(beef)
+  ; (MockBeef as any).fromBinary = jest.fn().mockReturnValue(beef)
 }
 
-function primePushDropDecodeToValidValue() {
+function primePushDropDecodeToValidValue () {
   ; (MockPushDrop as any).decode = jest.fn().mockReturnValue({
     fields: [
       Array.from(Buffer.from(JSON.stringify([1, 'kvstore']))), // protocolID
       Array.from(Buffer.from(TEST_KEY)), // key
       Array.from(Buffer.from(TEST_VALUE)), // value
       Array.from(Buffer.from(TEST_CONTROLLER, 'hex')), // controller
-      Array.from(Buffer.from('signature')), // signature
-    ],
+      Array.from(Buffer.from('signature')) // signature
+    ]
   })
 }
 
-function primeUtilsDefaults() {
+function primeUtilsDefaults () {
   MockUtils.toUTF8.mockImplementation((arr: any) => {
     if (typeof arr === 'string') return arr
     if (!Array.isArray(arr)) return TEST_VALUE
@@ -129,7 +129,7 @@ function primeUtilsDefaults() {
   MockUtils.toArray.mockReturnValue([1, 2, 3, 4])
 }
 
-function primeWalletMocks() {
+function primeWalletMocks () {
   return {
     getPublicKey: jest.fn().mockResolvedValue({ publicKey: TEST_CONTROLLER }),
     createAction: jest.fn().mockResolvedValue({
@@ -137,41 +137,41 @@ function primeWalletMocks() {
       txid: TEST_TXID,
       signableTransaction: {
         tx: Array.from(new Uint8Array([1, 2, 3])),
-        reference: 'ref123',
-      },
+        reference: 'ref123'
+      }
     } as CreateActionResult),
     signAction: jest.fn().mockResolvedValue({
       tx: Array.from(new Uint8Array([1, 2, 3])),
-      txid: TEST_TXID,
-    } as SignActionResult),
+      txid: TEST_TXID
+    } as SignActionResult)
   } as unknown as jest.Mocked<WalletInterface>
 }
 
-function primeResolverEmpty(resolver: MResolver) {
+function primeResolverEmpty (resolver: MResolver) {
   resolver.query.mockResolvedValue({ type: 'output-list', outputs: [] } as any)
 }
 
-function primeResolverWithOneOutput(resolver: MResolver) {
+function primeResolverWithOneOutput (resolver: MResolver) {
   const mockOutput = {
     beef: Array.from(new Uint8Array([1, 2, 3])),
     outputIndex: 0,
-    context: Array.from(new Uint8Array([4, 5, 6])),
+    context: Array.from(new Uint8Array([4, 5, 6]))
   }
   resolver.query.mockResolvedValue({
     type: 'output-list',
-    outputs: [mockOutput],
+    outputs: [mockOutput]
   } as any)
 }
 
-function primeResolverWithMultipleOutputs(resolver: MResolver, count: number = 3) {
+function primeResolverWithMultipleOutputs (resolver: MResolver, count: number = 3) {
   const mockOutputs = Array.from({ length: count }, (_, i) => ({
     beef: Array.from(new Uint8Array([1, 2, 3, i])),
     outputIndex: i,
-    context: Array.from(new Uint8Array([4, 5, 6, i])),
+    context: Array.from(new Uint8Array([4, 5, 6, i]))
   }))
   resolver.query.mockResolvedValue({
     type: 'output-list',
-    outputs: mockOutputs,
+    outputs: mockOutputs
   } as any)
 }
 
@@ -198,13 +198,13 @@ describe('GlobalKVStore', () => {
     mockBeef = {
       toBinary: jest.fn(),
       findTxid: jest.fn(),
-      findOutput: jest.fn(),
+      findOutput: jest.fn()
     } as any
     primeBeefMocks(mockBeef, tx)
 
     // Historian
     mockHistorian = {
-      buildHistory: jest.fn().mockResolvedValue([TEST_VALUE]),
+      buildHistory: jest.fn().mockResolvedValue([TEST_VALUE])
     } as any
     MockHistorian.mockImplementation(() => mockHistorian)
 
@@ -213,8 +213,8 @@ describe('GlobalKVStore', () => {
     const mockPushDrop = {
       lock: jest.fn().mockResolvedValue(mockLockingScript),
       unlock: jest.fn().mockReturnValue({
-        sign: jest.fn().mockResolvedValue({ toHex: () => 'mockUnlockingScript' }),
-      }),
+        sign: jest.fn().mockResolvedValue({ toHex: () => 'mockUnlockingScript' })
+      })
     }
     MockPushDrop.mockImplementation(() => mockPushDrop as any)
     primePushDropDecodeToValidValue()
@@ -224,18 +224,18 @@ describe('GlobalKVStore', () => {
 
     // Resolver / Broadcaster
     mockResolver = {
-      query: jest.fn(),
+      query: jest.fn()
     } as any
     MockLookupResolver.mockImplementation(() => mockResolver)
     mockBroadcaster = {
-      broadcast: jest.fn().mockResolvedValue({ success: true }),
+      broadcast: jest.fn().mockResolvedValue({ success: true })
     } as any
     MockTopicBroadcaster.mockImplementation(() => mockBroadcaster)
 
     // Proto wallet
     mockProtoWallet = {
       createHmac: jest.fn().mockResolvedValue({ hmac: new Uint8Array(32) }),
-      verifySignature: jest.fn().mockResolvedValue({ valid: true }),
+      verifySignature: jest.fn().mockResolvedValue({ valid: true })
     } as any
     MockProtoWallet.mockImplementation(() => mockProtoWallet)
 
@@ -255,7 +255,7 @@ describe('GlobalKVStore', () => {
         wallet: mockWallet,
         protocolID: [2, 'custom'],
         tokenAmount: 500,
-        networkPreset: 'testnet',
+        networkPreset: 'testnet'
       }
       const store = new GlobalKVStore(config)
       expect(store).toBeInstanceOf(GlobalKVStore)
@@ -275,7 +275,6 @@ describe('GlobalKVStore', () => {
         expect(Array.isArray(result)).toBe(true)
         expect(result).toHaveLength(0)
       })
-
 
       it('returns KVStoreEntry when a valid token exists', async () => {
         primeResolverWithOneOutput(mockResolver)
@@ -392,7 +391,7 @@ describe('GlobalKVStore', () => {
         expect(Array.isArray(result)).toBe(true)
         expect(mockResolver.query).toHaveBeenCalledWith({
           service: 'ls_kvstore',
-          query: expect.objectContaining({ 
+          query: expect.objectContaining({
             tags,
             tagQueryMode: 'all'
           })
@@ -408,7 +407,7 @@ describe('GlobalKVStore', () => {
         expect(Array.isArray(result)).toBe(true)
         expect(mockResolver.query).toHaveBeenCalledWith({
           service: 'ls_kvstore',
-          query: expect.objectContaining({ 
+          query: expect.objectContaining({
             tags,
             tagQueryMode: 'any'
           })
@@ -591,8 +590,8 @@ describe('GlobalKVStore', () => {
 
         const originalDecode = (MockPushDrop as any).decode
           ; (MockPushDrop as any).decode = jest.fn(() => {
-            throw new Error('Invalid PushDrop format')
-          })
+          throw new Error('Invalid PushDrop format')
+        })
 
         try {
           const result = await kvStore.get({ key: TEST_KEY })
@@ -655,7 +654,7 @@ describe('GlobalKVStore', () => {
           // Should return single entry, not array
           expect(result).not.toBeNull()
           expect(Array.isArray(result)).toBe(false)
-          if (result && !Array.isArray(result)) {
+          if ((result != null) && !Array.isArray(result)) {
             expect(result.key).toBe(TEST_KEY)
             expect(result.controller).toBe(TEST_CONTROLLER)
           }
@@ -745,8 +744,8 @@ describe('GlobalKVStore', () => {
             outputs: expect.arrayContaining([
               expect.objectContaining({
                 satoshis: 1,
-                outputDescription: 'KVStore token',
-              }),
+                outputDescription: 'KVStore token'
+              })
             ])
           }),
           undefined
@@ -909,15 +908,15 @@ describe('GlobalKVStore', () => {
           {
             satoshis: 500,
             lockingScript: 'customTransferScript',
-            outputDescription: 'Custom token transfer output',
-          },
+            outputDescription: 'Custom token transfer output'
+          }
         ]
 
         const txid = await kvStore.remove(TEST_KEY, customOutputs)
 
         expect(mockWallet.createAction).toHaveBeenCalledWith(
           expect.objectContaining({
-            outputs: customOutputs,
+            outputs: customOutputs
           }),
           undefined
         )
@@ -955,7 +954,7 @@ describe('GlobalKVStore', () => {
           }
         }])
 
-          ; (mockWallet.signAction as jest.Mock).mockRejectedValue(new Error('Sign failed'))
+        ; (mockWallet.signAction as jest.Mock).mockRejectedValue(new Error('Sign failed'))
 
         await expect(kvStore.remove(TEST_KEY)).rejects.toThrow('Sign failed')
 
@@ -980,7 +979,7 @@ describe('GlobalKVStore', () => {
           value: TEST_VALUE,
           controller: expect.any(String),
           protocolID: [1, 'kvstore'],
-          history: [TEST_VALUE],
+          history: [TEST_VALUE]
         })
       }
     })
@@ -1053,8 +1052,8 @@ describe('GlobalKVStore', () => {
 
       const originalFromBEEF = (MockTransaction as any).fromBEEF
         ; (MockTransaction as any).fromBEEF = jest.fn(() => {
-          throw new Error('Malformed transaction data')
-        })
+        throw new Error('Malformed transaction data')
+      })
 
       try {
         const result = await kvStore.get({ key: TEST_KEY })
@@ -1089,8 +1088,8 @@ describe('GlobalKVStore', () => {
 
       const originalDecode = (MockPushDrop as any).decode
         ; (MockPushDrop as any).decode = jest.fn(() => {
-          throw new Error('Invalid token format')
-        })
+        throw new Error('Invalid token format')
+      })
 
       try {
         const result = await kvStore.get({ key: TEST_KEY }, { history: true })

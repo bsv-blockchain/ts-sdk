@@ -1,6 +1,8 @@
 
 // @ts-nocheck
 /* eslint-disable @typescript-eslint/naming-convention */
+import { assertValidHex, normalizeHex } from './hex.js'
+
 const assert = (
   expression: unknown,
   message: string = 'Hash assertion failed'
@@ -9,8 +11,6 @@ const assert = (
     throw new Error(message)
   }
 }
-
-import { assertValidHex, normalizeHex } from './hex.js'
 
 /**
  * The BaseHash class is an abstract base class for cryptographic hash functions.
@@ -270,8 +270,8 @@ export function toArray (
         }
       }
     } else {
-      assertValidHex(msg);
-      msg = normalizeHex(msg);
+      assertValidHex(msg)
+      msg = normalizeHex(msg)
       for (let i = 0; i < msg.length; i += 2) {
         res.push(parseInt(msg[i] + msg[i + 1], 16))
       }

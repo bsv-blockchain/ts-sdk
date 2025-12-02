@@ -7,9 +7,9 @@ import { FetchHttpClient } from './FetchHttpClient.js'
  * This method will attempt to use `window.fetch` if available (in browser environments).
  * If running in a Node environment, it falls back to using the Node `https` module
  */
-export function defaultHttpClient(): HttpClient {
+export function defaultHttpClient (): HttpClient {
   const noHttpClient: HttpClient = {
-    async request(..._): Promise<HttpClientResponse> {
+    async request (..._): Promise<HttpClientResponse> {
       throw new Error('No method available to perform HTTP request')
     }
   }

@@ -4,7 +4,7 @@ describe('WalletClient', () => {
   it('0 createAction', async () => {
     const wallet = new WalletClient('auto', '0.WalletClient.test')
 
-    async function testArgs(args: CreateActionArgs, parameter: string) {
+    async function testArgs (args: CreateActionArgs, parameter: string) {
       try {
         const r = await wallet.createAction(args)
         expect(true).toBe(false)

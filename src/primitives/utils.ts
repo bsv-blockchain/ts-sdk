@@ -81,19 +81,19 @@ for (let i = 0; i < 6; i++) {
 }
 
 const hexToArray = (msg: string): number[] => {
-  assertValidHex(msg);
-  const normalized = msg.length % 2 === 0 ? msg : "0" + msg;
+  assertValidHex(msg)
+  const normalized = msg.length % 2 === 0 ? msg : '0' + msg
   if (CAN_USE_BUFFER) {
-    return Array.from(BufferCtor.from(normalized, "hex"));
+    return Array.from(BufferCtor.from(normalized, 'hex'))
   }
-  const out = new Array(normalized.length / 2);
-  let o = 0;
+  const out = new Array(normalized.length / 2)
+  let o = 0
   for (let i = 0; i < normalized.length; i += 2) {
-    const hi = HEX_CHAR_TO_VALUE[normalized.charCodeAt(i)];
-    const lo = HEX_CHAR_TO_VALUE[normalized.charCodeAt(i + 1)];
-    out[o++] = (hi << 4) | lo;
+    const hi = HEX_CHAR_TO_VALUE[normalized.charCodeAt(i)]
+    const lo = HEX_CHAR_TO_VALUE[normalized.charCodeAt(i + 1)]
+    out[o++] = (hi << 4) | lo
   }
-  return out;
+  return out
 }
 
 export function base64ToArray (msg: string): number[] {

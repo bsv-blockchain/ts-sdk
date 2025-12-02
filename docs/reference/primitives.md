@@ -4953,8 +4953,10 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 | [AES](#function-aes) |
 | [AESGCM](#function-aesgcm) |
 | [AESGCMDecrypt](#function-aesgcmdecrypt) |
+| [assertValidHex](#function-assertvalidhex) |
 | [base64ToArray](#function-base64toarray) |
 | [ghash](#function-ghash) |
+| [normalizeHex](#function-normalizehex) |
 | [pbkdf2](#function-pbkdf2) |
 | [red](#function-red) |
 | [toArray](#function-toarray) |
@@ -4995,6 +4997,15 @@ export function AESGCMDecrypt(cipherText: number[], additionalAuthenticatedData:
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
+### Function: assertValidHex
+
+```ts
+export function assertValidHex(msg: string): void 
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Function: base64ToArray
 
 ```ts
@@ -5008,6 +5019,15 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 export function ghash(input: number[], hashSubKey: number[]): number[] 
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Function: normalizeHex
+
+```ts
+export function normalizeHex(msg: string): string 
 ```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -5939,7 +5959,7 @@ sign = (msg: BigNumber, key: BigNumber, forceLowS: boolean = false, customK?: Bi
         if (kBN == null)
             throw new Error("k is undefined");
         kBN = truncateToN(kBN, true);
-        if (kBN.cmpn(1) <= 0 || kBN.cmp(ns1) >= 0) {
+        if (kBN.cmpn(1) < 0 || kBN.cmp(ns1) > 0) {
             if (BigNumber.isBN(customK)) {
                 throw new Error("Invalid fixed custom K value (must be >1 and <N\u20111)");
             }

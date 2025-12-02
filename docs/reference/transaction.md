@@ -987,6 +987,7 @@ verifyValid(allowTxidOnly?: boolean): {
 
 Returns
 
+
 `valid` is true iff this Beef is structuraly valid.
 `roots` is a record where keys are block heights and values are the corresponding merkle roots to be validated.
 

@@ -33,7 +33,7 @@ describe('Cross-SDK Compatibility Tests', () => {
         }
       ]
 
-      testCases.forEach(({name, ciphertextHex}) => {
+      testCases.forEach(({ name, ciphertextHex }) => {
         // Convert hex to byte array
         const ciphertext: number[] = []
         for (let i = 0; i < ciphertextHex.length; i += 2) {
@@ -79,7 +79,7 @@ describe('Cross-SDK Compatibility Tests', () => {
         }
       ]
 
-      testCases.forEach(({name, ciphertextHex}) => {
+      testCases.forEach(({ name, ciphertextHex }) => {
         // Convert hex to byte array
         const ciphertext: number[] = []
         for (let i = 0; i < ciphertextHex.length; i += 2) {
@@ -112,7 +112,7 @@ describe('Cross-SDK Compatibility Tests', () => {
         }
       ]
 
-      testCases.forEach(({name, wif, expectedKeyLength, goCiphertext, tsCiphertext}) => {
+      testCases.forEach(({ name, wif, expectedKeyLength, goCiphertext, tsCiphertext }) => {
         // Create symmetric key
         const privKey = PrivateKey.fromWif(wif)
         const pubKey = privKey.toPublicKey()

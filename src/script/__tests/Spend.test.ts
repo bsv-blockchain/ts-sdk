@@ -18,19 +18,19 @@ import OP from '../../script/OP'
 export class MockChain implements ChainTracker {
   mock: { blockheaders: string[] }
 
-  constructor(mock: { blockheaders: string[] }) {
+  constructor (mock: { blockheaders: string[] }) {
     this.mock = mock
   }
 
-  addBlock(merkleRoot: string) {
+  addBlock (merkleRoot: string) {
     this.mock.blockheaders.push(merkleRoot)
   }
 
-  async isValidRootForHeight(root: string, height: number): Promise<boolean> {
+  async isValidRootForHeight (root: string, height: number): Promise<boolean> {
     return this.mock.blockheaders[height] === root
   }
 
-  async currentHeight(): Promise<number> {
+  async currentHeight (): Promise<number> {
     return this.mock.blockheaders.length
   }
 }
@@ -534,14 +534,14 @@ describe('Spend', () => {
         }
       ],
       [{
-          lockingScript: Script.fromASM('OP_NOP'),
-          satoshis: 1
+        lockingScript: Script.fromASM('OP_NOP'),
+        satoshis: 1
       }],
       0
     )
 
     const valid = await spendTx.verify(chain)
-    
+
     expect(valid).toBe(true)
 
     const b = spendTx.toBinary()

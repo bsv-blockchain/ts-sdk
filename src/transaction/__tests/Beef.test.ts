@@ -26,7 +26,7 @@ describe('Beef tests', () => {
         875732:
           'a19c54129ab996c72cda7721b4555b47d11b21e1fe67aa63c59843edb302b6c2',
         1651724:
-          '0fa8e6a2a8860eaec7365217c1cf64a905dc7936342b36a86566f933187f8c62',
+          '0fa8e6a2a8860eaec7365217c1cf64a905dc7936342b36a86566f933187f8c62'
       }
 
       if (knownRoots[height] !== undefined) {
