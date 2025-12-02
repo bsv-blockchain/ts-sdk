@@ -87,7 +87,7 @@ export const sign = (
     if (kBN == null) throw new Error('k is undefined')
     kBN = truncateToN(kBN, true)
 
-    if (kBN.cmpn(1) <= 0 || kBN.cmp(ns1) >= 0) {
+    if (kBN.cmpn(1) < 0 || kBN.cmp(ns1) > 0) {
       if (BigNumber.isBN(customK)) {
         throw new Error('Invalid fixed custom K value (must be >1 and <N‑1)')
       }
