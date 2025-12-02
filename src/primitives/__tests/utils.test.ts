@@ -4,6 +4,7 @@ import {
   zero2,
   toHex,
   encode,
+  toUTF8,
   fromBase58,
   toBase58,
   fromBase58Check,
@@ -206,6 +207,48 @@ describe('utils', () => {
     const input = "\uD800"
     const expected = [0xEF, 0xBF, 0xBD]
     expect(toArray(input)).toEqual(expected)
+  })
+})
+
+describe('toUTF8 bounds checks', () => {
+  const guarded = (arr: number[]): number[] => {
+    const target = arr.slice()
+    const handler: ProxyHandler<number[]> = {
+      get (t, prop, receiver) {
+        if (prop === 'length' || typeof prop !== 'string') {
+          return Reflect.get(t, prop as any, receiver)
+        }
+        const idx = Number(prop)
+        if (Number.isInteger(idx)) {
+          if (idx < 0 || idx >= t.length) {
+            throw new Error(`out-of-bounds read at index ${idx} (length ${t.length})`)
+          }
+        }
+        return Reflect.get(t, prop as any, receiver)
+      }
+    }
+    return new Proxy(target, handler) as unknown as number[]
+  }
+
+  it('does not access out-of-bounds on truncated 2-byte sequence', () => {
+    const input = guarded([0xC3])
+    expect(() => toUTF8(input)).not.toThrow()
+  })
+
+  it('does not access out-of-bounds on truncated 3-byte sequences', () => {
+    const input1 = guarded([0xE2])
+    const input2 = guarded([0xE2, 0x82])
+    expect(() => toUTF8(input1)).not.toThrow()
+    expect(() => toUTF8(input2)).not.toThrow()
+  })
+
+  it('does not access out-of-bounds on truncated 4-byte sequences', () => {
+    const input1 = guarded([0xF0])
+    const input2 = guarded([0xF0, 0x9F])
+    const input3 = guarded([0xF0, 0x9F, 0x98])
+    expect(() => toUTF8(input1)).not.toThrow()
+    expect(() => toUTF8(input2)).not.toThrow()
+    expect(() => toUTF8(input3)).not.toThrow()
   })
 })
 

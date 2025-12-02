@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.17 - 2025-12-01](#1917---2025-12-01)
+- [1.9.16 - 2025-12-01](#1916---2025-12-02)
 - [1.9.15 - 2025-12-01](#1915---2025-12-01)
 - [1.9.14 - 2025-12-01](#1914---2025-12-01)
 - [1.9.13 - 2025-12-01](#1913---2025-12-01)
@@ -185,6 +187,13 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+---
+
+### [1.9.17] - 2025-12-01
+
+### Added
+
+- Added bound checking in the toUTF8 function to prevent buffer overflows.
 
 ---
 
