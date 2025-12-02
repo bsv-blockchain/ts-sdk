@@ -10,6 +10,7 @@ import { toHex, toArray } from './utils.js'
  * @param nonce - Initial nonce either in number array or hexadecimal string.
  *
  * @throws Throws an error message 'Not enough entropy. Minimum is 256 bits' when entropy's length is less than 32.
+ * @throws Thrown an error message 'Nonce must be exactly 32 bytes (256 bits)' when nonce's length is less than 32.
  *
  * @example
  * const drbg = new DRBG('af12de...', '123ef...');
@@ -19,13 +20,18 @@ export default class DRBG {
   V: number[]
 
   constructor (entropy: number[] | string, nonce: number[] | string) {
-    entropy = toArray(entropy, 'hex')
-    nonce = toArray(nonce, 'hex')
+    const entropyBytes = toArray(entropy, 'hex')
+    const nonceBytes = toArray(nonce, 'hex')
 
-    if (entropy.length < 32) {
-      throw new Error('Not enough entropy. Minimum is 256 bits')
+    // RFC 6979 for secp256k1 assumes 256-bit x and h1.
+    if (entropyBytes.length !== 32) {
+      throw new Error('Entropy must be exactly 32 bytes (256 bits)')
     }
-    const seed = entropy.concat(nonce)
+    if (nonceBytes.length !== 32) {
+      throw new Error('Nonce must be exactly 32 bytes (256 bits)')
+    }
+
+    const seedMaterial = entropyBytes.concat(nonceBytes)
 
     this.K = new Array(32)
     this.V = new Array(32)
@@ -33,7 +39,8 @@ export default class DRBG {
       this.K[i] = 0x00
       this.V[i] = 0x01
     }
-    this.update(seed)
+
+    this.update(seedMaterial)
   }
 
   /**
@@ -60,7 +67,7 @@ export default class DRBG {
    * @example
    * drbg.update('e13af...');
    */
-  update (seed?): void {
+  update (seed?: number[]): void {
     let kmac = this.hmac().update(this.V).update([0x00])
     if (seed !== undefined) {
       kmac = kmac.update(seed)

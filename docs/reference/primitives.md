@@ -843,7 +843,7 @@ export default class DRBG {
     V: number[];
     constructor(entropy: number[] | string, nonce: number[] | string) 
     hmac(): SHA256HMAC 
-    update(seed?): void 
+    update(seed?: number[]): void 
     generate(len: number): string 
 }
 ```
@@ -899,7 +899,7 @@ Updates the `K` and `V` values of the instance based on the seed.
 The seed if not provided uses `V` as seed.
 
 ```ts
-update(seed?): void 
+update(seed?: number[]): void 
 ```
 
 Returns

@@ -189,6 +189,18 @@ All notable changes to this project will be documented in this file. The format 
 ### Security
 ---
 
+### [1.9.19] - 2025-12-02
+
+### Added
+
+- Added DRBG checks for entropy and nonce length to ensure uniqueness of generated sequences.
+
+### Changed
+
+- Tests for DRBG was fully rewritten and expanded upon
+
+---
+
 ### [1.9.18] - 2025-12-02
 
 ### Added
