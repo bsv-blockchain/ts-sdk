@@ -186,7 +186,7 @@ abstract class BaseHash {
     if (totalBits >= maxBits) {
       throw new Error('Message too long for this hash function')
     }
-    
+
     if (this.endian === 'big') {
       const lenArray = new Array<number>(lengthBytes)
 
