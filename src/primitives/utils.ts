@@ -1,5 +1,6 @@
 import BigNumber from './BigNumber.js'
 import { hash256 } from './Hash.js'
+import { assertValidHex, normalizeHex } from './hex.js'
 
 const BufferCtor =
   typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
@@ -80,28 +81,19 @@ for (let i = 0; i < 6; i++) {
 }
 
 const hexToArray = (msg: string): number[] => {
-  if (CAN_USE_BUFFER && PURE_HEX_REGEX.test(msg)) {
-    const normalized = msg.length % 2 === 0 ? msg : '0' + msg
-    return Array.from(BufferCtor.from(normalized, 'hex'))
+  assertValidHex(msg);
+  const normalized = msg.length % 2 === 0 ? msg : "0" + msg;
+  if (CAN_USE_BUFFER) {
+    return Array.from(BufferCtor.from(normalized, "hex"));
   }
-  const res: number[] = new Array(Math.ceil(msg.length / 2))
-  let nibble = -1
-  let size = 0
-  for (let i = 0; i < msg.length; i++) {
-    const value = HEX_CHAR_TO_VALUE[msg.charCodeAt(i)]
-    if (value === -1) continue
-    if (nibble === -1) {
-      nibble = value
-    } else {
-      res[size++] = (nibble << 4) | value
-      nibble = -1
-    }
+  const out = new Array(normalized.length / 2);
+  let o = 0;
+  for (let i = 0; i < normalized.length; i += 2) {
+    const hi = HEX_CHAR_TO_VALUE[normalized.charCodeAt(i)];
+    const lo = HEX_CHAR_TO_VALUE[normalized.charCodeAt(i + 1)];
+    out[o++] = (hi << 4) | lo;
   }
-  if (nibble !== -1) {
-    res[size++] = nibble
-  }
-  if (size !== res.length) res.length = size
-  return res
+  return out;
 }
 
 export function base64ToArray (msg: string): number[] {
