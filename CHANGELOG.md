@@ -189,6 +189,19 @@ All notable changes to this project will be documented in this file. The format 
 ### Security
 ---
 
+### [1.9.18] - 2025-12-02
+
+### Added
+
+- Added checks for messages that are too long for the hash function.
+
+### Changed
+
+- Changed the Hash class to use BigInt for padding.
+- Changed the way padding is calculated for big endian and little endian.
+
+---
+
 ### [1.9.17] - 2025-12-01
 
 ### Added
