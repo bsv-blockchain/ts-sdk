@@ -2,11 +2,11 @@ import { jest } from '@jest/globals'
 import { AuthFetch } from '../AuthFetch.js'
 import { Utils, PrivateKey } from '../../../primitives/index.js'
 
+import { createNonce } from '../../utils/createNonce.js'
+
 jest.mock('../../utils/createNonce.js', () => ({
   createNonce: jest.fn()
 }))
-
-import { createNonce } from '../../utils/createNonce.js'
 
 type Mutable<T> = {
   -readonly [P in keyof T]: T[P]
@@ -77,7 +77,7 @@ afterEach(() => {
 describe('AuthFetch payment handling', () => {
   test('createPaymentContext builds a complete retry context', async () => {
     const wallet = createWalletStub()
-    const authFetch = new AuthFetch(wallet as any)
+    const authFetch = new AuthFetch(wallet)
 
     createNonceMock.mockResolvedValueOnce('suffix-from-test')
 
@@ -130,7 +130,7 @@ describe('AuthFetch payment handling', () => {
 
   test('handlePaymentAndRetry reuses compatible contexts and adds payment header', async () => {
     const wallet = createWalletStub()
-    const authFetch = new AuthFetch(wallet as any)
+    const authFetch = new AuthFetch(wallet)
 
     const paymentContext: TestPaymentContext = {
       satoshisRequired: 5,
@@ -189,7 +189,7 @@ describe('AuthFetch payment handling', () => {
 
   test('handlePaymentAndRetry exhausts attempts and throws detailed error', async () => {
     const wallet = createWalletStub()
-    const authFetch = new AuthFetch(wallet as any)
+    const authFetch = new AuthFetch(wallet)
     jest.spyOn(authFetch as any, 'logPaymentAttempt').mockImplementation(() => {})
     jest.spyOn(authFetch as any, 'wait').mockResolvedValue(undefined)
 

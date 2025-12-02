@@ -100,7 +100,7 @@ const TEST_ORIGINATOR = 'test.originator.example'
 /**
  * Build minimal valid DefinitionData for each type
  */
-function buildDefinitionData(type: DefinitionType): DefinitionData {
+function buildDefinitionData (type: DefinitionType): DefinitionData {
   switch (type) {
     case 'basket': {
       const data: BasketDefinitionData = {
@@ -165,7 +165,7 @@ describe('RegistryClient', () => {
     }
 
     registryClient = new RegistryClient(walletMock as WalletInterface, {}, TEST_ORIGINATOR)
-    
+
     // Mock the resolver instance since it's now initialized in constructor
     ; (registryClient as any).resolver = {
       query: jest.fn().mockResolvedValue({ type: 'output-list', outputs: [] })
@@ -295,23 +295,23 @@ describe('RegistryClient', () => {
         outputs: [{ beef: [9, 9, 9], outputIndex: 0 }]
       })
 
-        // Basket has 7 fields: 5 data fields + operator + signature
-        ; (PushDrop.decode as jest.Mock).mockReturnValue({
-          fields: [
-            [98], // 'b' - basketID
-            [97], // 'a' - name
-            [115], // 's' - iconURL
-            [107], // 'k' - description
-            [101], // 'e' - documentationURL
-            [116], // 't' - operator
-            [111]  // signature field
-          ]
-        })
+      // Basket has 7 fields: 5 data fields + operator + signature
+      ; (PushDrop.decode as jest.Mock).mockReturnValue({
+        fields: [
+          [98], // 'b' - basketID
+          [97], // 'a' - name
+          [115], // 's' - iconURL
+          [107], // 'k' - description
+          [101], // 'e' - documentationURL
+          [116], // 't' - operator
+          [111] // signature field
+        ]
+      })
 
-        // The final field must match the current wallet pubkey => 'mockPublicKey'
-        ; (walletMock.getPublicKey as jest.Mock).mockResolvedValueOnce({
-          publicKey: 't'
-        })
+      // The final field must match the current wallet pubkey => 'mockPublicKey'
+      ; (walletMock.getPublicKey as jest.Mock).mockResolvedValueOnce({
+        publicKey: 't'
+      })
 
       const result = await registryClient.resolve('basket', { basketID: 'whatever' })
       expect(result).toHaveLength(1)
@@ -336,10 +336,10 @@ describe('RegistryClient', () => {
         ]
       })
 
-        // Return empty fields so parseLockingScript fails the length check
-        ; (PushDrop.decode as jest.Mock)
-          .mockReturnValueOnce({ fields: [] }) // fail
-          .mockReturnValueOnce({ fields: [] }) // fail again
+      // Return empty fields so parseLockingScript fails the length check
+      ; (PushDrop.decode as jest.Mock)
+        .mockReturnValueOnce({ fields: [] }) // fail
+        .mockReturnValueOnce({ fields: [] }) // fail again
 
       const result = await registryClient.resolve('basket', { name: 'fooAgain' })
       expect(result).toEqual([])
@@ -383,33 +383,32 @@ describe('RegistryClient', () => {
       (PushDrop.decode as jest.Mock).mockImplementation((scriptObj) => {
         return {
           fields: [
-            [98],  // 'b' - basketID
-            [97],  // 'a' - name
+            [98], // 'b' - basketID
+            [97], // 'a' - name
             [115], // 's' - iconURL
             [107], // 'k' - description
             [101], // 'e' - documentationURL
             [116], // 't' - operator
-            [111]  // signature field
+            [111] // signature field
           ]
         }
-      });
+      })
 
-      const records = await registryClient.listOwnRegistryEntries('basket');
+      const records = await registryClient.listOwnRegistryEntries('basket')
       expect(walletMock.listOutputs).toHaveBeenCalledWith({
         basket: 'basketmap',
         include: 'entire transactions'
-      });
+      })
       // Only one spendable item should be returned if parsing succeeds.
-      expect(records).toHaveLength(1);
+      expect(records).toHaveLength(1)
       expect(records[0]).toMatchObject({
         definitionType: 'basket',
         txid: 'skipMe',
         outputIndex: 2,
         satoshis: 200,
         lockingScript: 'decodedLockScript1AsHex'
-      });
-    });
-
+      })
+    })
   })
 
   // ------------------------------------------------------------------

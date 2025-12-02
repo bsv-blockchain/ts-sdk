@@ -5,7 +5,7 @@ import type {
   HexString,
   OutpointString,
   WalletCertificate,
-  OriginatorDomainNameStringUnder250Bytes,
+  OriginatorDomainNameStringUnder250Bytes
 } from '../../wallet/Wallet.interfaces.js'
 import SymmetricKey from '../../primitives/SymmetricKey.js'
 import * as Utils from '../../primitives/utils.js'
@@ -28,7 +28,7 @@ export class VerifiableCertificate extends Certificate {
   keyring: Record<CertificateFieldNameUnder50Bytes, string>
   decryptedFields?: Record<CertificateFieldNameUnder50Bytes, Base64String>
 
-  constructor(
+  constructor (
     type: Base64String,
     serialNumber: Base64String,
     subject: PubKeyHex,
@@ -59,7 +59,7 @@ export class VerifiableCertificate extends Certificate {
    * @returns {VerifiableCertificate} – A fully-formed instance containing the
    *   original certificate data plus the supplied keyring.
    */
-  static fromCertificate(
+  static fromCertificate (
     certificate: WalletCertificate,
     keyring: Record<CertificateFieldNameUnder50Bytes, string>
   ): VerifiableCertificate {
@@ -83,7 +83,7 @@ export class VerifiableCertificate extends Certificate {
    * @param {DescriptionString5to50Bytes} [privilegedReason] - Reason provided for privileged access, required if this is a privileged operation.
    * @throws {Error} Throws an error if any of the decryption operations fail, with a message indicating the failure context.
    */
-  async decryptFields(
+  async decryptFields (
     verifierWallet: ProtoWallet,
     privileged?: boolean,
     privilegedReason?: string,

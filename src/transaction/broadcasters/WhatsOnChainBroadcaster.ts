@@ -21,7 +21,7 @@ export default class WhatsOnChainBroadcaster implements Broadcaster {
    * @param {'main' | 'test' | 'stn'} network - The BSV network to use when calling the WhatsOnChain API.
    * @param {HttpClient} httpClient - The HTTP client used to make requests to the API.
    */
-  constructor(
+  constructor (
     network: 'main' | 'test' | 'stn' = 'main',
     httpClient: HttpClient = defaultHttpClient()
   ) {
@@ -36,7 +36,7 @@ export default class WhatsOnChainBroadcaster implements Broadcaster {
    * @param {Transaction} tx - The transaction to be broadcasted.
    * @returns {Promise<BroadcastResponse | BroadcastFailure>} A promise that resolves to either a success or failure response.
    */
-  async broadcast(
+  async broadcast (
     tx: Transaction
   ): Promise<BroadcastResponse | BroadcastFailure> {
     const rawTx = tx.toHex()

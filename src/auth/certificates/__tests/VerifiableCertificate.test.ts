@@ -150,7 +150,7 @@ describe('VerifiableCertificate', () => {
       expect(decrypted).toEqual(plaintextFields)
     })
   })
-  
+
   describe('fromCertificate', () => {
     it('should create an equivalent VerifiableCertificate and decrypt correctly', async () => {
       const baseCert = new Certificate(
@@ -160,7 +160,7 @@ describe('VerifiableCertificate', () => {
         verifiableCert.certifier,
         verifiableCert.revocationOutpoint,
         verifiableCert.fields,
-        verifiableCert.signature        
+        verifiableCert.signature
       ) as WalletCertificate
 
       const verifiable = VerifiableCertificate.fromCertificate(

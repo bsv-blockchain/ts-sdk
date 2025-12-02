@@ -53,8 +53,8 @@ describe('verifyNonce', () => {
 
     const nonce = await createNonce(mockWallet)
     await expect(verifyNonce(nonce + 'ABC', mockWallet)).rejects.toThrow(
-    /Invalid base64 padding|Invalid base64/i
-  )
+      /Invalid base64 padding|Invalid base64/i
+    )
     await expect(verifyNonce(nonce + '=', mockWallet)).resolves.toEqual(false)
     await expect(
       verifyNonce(

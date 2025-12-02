@@ -26,9 +26,9 @@ export interface BinaryNodejsHttpClientRequest {
  * Adapter for Node Https module to be used as HttpClient
  */
 export class BinaryNodejsHttpClient implements HttpClient {
-  constructor(private readonly https: BinaryHttpsNodejs) { }
+  constructor (private readonly https: BinaryHttpsNodejs) { }
 
-  async request(
+  async request (
     url: string,
     requestOptions: HttpClientRequestOptions
   ): Promise<HttpClientResponse> {
@@ -91,7 +91,7 @@ export interface FetchOptions {
  * Adapter for Node Https module to be used as HttpClient
  */
 export class BinaryFetchClient implements HttpClient {
-  constructor(private readonly fetch: Fetch) { }
+  constructor (private readonly fetch: Fetch) { }
 
   async request<D>(
     url: string,
@@ -115,9 +115,9 @@ export class BinaryFetchClient implements HttpClient {
   }
 }
 
-export function binaryHttpClient(): HttpClient {
+export function binaryHttpClient (): HttpClient {
   const noHttpClient: HttpClient = {
-    async request(..._): Promise<HttpClientResponse> {
+    async request (..._): Promise<HttpClientResponse> {
       throw new Error('No method available to perform HTTP request')
     }
   }

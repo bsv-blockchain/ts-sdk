@@ -19,7 +19,7 @@ export default class Teranode implements Broadcaster {
    * @param {string} URL - The URL endpoint for the Teranode API.
    * @param {HttpClient} httpClient - The HTTP client used to make requests to the API, binaryHttpClient by default.
    */
-  constructor(
+  constructor (
     URL: string,
     httpClient: HttpClient = binaryHttpClient()
   ) {
@@ -33,7 +33,7 @@ export default class Teranode implements Broadcaster {
    * @param {Transaction} tx - The transaction to be broadcasted.
    * @returns {Promise<BroadcastResponse | BroadcastFailure>} A promise that resolves to either a success or failure response.
    */
-  async broadcast(
+  async broadcast (
     tx: Transaction
   ): Promise<BroadcastResponse | BroadcastFailure> {
     const rawTx = tx.toEF()

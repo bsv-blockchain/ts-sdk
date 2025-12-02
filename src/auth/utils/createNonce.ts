@@ -13,7 +13,7 @@ import Random from '../../primitives/Random.js'
  * @param counterparty - The counterparty to the nonce creation. Defaults to 'self'.
  * @returns A random nonce derived with a wallet
  */
-export async function createNonce(
+export async function createNonce (
   wallet: WalletInterface,
   counterparty: WalletCounterparty = 'self',
   originator?: OriginatorDomainNameStringUnder250Bytes

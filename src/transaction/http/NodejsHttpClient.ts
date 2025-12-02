@@ -26,9 +26,9 @@ export interface NodejsHttpClientRequest {
  * Adapter for Node Https module to be used as HttpClient
  */
 export class NodejsHttpClient implements HttpClient {
-  constructor(private readonly https: HttpsNodejs) { }
+  constructor (private readonly https: HttpsNodejs) { }
 
-  async request(
+  async request (
     url: string,
     requestOptions: HttpClientRequestOptions
   ): Promise<HttpClientResponse> {

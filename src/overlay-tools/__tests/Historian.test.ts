@@ -24,32 +24,32 @@ interface TestContext {
 // --- Helpers ----------------------------------------------------------------
 type MTx = jest.Mocked<InstanceType<typeof Transaction>>
 
-function makeMockTx(txid: string, outputs: any[] = [], inputs: any[] = []): MTx {
+function makeMockTx (txid: string, outputs: any[] = [], inputs: any[] = []): MTx {
   return {
     id: jest.fn().mockReturnValue(txid),
     outputs,
-    inputs,
+    inputs
   } as any
 }
 
-function makeMockOutput(scriptHex?: string): TransactionOutput {
+function makeMockOutput (scriptHex?: string): TransactionOutput {
   const hex = scriptHex || '76a914' // Default to P2PKH prefix if no script provided
-  const scriptArray = hex.match(/.{2}/g)?.map(byte => parseInt(byte, 16)) || [0x76, 0xa9, 0x14]
+  const scriptArray = ((hex.match(/.{2}/g)?.map(byte => parseInt(byte, 16))) != null) || [0x76, 0xa9, 0x14]
 
   return {
     satoshis: 1,
     lockingScript: {
       toHex: jest.fn().mockReturnValue(hex),
-      toArray: jest.fn().mockReturnValue(scriptArray),
-    },
+      toArray: jest.fn().mockReturnValue(scriptArray)
+    }
   } as any
 }
 
-function makeMockInput(sourceTransaction?: MTx): TransactionInput {
+function makeMockInput (sourceTransaction?: MTx): TransactionInput {
   return {
     sourceTransaction,
     sourceTXID: sourceTransaction?.id('hex'),
-    sourceOutputIndex: 0,
+    sourceOutputIndex: 0
   } as any
 }
 
@@ -185,7 +185,6 @@ describe('Historian', () => {
       const debugHistorian = new Historian(simpleInterpreter, { debug: true })
       expect(debugHistorian).toBeInstanceOf(Historian)
     })
-
   })
 
   // --------------------------------------------------------------------------
@@ -242,7 +241,7 @@ describe('Historian', () => {
         const history = await historian.buildHistory(tx3)
 
         expect(history).toHaveLength(3)
-        expect(history[0]).toMatchObject({ data: 'value_from_76a91411' })  // Chronological order
+        expect(history[0]).toMatchObject({ data: 'value_from_76a91411' }) // Chronological order
         expect(history[1]).toMatchObject({ data: 'value_from_76a91422' })
         expect(history[2]).toMatchObject({ data: 'value_from_76a91433' })
       })
@@ -266,7 +265,7 @@ describe('Historian', () => {
         const contextHistorian = new Historian(simpleInterpreter)
         const tx = makeMockTx(TEST_TXID_1, [
           makeMockOutput('76a914filtered123456789012345678901234567888ac'), // Matches filter
-          makeMockOutput('76a914other1234567890123456789012345678988ac')     // Doesn't match filter
+          makeMockOutput('76a914other1234567890123456789012345678988ac') // Doesn't match filter
         ])
 
         const history = await contextHistorian.buildHistory(tx, { filter: '76a914filtered' })
@@ -291,7 +290,7 @@ describe('Historian', () => {
         const falsyHistorian = new Historian(falsyValueInterpreter)
         const tx = makeMockTx(TEST_TXID_1, [
           makeMockOutput('76a914123456789012345678901234567890123400'), // Returns { data: '' }
-          makeMockOutput('76a914123456789012345678901234567890123430'),  // Returns { data: '0' }
+          makeMockOutput('76a914123456789012345678901234567890123430'), // Returns { data: '0' }
           makeMockOutput('76a914123456789012345678901234567890123456') // Returns undefined
         ])
 
@@ -299,7 +298,7 @@ describe('Historian', () => {
 
         expect(history).toHaveLength(2)
         expect(history[0]).toMatchObject({ data: '0' }) // Falsy but valid
-        expect(history[1]).toMatchObject({ data: '' })  // Falsy but valid
+        expect(history[1]).toMatchObject({ data: '' }) // Falsy but valid
       })
     })
 
@@ -309,7 +308,7 @@ describe('Historian', () => {
         const tx = makeMockTx(TEST_TXID_1, [
           makeMockOutput('76a914abcdef1234567890abcdef1234567890abcdef88ac'), // Good P2PKH
           makeMockOutput('76a914deadbeef1234567890123456789012345688ac'), // Contains 'deadbeef' - will throw
-          makeMockOutput('76a914fedcba0987654321fedcba0987654321fedcba88ac')  // Good P2PKH
+          makeMockOutput('76a914fedcba0987654321fedcba0987654321fedcba88ac') // Good P2PKH
         ])
 
         const history = await errorHistorian.buildHistory(tx)
@@ -325,7 +324,7 @@ describe('Historian', () => {
         const tx = makeMockTx(TEST_TXID_1, [
           makeMockOutput('76a914abcdef1234567890abcdef1234567890abcdef88ac'), // Good P2PKH
           makeMockOutput('76a914badf00d1234567890123456789012345688ac'), // Contains 'badf00d' - will reject
-          makeMockOutput('76a914fedcba0987654321fedcba0987654321fedcba88ac')  // Good P2PKH
+          makeMockOutput('76a914fedcba0987654321fedcba0987654321fedcba88ac') // Good P2PKH
         ])
 
         const history = await rejectingHistorian.buildHistory(tx)
@@ -444,31 +443,31 @@ describe('Historian', () => {
 
       it('uses cache when provided and returns cached results', async () => {
         const cache = new Map<string, readonly TestValue[]>()
-        const cachedHistorian = new Historian(simpleInterpreter, { 
+        const cachedHistorian = new Historian(simpleInterpreter, {
           historyCache: cache,
-          debug: true // Enable debug to verify cache hit logs 
+          debug: true // Enable debug to verify cache hit logs
         })
-        
+
         const tx = makeMockTx(TEST_TXID_1, [makeMockOutput('76a914cached1234567890123456789012345678888ac')])
-        
+
         // First call - should populate cache
         const history1 = await cachedHistorian.buildHistory(tx)
         expect(cache.size).toBe(1)
         expect(history1).toHaveLength(1)
         expect(history1[0]).toMatchObject({ data: 'value_from_76a914ca' })
-        
+
         // Verify cache was populated (debug log should contain "cached")
         expect(mockConsoleLog).toHaveBeenCalledWith(
           expect.stringContaining('[Historian] History cached:'),
           expect.any(String)
         )
-        
-        // Second call - should use cache (returns shallow copy, not same reference)  
+
+        // Second call - should use cache (returns shallow copy, not same reference)
         const history2 = await cachedHistorian.buildHistory(tx)
         expect(history1).toStrictEqual(history2) // Same content from cache
         expect(history1).not.toBe(history2) // Different references (shallow copy)
         expect(cache.size).toBe(1) // No new cache entries
-        
+
         // Verify cache hit (debug log should contain "cache hit")
         expect(mockConsoleLog).toHaveBeenCalledWith(
           expect.stringContaining('[Historian] History cache hit:'),
@@ -479,15 +478,15 @@ describe('Historian', () => {
       it('generates different cache keys for different transactions', async () => {
         const cache = new Map<string, readonly TestValue[]>()
         const cachedHistorian = new Historian(simpleInterpreter, { historyCache: cache })
-        
+
         const tx1 = makeMockTx(TEST_TXID_1, [makeMockOutput('76a914tx1data123456789012345678901234567888ac')])
         const tx2 = makeMockTx(TEST_TXID_2, [makeMockOutput('76a914tx2data123456789012345678901234567888ac')])
-        
+
         await cachedHistorian.buildHistory(tx1)
         await cachedHistorian.buildHistory(tx2)
-        
+
         expect(cache.size).toBe(2) // Different transactions = different cache keys
-        
+
         // Verify both are cached independently
         const history1 = await cachedHistorian.buildHistory(tx1)
         const history2 = await cachedHistorian.buildHistory(tx2)
@@ -499,38 +498,38 @@ describe('Historian', () => {
       it('generates different cache keys for different contexts', async () => {
         const cache = new Map<string, readonly TestValue[]>()
         const cachedHistorian = new Historian(simpleInterpreter, { historyCache: cache })
-        
+
         const tx = makeMockTx(TEST_TXID_1, [
           makeMockOutput('76a914filtered123456789012345678901234567888ac'), // Matches filter
-          makeMockOutput('76a914other1234567890123456789012345678988ac')     // Doesn't match filter
+          makeMockOutput('76a914other1234567890123456789012345678988ac') // Doesn't match filter
         ])
-        
+
         // Same transaction, different contexts
         await cachedHistorian.buildHistory(tx, { filter: '76a914filtered' })
         await cachedHistorian.buildHistory(tx, { filter: '76a914other' })
         await cachedHistorian.buildHistory(tx) // No context
-        
+
         expect(cache.size).toBe(3) // Different contexts = different cache keys
       })
 
       it('invalidates cache when interpreterVersion changes', async () => {
         const cache = new Map<string, readonly TestValue[]>()
-        const historian1 = new Historian(simpleInterpreter, { 
-          historyCache: cache, 
-          interpreterVersion: 'v1' 
+        const historian1 = new Historian(simpleInterpreter, {
+          historyCache: cache,
+          interpreterVersion: 'v1'
         })
-        const historian2 = new Historian(simpleInterpreter, { 
-          historyCache: cache, 
-          interpreterVersion: 'v2' 
+        const historian2 = new Historian(simpleInterpreter, {
+          historyCache: cache,
+          interpreterVersion: 'v2'
         })
-        
+
         const tx = makeMockTx(TEST_TXID_1, [makeMockOutput('76a914version123456789012345678901234567888ac')])
-        
+
         await historian1.buildHistory(tx)
         await historian2.buildHistory(tx) // Different version = new cache entry
-        
+
         expect(cache.size).toBe(2) // Two entries for different versions
-        
+
         // Verify both versions work independently
         const history1 = await historian1.buildHistory(tx)
         const history2 = await historian2.buildHistory(tx)
@@ -542,20 +541,20 @@ describe('Historian', () => {
       it('returns immutable cached results that cannot be mutated externally', async () => {
         const cache = new Map<string, readonly TestValue[]>()
         const cachedHistorian = new Historian(simpleInterpreter, { historyCache: cache })
-        
+
         const tx = makeMockTx(TEST_TXID_1, [makeMockOutput('76a914immutable123456789012345678901234567888ac')])
-        
+
         const history1 = await cachedHistorian.buildHistory(tx)
         const history2 = await cachedHistorian.buildHistory(tx)
-        
+
         // Should be different references but same content (shallow copies from cache)
         expect(history1).toStrictEqual(history2)
         expect(history1).not.toBe(history2)
-        
+
         // Original cached value should be frozen, but returned copies are mutable
         // Mutating returned copy should not affect the cache or future calls
         ; (history1 as any).push({ data: 'malicious', outputIndex: 999 })
-        
+
         const history3 = await cachedHistorian.buildHistory(tx)
         expect(history3).toStrictEqual(history2) // Still original content from cache
         expect(history3).toHaveLength(1) // Original length preserved
@@ -565,23 +564,23 @@ describe('Historian', () => {
       it('works correctly with transaction chains when caching is enabled', async () => {
         const cache = new Map<string, readonly TestValue[]>()
         const cachedHistorian = new Historian(simpleInterpreter, { historyCache: cache })
-        
+
         // Create a simple chain: tx1 <- tx2
         const tx1 = makeMockTx(TEST_TXID_1, [makeMockOutput('76a914chain11234567890123456789012345678888ac')])
         const tx2 = makeMockTx(TEST_TXID_2, [makeMockOutput('76a914chain21234567890123456789012345678888ac')], [
           makeMockInput(tx1)
         ])
-        
+
         // First call - should cache the results
         const history1 = await cachedHistorian.buildHistory(tx2)
         expect(history1).toHaveLength(2)
         expect(cache.size).toBeGreaterThan(0)
-        
+
         // Second call - should use cache (same content, different reference)
         const history2 = await cachedHistorian.buildHistory(tx2)
         expect(history1).toStrictEqual(history2) // Same content from cache
         expect(history1).not.toBe(history2) // Different references (shallow copy)
-        
+
         // Individual transaction should also be cached
         const tx1History = await cachedHistorian.buildHistory(tx1)
         expect(tx1History).toHaveLength(1)
@@ -605,7 +604,7 @@ describe('Historian', () => {
 
       const branch2 = makeMockTx(TEST_TXID_3, [
         makeMockOutput('76a914branch2123456789012345678901234567888ac'), // P2PKH
-        makeMockOutput('76a914extrabr123456789012345678901234567888ac')  // P2PKH
+        makeMockOutput('76a914extrabr123456789012345678901234567888ac') // P2PKH
       ], [makeMockInput(genesis)])
 
       const merge = makeMockTx('4444444444444444444444444444444444444444444444444444444444444444', [

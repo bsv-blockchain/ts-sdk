@@ -24,14 +24,14 @@ export default class RPuzzle implements ScriptTemplate {
    *
    * @param {'raw'|'SHA1'|'SHA256'|'HASH256'|'RIPEMD160'|'HASH160'} type Denotes the type of puzzle to create
    */
-  constructor(
+  constructor (
     type:
-      | 'raw'
-      | 'SHA1'
-      | 'SHA256'
-      | 'HASH256'
-      | 'RIPEMD160'
-      | 'HASH160' = 'raw'
+    | 'raw'
+    | 'SHA1'
+    | 'SHA256'
+    | 'HASH256'
+    | 'RIPEMD160'
+    | 'HASH160' = 'raw'
   ) {
     this.type = type
   }
@@ -42,7 +42,7 @@ export default class RPuzzle implements ScriptTemplate {
    * @param {number[]} value - An array representing the R value or its hash.
    * @returns {LockingScript} - An R puzzle locking script.
    */
-  lock(value: number[]): LockingScript {
+  lock (value: number[]): LockingScript {
     const chunks: ScriptChunk[] = [
       { op: OP.OP_OVER },
       { op: OP.OP_3 },
@@ -79,15 +79,15 @@ export default class RPuzzle implements ScriptTemplate {
    * @param {boolean} anyoneCanPay - Flag indicating if the signature allows for other inputs to be added later.
    * @returns {Object} - An object containing the `sign` and `estimateLength` functions.
    */
-  unlock(
+  unlock (
     k: BigNumber,
     privateKey: PrivateKey,
     signOutputs: 'all' | 'none' | 'single' = 'all',
     anyoneCanPay: boolean = false
   ): {
-    sign: (tx: Transaction, inputIndex: number) => Promise<UnlockingScript>
-    estimateLength: () => Promise<108>
-  } {
+      sign: (tx: Transaction, inputIndex: number) => Promise<UnlockingScript>
+      estimateLength: () => Promise<108>
+    } {
     return {
       sign: async (tx: Transaction, inputIndex: number) => {
         if (typeof privateKey === 'undefined') {

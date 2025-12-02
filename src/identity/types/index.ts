@@ -1,4 +1,4 @@
-import { WalletProtocol } from "../../wallet/index.js"
+import { WalletProtocol } from '../../wallet/index.js'
 
 export const defaultIdentity: DisplayableIdentity = {
   name: 'Unknown Identity',

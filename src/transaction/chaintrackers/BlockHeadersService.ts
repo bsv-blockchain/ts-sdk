@@ -30,7 +30,7 @@ interface MerkleRootVerificationResponse {
 
 /**
  * Represents a chain tracker based on a BlockHeadersService API.
- * 
+ *
  * @example
  * ```typescript
  * const chainTracker = new BlockHeadersService('https://headers.spv.money', {
@@ -45,11 +45,11 @@ export class BlockHeadersService implements ChainTracker {
 
   /**
    * Constructs an instance of the BlockHeadersService ChainTracker.
-   * 
+   *
    * @param {string} baseUrl - The base URL for the BlockHeadersService API (e.g. https://headers.spv.money)
    * @param {BlockHeadersServiceConfig} config - Configuration options for the BlockHeadersService ChainTracker.
    */
-  constructor(
+  constructor (
     baseUrl: string,
     config: BlockHeadersServiceConfig = {}
   ) {
@@ -61,18 +61,18 @@ export class BlockHeadersService implements ChainTracker {
 
   /**
    * Verifies if a given merkle root is valid for a specific block height.
-   * 
+   *
    * @param {string} root - The merkle root to verify.
    * @param {number} height - The block height to check against.
    * @returns {Promise<boolean>} - A promise that resolves to true if the merkle root is valid for the specified block height, false otherwise.
    */
-  async isValidRootForHeight(root: string, height: number): Promise<boolean> {
+  async isValidRootForHeight (root: string, height: number): Promise<boolean> {
     const requestOptions = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`
+        Accept: 'application/json',
+        Authorization: `Bearer ${this.apiKey}`
       },
       data: [
         {
@@ -88,7 +88,7 @@ export class BlockHeadersService implements ChainTracker {
         requestOptions
       )
 
-      if (response.ok) {        
+      if (response.ok) {
         return response.data.confirmationState === 'CONFIRMED'
       } else {
         throw new Error(
@@ -104,15 +104,15 @@ export class BlockHeadersService implements ChainTracker {
 
   /**
    * Gets the current block height from the BlockHeadersService API.
-   * 
+   *
    * @returns {Promise<number>} - A promise that resolves to the current block height.
    */
-  async currentHeight(): Promise<number> {
+  async currentHeight (): Promise<number> {
     const requestOptions = {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`
+        Accept: 'application/json',
+        Authorization: `Bearer ${this.apiKey}`
       }
     }
 
@@ -121,7 +121,7 @@ export class BlockHeadersService implements ChainTracker {
         `${this.baseUrl}/api/v1/chain/tip/longest`,
         requestOptions
       )
-      
+
       if (response.ok && response.data && typeof response.data.height === 'number') {
         return response.data.height
       } else {

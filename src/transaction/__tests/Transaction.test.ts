@@ -744,7 +744,7 @@ describe('Transaction', () => {
         status: 200,
         statusText: 'OK',
         headers: {
-          get(key: string) {
+          get (key: string) {
             if (key === 'Content-Type') {
               return 'application/json'
             }
@@ -845,7 +845,7 @@ describe('Transaction', () => {
         status: 200,
         statusText: 'OK',
         headers: {
-          get(key: string) {
+          get (key: string) {
             if (key === 'Content-Type') {
               return 'application/json'
             }
@@ -1070,7 +1070,7 @@ describe('Transaction', () => {
         // Create two transactions, one depending on the other
         const privateKey = new PrivateKey(1)
         const publicKey = new Curve().g.mul(privateKey)
-        const publicKeyHash = hash160(publicKey.encode(true)) as number[]
+        const publicKeyHash = hash160(publicKey.encode(true))
         const p2pkh = new P2PKH()
 
         const sourceTx = new Transaction(
@@ -1167,7 +1167,7 @@ describe('Transaction', () => {
     it('should serialize a transaction to Atomic BEEF format correctly', async () => {
       const privateKey = new PrivateKey(1)
       const publicKey = new Curve().g.mul(privateKey)
-      const publicKeyHash = hash160(publicKey.encode(true)) as number[]
+      const publicKeyHash = hash160(publicKey.encode(true))
       const p2pkh = new P2PKH()
 
       // Create a simple transaction
@@ -1238,7 +1238,7 @@ describe('Transaction', () => {
       // Create two transactions, one depending on the other
       const privateKey = new PrivateKey(1)
       const publicKey = new Curve().g.mul(privateKey)
-      const publicKeyHash = hash160(publicKey.encode(true)) as number[]
+      const publicKeyHash = hash160(publicKey.encode(true))
       const p2pkh = new P2PKH()
 
       const sourceTx = new Transaction(1, [], [{
@@ -1295,7 +1295,7 @@ describe('Transaction', () => {
       tx.addInput({
         sourceTXID: '00'.repeat(32),
         sourceOutputIndex: 0,
-        unlockingScriptTemplate: new P2PKH().unlock(testPrivateKey),
+        unlockingScriptTemplate: new P2PKH().unlock(testPrivateKey)
       })
     })
   })
@@ -1306,11 +1306,11 @@ describe('Transaction', () => {
       sourceTransaction.addInput({
         sourceTXID: '00'.repeat(32),
         sourceOutputIndex: 0,
-        unlockingScript: Script.fromASM('OP_TRUE'),
+        unlockingScript: Script.fromASM('OP_TRUE')
       })
       sourceTransaction.addOutput({
         satoshis: 2,
-        lockingScript: Script.fromASM('OP_2 OP_MUL ' + 'OP_DUP OP_MUL '.repeat(22) + 'OP_DROP'),
+        lockingScript: Script.fromASM('OP_2 OP_MUL ' + 'OP_DUP OP_MUL '.repeat(22) + 'OP_DROP')
       })
       await sourceTransaction.sign()
 
@@ -1329,7 +1329,7 @@ describe('Transaction', () => {
       })
       tx.addOutput({
         satoshis: 1,
-        lockingScript: Script.fromASM('OP_NOP'),
+        lockingScript: Script.fromASM('OP_NOP')
       })
       await tx.fee()
       await tx.sign()
@@ -1346,11 +1346,11 @@ describe('Transaction', () => {
       sourceTransaction.addInput({
         sourceTXID: '00'.repeat(32),
         sourceOutputIndex: 0,
-        unlockingScript: Script.fromASM('OP_TRUE'),
+        unlockingScript: Script.fromASM('OP_TRUE')
       })
       sourceTransaction.addOutput({
         satoshis: 2,
-        lockingScript: new P2PKH().lock(key.toAddress()),
+        lockingScript: new P2PKH().lock(key.toAddress())
       })
       await sourceTransaction.sign()
 
@@ -1369,7 +1369,7 @@ describe('Transaction', () => {
       })
       tx.addOutput({
         satoshis: 1,
-        lockingScript: Script.fromASM('OP_NOP'),
+        lockingScript: Script.fromASM('OP_NOP')
       })
       await tx.fee()
       await tx.sign()
@@ -1385,11 +1385,11 @@ describe('Transaction', () => {
       sourceTransaction.addInput({
         sourceTXID: '00'.repeat(32),
         sourceOutputIndex: 0,
-        unlockingScript: Script.fromASM('OP_TRUE'),
+        unlockingScript: Script.fromASM('OP_TRUE')
       })
       sourceTransaction.addOutput({
         satoshis: 2,
-        lockingScript: Script.fromASM('OP_2 OP_MUL OP_DUP OP_MUL OP_DUP OP_MUL OP_DROP'),
+        lockingScript: Script.fromASM('OP_2 OP_MUL OP_DUP OP_MUL OP_DUP OP_MUL OP_DROP')
       })
       await sourceTransaction.sign()
 
@@ -1408,7 +1408,7 @@ describe('Transaction', () => {
       })
       tx.addOutput({
         satoshis: 1,
-        lockingScript: Script.fromASM('OP_NOP'),
+        lockingScript: Script.fromASM('OP_NOP')
       })
       await tx.fee()
       await tx.sign()

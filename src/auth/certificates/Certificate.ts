@@ -62,7 +62,7 @@ export default class Certificate {
    * @param {Record<CertificateFieldNameUnder50Bytes, string>} fields - All the fields present in the certificate.
    * @param {HexString} signature - Certificate signature by the certifier's private key, DER encoded hex string.
    */
-  constructor(
+  constructor (
     type: Base64String,
     serialNumber: Base64String,
     subject: PubKeyHex,
@@ -86,7 +86,7 @@ export default class Certificate {
    * @param {boolean} [includeSignature=true] - Whether to include the signature in the serialization.
    * @returns {number[]} - The serialized certificate in binary format.
    */
-  toBinary(includeSignature: boolean = true): number[] {
+  toBinary (includeSignature: boolean = true): number[] {
     const writer = new Utils.Writer()
 
     // Write type (Base64String, 32 bytes)
@@ -144,7 +144,7 @@ export default class Certificate {
    * @param {number[]} bin - The binary data representing the certificate.
    * @returns {Certificate} - The deserialized Certificate object.
    */
-  static fromBinary(bin: number[]): Certificate {
+  static fromBinary (bin: number[]): Certificate {
     const reader = new Utils.Reader(bin)
 
     // Read type
@@ -210,7 +210,7 @@ export default class Certificate {
    *
    * @returns {Promise<boolean>} - A promise that resolves to true if the signature is valid.
    */
-  async verify(): Promise<boolean> {
+  async verify (): Promise<boolean> {
     // A verifier can be any wallet capable of verifying signatures
     const verifier = new ProtoWallet('anyone')
     const verificationData = this.toBinary(false) // Exclude the signature from the verification data
@@ -234,7 +234,7 @@ export default class Certificate {
  * @param {Wallet} certifierWallet - The wallet representing the certifier.
  * @returns {Promise<void>}
  */
-  async sign(certifierWallet: ProtoWallet): Promise<void> {
+  async sign (certifierWallet: ProtoWallet): Promise<void> {
     if (this.signature != null && this.signature.length > 0) { // ✅ Explicitly checking for null/undefined
       throw new Error(
         `Certificate has already been signed! Signature present: ${this.signature}`
@@ -271,7 +271,7 @@ export default class Certificate {
    *   - `keyID` (string): A unique key identifier. It is the `fieldName` if `serialNumber` is undefined,
    *     otherwise it is a combination of `serialNumber` and `fieldName`.
    */
-  static getCertificateFieldEncryptionDetails(
+  static getCertificateFieldEncryptionDetails (
     fieldName: string,
     serialNumber?: string
   ): { protocolID: WalletProtocol, keyID: string } {
@@ -283,29 +283,29 @@ export default class Certificate {
 
   /**
    * Creates a Certificate instance from a plain object representation.
-   * 
+   *
    * @param obj - The object containing certificate data.
    * @returns A new Certificate instance.
    */
-  static fromObject(obj: { 
-    type: Base64String, 
-    serialNumber: Base64String, 
-    subject: PubKeyHex, 
-    certifier: PubKeyHex, 
-    revocationOutpoint: OutpointString, 
-    fields: Record<CertificateFieldNameUnder50Bytes, Base64String>, 
-    signature?: HexString 
+  static fromObject (obj: {
+    type: Base64String
+    serialNumber: Base64String
+    subject: PubKeyHex
+    certifier: PubKeyHex
+    revocationOutpoint: OutpointString
+    fields: Record<CertificateFieldNameUnder50Bytes, Base64String>
+    signature?: HexString
   }): Certificate {
     const cert = new Certificate(
-      obj.type, 
-      obj.serialNumber, 
-      obj.subject, 
-      obj.certifier, 
-      obj.revocationOutpoint, 
-      obj.fields, 
+      obj.type,
+      obj.serialNumber,
+      obj.subject,
+      obj.certifier,
+      obj.revocationOutpoint,
+      obj.fields,
       obj.signature
-    );
+    )
 
-    return cert;
+    return cert
   }
 }

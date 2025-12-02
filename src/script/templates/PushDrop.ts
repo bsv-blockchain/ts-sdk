@@ -6,9 +6,9 @@ import {
   Signature,
   PublicKey
 } from '../../primitives/index.js'
-import { WalletInterface } from '../../wallet/Wallet.interfaces.js'
+import { WalletInterface, WalletProtocol } from '../../wallet/Wallet.interfaces.js'
 import { Transaction } from '../../transaction/index.js'
-import { WalletProtocol } from '../../wallet/Wallet.interfaces.js'
+
 import { verifyNotNull } from '../../primitives/utils.js'
 
 /**
@@ -62,7 +62,7 @@ export default class PushDrop implements ScriptTemplate {
    * @param script PushDrop script to decode back into token fields
    * @returns An object containing PushDrop token fields and the locking public key. If a signature was included, it will be the last field.
    */
-  static decode(script: LockingScript): {
+  static decode (script: LockingScript): {
     lockingPublicKey: PublicKey
     fields: number[][]
   } {
@@ -105,7 +105,7 @@ export default class PushDrop implements ScriptTemplate {
    * @param {WalletInterface} wallet - The wallet interface used for creating signatures and accessing public keys.
    * @param {string} originator — The originator to use with Wallet requests
    */
-  constructor(wallet: WalletInterface, originator?: string) {
+  constructor (wallet: WalletInterface, originator?: string) {
     this.wallet = wallet
     this.originator = originator
   }
@@ -121,7 +121,7 @@ export default class PushDrop implements ScriptTemplate {
    * @param {boolean} [includeSignature=true] - Flag indicating if a signature should be included in the script (default yes).
    * @returns {Promise<LockingScript>} The generated PushDrop locking script.
    */
-  async lock(
+  async lock (
     fields: number[][],
     protocolID: WalletProtocol,
     keyID: string,
@@ -184,7 +184,7 @@ export default class PushDrop implements ScriptTemplate {
    * @param {boolean} [anyoneCanPay=false] - Specifies if the anyone-can-pay flag is set.
    * @returns {Object} An object containing functions to sign the transaction and estimate the script length.
    */
-  unlock(
+  unlock (
     protocolID: WalletProtocol,
     keyID: string,
     counterparty: string,
@@ -193,9 +193,9 @@ export default class PushDrop implements ScriptTemplate {
     sourceSatoshis?: number,
     lockingScript?: LockingScript
   ): {
-    sign: (tx: Transaction, inputIndex: number) => Promise<UnlockingScript>
-    estimateLength: () => Promise<73>
-  } {
+      sign: (tx: Transaction, inputIndex: number) => Promise<UnlockingScript>
+      estimateLength: () => Promise<73>
+    } {
     return {
       sign: async (
         tx: Transaction,

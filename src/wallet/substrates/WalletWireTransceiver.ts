@@ -59,11 +59,11 @@ import { WalletError } from '../WalletError.js'
 export default class WalletWireTransceiver implements WalletInterface {
   wire: WalletWire
 
-  constructor(wire: WalletWire) {
+  constructor (wire: WalletWire) {
     this.wire = wire
   }
 
-  private async transmit(
+  private async transmit (
     call: CallType,
     originator: OriginatorDomainNameStringUnder250Bytes = '',
     params: number[] = []
@@ -100,7 +100,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async createAction(
+  async createAction (
     args: CreateActionArgs,
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<CreateActionResult> {
@@ -400,7 +400,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     return response
   }
 
-  async signAction(
+  async signAction (
     args: SignActionArgs,
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<SignActionResult> {
@@ -519,7 +519,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     return response
   }
 
-  async abortAction(
+  async abortAction (
     args: { reference: Base64String },
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<{ aborted: true }> {
@@ -531,7 +531,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     return { aborted: true }
   }
 
-  async listActions(
+  async listActions (
     args: ListActionsArgs,
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<ListActionsResult> {
@@ -824,7 +824,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async internalizeAction(
+  async internalizeAction (
     args: InternalizeActionArgs,
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<{ accepted: true }> {
@@ -911,7 +911,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     return { accepted: true }
   }
 
-  async listOutputs(
+  async listOutputs (
     args: ListOutputsArgs,
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<ListOutputsResult> {
@@ -1054,7 +1054,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async relinquishOutput(
+  async relinquishOutput (
     args: { basket: BasketStringUnder300Bytes, output: OutpointString },
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<{ relinquished: true }> {
@@ -1067,7 +1067,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     return { relinquished: true }
   }
 
-  private encodeOutpoint(outpoint: OutpointString): number[] {
+  private encodeOutpoint (outpoint: OutpointString): number[] {
     const writer = new Utils.Writer()
     const [txid, index] = outpoint.split('.')
     writer.write(Utils.toArray(txid, 'hex'))
@@ -1075,13 +1075,13 @@ export default class WalletWireTransceiver implements WalletInterface {
     return writer.toArray()
   }
 
-  private readOutpoint(reader: Utils.Reader): OutpointString {
+  private readOutpoint (reader: Utils.Reader): OutpointString {
     const txid = Utils.toHex(reader.read(32))
     const index = reader.readVarIntNum()
     return `${txid}.${index}`
   }
 
-  async getPublicKey(
+  async getPublicKey (
     args: {
       seekPermission?: BooleanDefaultTrue
       identityKey?: true
@@ -1136,7 +1136,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async revealCounterpartyKeyLinkage(
+  async revealCounterpartyKeyLinkage (
     args: {
       counterparty: PubKeyHex
       verifier: PubKeyHex
@@ -1145,13 +1145,13 @@ export default class WalletWireTransceiver implements WalletInterface {
     },
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<{
-    prover: PubKeyHex
-    verifier: PubKeyHex
-    counterparty: PubKeyHex
-    revelationTime: ISOTimestampString
-    encryptedLinkage: Byte[]
-    encryptedLinkageProof: number[]
-  }> {
+      prover: PubKeyHex
+      verifier: PubKeyHex
+      counterparty: PubKeyHex
+      revelationTime: ISOTimestampString
+      encryptedLinkage: Byte[]
+      encryptedLinkageProof: number[]
+    }> {
     const paramWriter = new Utils.Writer()
     paramWriter.write(
       this.encodePrivilegedParams(args.privileged, args.privilegedReason)
@@ -1187,7 +1187,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async revealSpecificKeyLinkage(
+  async revealSpecificKeyLinkage (
     args: {
       counterparty: PubKeyHex
       verifier: PubKeyHex
@@ -1198,15 +1198,15 @@ export default class WalletWireTransceiver implements WalletInterface {
     },
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<{
-    prover: PubKeyHex
-    verifier: PubKeyHex
-    counterparty: PubKeyHex
-    protocolID: [SecurityLevel, ProtocolString5To400Bytes]
-    keyID: KeyIDStringUnder800Bytes
-    encryptedLinkage: Byte[]
-    encryptedLinkageProof: Byte[]
-    proofType: Byte
-  }> {
+      prover: PubKeyHex
+      verifier: PubKeyHex
+      counterparty: PubKeyHex
+      protocolID: [SecurityLevel, ProtocolString5To400Bytes]
+      keyID: KeyIDStringUnder800Bytes
+      encryptedLinkage: Byte[]
+      encryptedLinkageProof: Byte[]
+      proofType: Byte
+    }> {
     const paramWriter = new Utils.Writer()
     paramWriter.write(
       this.encodeKeyRelatedParams(
@@ -1251,7 +1251,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async encrypt(
+  async encrypt (
     args: {
       seekPermission?: BooleanDefaultTrue
       plaintext: Byte[]
@@ -1292,7 +1292,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async decrypt(
+  async decrypt (
     args: {
       seekPermission?: BooleanDefaultTrue
       ciphertext: Byte[]
@@ -1333,7 +1333,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async createHmac(
+  async createHmac (
     args: {
       seekPermission?: BooleanDefaultTrue
       data: Byte[]
@@ -1374,7 +1374,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async verifyHmac(
+  async verifyHmac (
     args: {
       seekPermission?: BooleanDefaultTrue
       data: Byte[]
@@ -1412,7 +1412,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     return { valid: true }
   }
 
-  async createSignature(
+  async createSignature (
     args: {
       seekPermission?: BooleanDefaultTrue
       data?: Byte[]
@@ -1460,7 +1460,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async verifySignature(
+  async verifySignature (
     args: {
       seekPermission?: BooleanDefaultTrue
       data?: Byte[]
@@ -1512,7 +1512,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     return { valid: true }
   }
 
-  private encodeKeyRelatedParams(
+  private encodeKeyRelatedParams (
     protocolID: [SecurityLevel, ProtocolString5To400Bytes],
     keyID: KeyIDStringUnder800Bytes,
     counterparty?: PubKeyHex | 'self' | 'anyone',
@@ -1542,7 +1542,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     return paramWriter.toArray()
   }
 
-  async acquireCertificate(
+  async acquireCertificate (
     args: AcquireCertificateArgs,
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<AcquireCertificateResult> {
@@ -1612,7 +1612,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  private encodePrivilegedParams(
+  private encodePrivilegedParams (
     privileged?: boolean,
     privilegedReason?: string
   ): number[] {
@@ -1632,7 +1632,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     return paramWriter.toArray()
   }
 
-  async listCertificates(
+  async listCertificates (
     args: {
       certifiers: PubKeyHex[]
       types: Base64String[]
@@ -1673,7 +1673,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     )
     const resultReader = new Utils.Reader(result)
     const totalCertificates = resultReader.readVarIntNum()
-    const certificates: Array<CertificateResult> = []
+    const certificates: CertificateResult[] = []
     for (let i = 0; i < totalCertificates; i++) {
       const certificateLength = resultReader.readVarIntNum()
       const certificateBin = resultReader.read(certificateLength)
@@ -1686,12 +1686,12 @@ export default class WalletWireTransceiver implements WalletInterface {
           const fieldKey = Utils.toUTF8(resultReader.read(fieldKeyLength))
           const fieldValueLength = resultReader.readVarIntNum()
           keyringForVerifier[fieldKey] = Utils.toBase64(
-              resultReader.read(fieldValueLength)
+            resultReader.read(fieldValueLength)
           )
         }
       }
       const verifierLength = resultReader.readVarIntNum()
-      let verifier: string | undefined = undefined
+      let verifier: string | undefined
       if (verifierLength > 0) {
         verifier = Utils.toUTF8(resultReader.read(verifierLength))
       }
@@ -1699,7 +1699,7 @@ export default class WalletWireTransceiver implements WalletInterface {
         ...cert,
         signature: cert.signature as string,
         keyring: keyringForVerifier,
-        verifier,
+        verifier
       })
     }
     return {
@@ -1708,7 +1708,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async proveCertificate(
+  async proveCertificate (
     args: ProveCertificateArgs,
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<ProveCertificateResult> {
@@ -1772,7 +1772,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async relinquishCertificate(
+  async relinquishCertificate (
     args: {
       type: Base64String
       serialNumber: Base64String
@@ -1795,7 +1795,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     return { relinquished: true }
   }
 
-  private parseDiscoveryResult(result: number[]): {
+  private parseDiscoveryResult (result: number[]): {
     totalCertificates: number
     certificates: Array<{
       type: Base64String
@@ -1812,8 +1812,8 @@ export default class WalletWireTransceiver implements WalletInterface {
         trust: PositiveIntegerMax10
       }
       publiclyRevealedKeyring: Record<
-        CertificateFieldNameUnder50Bytes,
-        Base64String
+      CertificateFieldNameUnder50Bytes,
+      Base64String
       >
       decryptedFields: Record<CertificateFieldNameUnder50Bytes, string>
     }>
@@ -1835,8 +1835,8 @@ export default class WalletWireTransceiver implements WalletInterface {
         trust: PositiveIntegerMax10
       }
       publiclyRevealedKeyring: Record<
-        CertificateFieldNameUnder50Bytes,
-        Base64String
+      CertificateFieldNameUnder50Bytes,
+      Base64String
       >
       decryptedFields: Record<CertificateFieldNameUnder50Bytes, string>
     }> = []
@@ -1883,7 +1883,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async discoverByIdentityKey(
+  async discoverByIdentityKey (
     args: {
       seekPermission?: BooleanDefaultTrue
       identityKey: PubKeyHex
@@ -1920,7 +1920,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     return this.parseDiscoveryResult(result)
   }
 
-  async discoverByAttributes(
+  async discoverByAttributes (
     args: {
       seekPermission?: BooleanDefaultTrue
       attributes: Record<CertificateFieldNameUnder50Bytes, string>
@@ -1966,7 +1966,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     return this.parseDiscoveryResult(result)
   }
 
-  async isAuthenticated(
+  async isAuthenticated (
     args: {},
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<{ authenticated: true }> {
@@ -1975,7 +1975,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     return { authenticated: result[0] === 1 }
   }
 
-  async waitForAuthentication(
+  async waitForAuthentication (
     args: {},
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<{ authenticated: true }> {
@@ -1983,7 +1983,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     return { authenticated: true }
   }
 
-  async getHeight(
+  async getHeight (
     args: {},
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<{ height: PositiveInteger }> {
@@ -1994,7 +1994,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async getHeaderForHeight(
+  async getHeaderForHeight (
     args: { height: PositiveInteger },
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<{ header: HexString }> {
@@ -2010,7 +2010,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async getNetwork(
+  async getNetwork (
     args: {},
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<{ network: 'mainnet' | 'testnet' }> {
@@ -2020,7 +2020,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     }
   }
 
-  async getVersion(
+  async getVersion (
     args: {},
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<{ version: VersionString7To30Bytes }> {

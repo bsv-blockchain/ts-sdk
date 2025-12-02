@@ -71,7 +71,7 @@ export interface TokenData {
   txid: string
   outputIndex: number
   satoshis: number
-  lockingScript: string,
+  lockingScript: string
   beef: BEEF
 }
 

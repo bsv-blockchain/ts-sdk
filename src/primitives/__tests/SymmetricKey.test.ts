@@ -102,7 +102,7 @@ describe('SymmetricKey', () => {
 
       expect(decrypted).toBe(plaintext)
     })
-    
+
     it('throws "Ciphertext too short" for inputs shorter than IV + tag', () => {
       const shortCipherArray = new Array(47).fill(0)
       expect(() => {
