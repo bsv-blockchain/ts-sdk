@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.19 - 2025-12-02](#1919---2025-12-02)
+- [1.9.18 - 2025-12-02](#1918---2025-12-02)
 - [1.9.17 - 2025-12-01](#1917---2025-12-01)
 - [1.9.16 - 2025-12-01](#1916---2025-12-02)
 - [1.9.15 - 2025-12-01](#1915---2025-12-01)
@@ -197,7 +199,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Changed
 
-- Tests for DRBG was fully rewritten and expanded upon
+- Tests for DRBG was fully rewritten and expanded upon.
 
 ---
 
