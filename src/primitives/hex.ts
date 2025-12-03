@@ -1,12 +1,12 @@
 // src/primitives/hex.ts
 
 // Accepts empty string because empty byte arrays are valid in Bitcoin.
-const PURE_HEX_REGEX = /^[0-9a-fA-F]*$/;
+const PURE_HEX_REGEX = /^[0-9a-fA-F]*$/
 
 export function assertValidHex(msg: string): void {
   if (typeof msg !== 'string') {
-    console.error("assertValidHex FAIL (non-string):", msg);
-    throw new Error('Invalid hex string');
+    console.error("assertValidHex FAIL (non-string):", msg)
+    throw new Error('Invalid hex string')
   }
 
   // allow empty

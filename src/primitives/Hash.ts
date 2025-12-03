@@ -170,53 +170,48 @@ abstract class BaseHash {
    * @returns Returns an array denoting the padding.
    */
   private _pad (): number[] {
-  const len = this.pendingTotal
-
-  // 🔐 New: guarantee len is a sane byte count
-  if (!Number.isSafeInteger(len) || len < 0) {
-    // Anything outside the safe integer range (or negative)
-    // must be treated as "too long" by definition.
-    throw new Error('Message too long for this hash function')
-  }
-
-  const bytes = this._delta8
-  const k = bytes - ((len + this.padLength) % bytes)
-  const res = new Array(k + this.padLength)
-  res[0] = 0x80
-  let i: number
-  for (i = 1; i < k; i++) {
-    res[i] = 0
-  }
-
-  // Append length
-  const lengthBytes = this.padLength
-  const maxBits = 1n << BigInt(lengthBytes * 8)
-  let totalBits = BigInt(len) * 8n
-
-  if (totalBits >= maxBits) {
-    throw new Error('Message too long for this hash function')
-  }
-
-  if (this.endian === 'big') {
-    const lenArray = new Array<number>(lengthBytes)
-
-    for (let b = lengthBytes - 1; b >= 0; b--) {
-      lenArray[b] = Number(totalBits & 0xffn)
-      totalBits >>= 8n
+    const len = this.pendingTotal
+    if (!Number.isSafeInteger(len) || len < 0) {
+      throw new Error('Message too long for this hash function')
     }
 
-    for (let b = 0; b < lengthBytes; b++) {
-      res[i++] = lenArray[b]
+    const bytes = this._delta8
+    const k = bytes - ((len + this.padLength) % bytes)
+    const res = new Array(k + this.padLength)
+    res[0] = 0x80
+    let i: number
+    for (i = 1; i < k; i++) {
+      res[i] = 0
     }
-  } else {
-    for (let b = 0; b < lengthBytes; b++) {
-      res[i++] = Number(totalBits & 0xffn)
-      totalBits >>= 8n
-    }
-  }
+    const lengthBytes = this.padLength
+    const maxBits = 1n << BigInt(lengthBytes * 8)
+    let totalBits = BigInt(len) * 8n
 
-  return res
-}}
+    if (totalBits >= maxBits) {
+      throw new Error('Message too long for this hash function')
+    }
+
+    if (this.endian === 'big') {
+      const lenArray = new Array<number>(lengthBytes)
+
+      for (let b = lengthBytes - 1; b >= 0; b--) {
+        lenArray[b] = Number(totalBits & 0xffn)
+        totalBits >>= 8n
+      }
+
+      for (let b = 0; b < lengthBytes; b++) {
+        res[i++] = lenArray[b]
+      }
+    } else {
+      for (let b = 0; b < lengthBytes; b++) {
+        res[i++] = Number(totalBits & 0xffn)
+        totalBits >>= 8n
+      }
+    }
+
+    return res
+  }
+}
 
 function isSurrogatePair (msg: string, i: number): boolean {
   if ((msg.charCodeAt(i) & 0xfc00) !== 0xd800) {
