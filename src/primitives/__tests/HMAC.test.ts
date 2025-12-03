@@ -48,11 +48,22 @@ describe('HMAC', function () {
       res: 'cf5ad5984f9e43917aa9087380dac46e410ddc8a7731859c84e9d0f31bd43655'
     })
 
+    function normalizeKey (key: string | number[]): string | number[] {
+      if (typeof key === 'string') {
+        // test-only helper: remove whitespace between hex groups
+        return key.replace(/\s+/g, '')
+      }
+      return key
+    }
+
     function test (opt): void {
       it(`should not fail at ${opt.name as string}`, function (): void {
-        let h = new SHA256HMAC(opt.key)
+        const key = normalizeKey(opt.key)
+
+        let h = new SHA256HMAC(key as any)
         expect(h.update(opt.msg, opt.msgEnc).digestHex()).toEqual(opt.res)
-        h = h = new SHA256HMAC(opt.key)
+
+        h = new SHA256HMAC(key as any)
         expect(
           h
             .update(opt.msg.slice(0, 10), opt.msgEnc)

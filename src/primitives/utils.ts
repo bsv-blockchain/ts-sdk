@@ -225,54 +225,81 @@ function utf8ToArray (str: string): number[] {
  */
 export const toUTF8 = (arr: number[]): string => {
   let result = ''
-  let skip = 0
-
+  const replacementChar = '\uFFFD'
   for (let i = 0; i < arr.length; i++) {
-    const byte = arr[i]
-
-    // this byte is part of a multi-byte sequence, skip it
-    // added to avoid modifying i within the loop which is considered unsafe.
-    if (skip > 0) {
-      skip--
+    const byte1 = arr[i]
+    if (byte1 <= 0x7f) {
+      result += String.fromCharCode(byte1)
       continue
     }
-
-    // 1-byte sequence (0xxxxxxx)
-    if (byte <= 0x7f) {
-      result += String.fromCharCode(byte)
-    } else if (byte >= 0xc0 && byte <= 0xdf) {
-      // 2-byte sequence (110xxxxx 10xxxxxx)
+    const emitReplacement = () => {
+      result += replacementChar
+    }
+    if (byte1 >= 0xc0 && byte1 <= 0xdf) {
+      if (i + 1 >= arr.length) {
+        emitReplacement()
+        continue
+      }
       const byte2 = arr[i + 1]
-      skip = 1
-      const codePoint = ((byte & 0x1f) << 6) | (byte2 & 0x3f)
+      if ((byte2 & 0xc0) !== 0x80) {
+        emitReplacement()
+        continue
+      }
+      const codePoint = ((byte1 & 0x1f) << 6) | (byte2 & 0x3f)
       result += String.fromCharCode(codePoint)
-    } else if (byte >= 0xe0 && byte <= 0xef) {
-      // 3-byte sequence (1110xxxx 10xxxxxx 10xxxxxx)
+      i += 1
+      continue
+    }
+    if (byte1 >= 0xe0 && byte1 <= 0xef) {
+      if (i + 2 >= arr.length) {
+        emitReplacement()
+        continue
+      }
       const byte2 = arr[i + 1]
       const byte3 = arr[i + 2]
-      skip = 2
+      if ((byte2 & 0xc0) !== 0x80 || (byte3 & 0xc0) !== 0x80) {
+        emitReplacement()
+        continue
+      }
       const codePoint =
-        ((byte & 0x0f) << 12) | ((byte2 & 0x3f) << 6) | (byte3 & 0x3f)
+        ((byte1 & 0x0f) << 12) |
+        ((byte2 & 0x3f) << 6) |
+        (byte3 & 0x3f)
+
       result += String.fromCharCode(codePoint)
-    } else if (byte >= 0xf0 && byte <= 0xf7) {
-      // 4-byte sequence (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
+      i += 2
+      continue
+    }
+    if (byte1 >= 0xf0 && byte1 <= 0xf7) {
+      if (i + 3 >= arr.length) {
+        emitReplacement()
+        continue
+      }
       const byte2 = arr[i + 1]
       const byte3 = arr[i + 2]
       const byte4 = arr[i + 3]
-      skip = 3
+      if (
+        (byte2 & 0xc0) !== 0x80 ||
+        (byte3 & 0xc0) !== 0x80 ||
+        (byte4 & 0xc0) !== 0x80
+      ) {
+        emitReplacement()
+        continue
+      }
       const codePoint =
-        ((byte & 0x07) << 18) |
+        ((byte1 & 0x07) << 18) |
         ((byte2 & 0x3f) << 12) |
         ((byte3 & 0x3f) << 6) |
         (byte4 & 0x3f)
-
-      // Convert to UTF-16 surrogate pair
-      const surrogate1 = 0xd800 + ((codePoint - 0x10000) >> 10)
-      const surrogate2 = 0xdc00 + ((codePoint - 0x10000) & 0x3ff)
-      result += String.fromCharCode(surrogate1, surrogate2)
+      const offset = codePoint - 0x10000
+      const highSurrogate = 0xd800 + (offset >> 10)
+      const lowSurrogate = 0xdc00 + (offset & 0x3ff)
+      result += String.fromCharCode(highSurrogate, lowSurrogate)
+      i += 3
+      continue
     }
+    emitReplacement()
   }
-
   return result
 }
 

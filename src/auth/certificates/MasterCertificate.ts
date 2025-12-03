@@ -232,7 +232,7 @@ export class MasterCertificate extends Certificate {
     certificateType: string,
     getRevocationOutpoint = async (_serial: string): Promise<string> => {
       void _serial // Explicitly acknowledge unused parameter
-      return 'Certificate revocation not tracked.'
+      return '00'.repeat(32)
     },
     serialNumber?: string
   ): Promise<MasterCertificate> {
@@ -245,6 +245,13 @@ export class MasterCertificate extends Certificate {
 
     // 3. Obtain a revocation outpoint
     const revocationOutpoint = await getRevocationOutpoint(finalSerialNumber)
+
+    let subjectIdentityKey: string
+      if (subject === 'self') {
+        subjectIdentityKey = (await certifierWallet.getPublicKey({ identityKey: true })).publicKey
+      } else {
+        subjectIdentityKey = subject
+      }
 
     // 4. Create new MasterCertificate instance
     const certificate = new MasterCertificate(

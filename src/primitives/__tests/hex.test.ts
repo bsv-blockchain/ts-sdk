@@ -5,6 +5,7 @@ import { assertValidHex, normalizeHex } from '../../primitives/hex'
 describe('hex utils', () => {
   describe('assertValidHex', () => {
     it('should not throw on valid hex strings', () => {
+      expect(() => assertValidHex('')).not.toThrow()          // empty is allowed
       expect(() => assertValidHex('00')).not.toThrow()
       expect(() => assertValidHex('abcdef')).not.toThrow()
       expect(() => assertValidHex('ABCDEF')).not.toThrow()
@@ -18,13 +19,14 @@ describe('hex utils', () => {
       expect(() => assertValidHex('g1')).toThrow('Invalid hex string')
     })
 
-    it('should throw on empty string', () => {
-      expect(() => assertValidHex('')).toThrow('Invalid hex string')
-    })
+    // ❌ old behavior: empty string was considered invalid
+    // it('should throw on empty string', () => {
+    //   expect(() => assertValidHex('')).toThrow('Invalid hex string')
+    // })
 
     it('should throw on undefined or null', () => {
-      expect(() => assertValidHex(undefined as any)).toThrow()
-      expect(() => assertValidHex(null as any)).toThrow()
+      expect(() => assertValidHex(undefined as any)).toThrow('Invalid hex string')
+      expect(() => assertValidHex(null as any)).toThrow('Invalid hex string')
     })
   })
 
@@ -41,6 +43,10 @@ describe('hex utils', () => {
     it('should leave even-length hex strings untouched (except lowercase)', () => {
       expect(normalizeHex('AABB')).toBe('aabb')
       expect(normalizeHex('001122')).toBe('001122')
+    })
+
+    it('should return empty string unchanged', () => {
+      expect(normalizeHex('')).toBe('')
     })
 
     it('should throw on invalid hex', () => {

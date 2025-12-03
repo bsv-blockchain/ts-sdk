@@ -12,6 +12,7 @@ import { SimplifiedFetchTransport } from '../../auth/transports/SimplifiedFetchT
 const certifierPrivKey = new PrivateKey(21)
 const alicePrivKey = new PrivateKey(22)
 const bobPrivKey = new PrivateKey(23)
+const DUMMY_REVOCATION_OUTPOINT_HEX = '00'.repeat(36)
 
 jest.mock('../../auth/utils/getVerifiableCertificates')
 
@@ -101,7 +102,7 @@ describe('Peer class mutual authentication and certificate exchange', () => {
         subjectPubKey,
         fields,
         certificateType,
-        async () => 'revocationOutpoint' // or any revocation outpoint logic you want
+        async () => DUMMY_REVOCATION_OUTPOINT_HEX
       )
 
     // For test consistency, you could override the auto-generated serialNumber:
