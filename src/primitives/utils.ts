@@ -1,5 +1,6 @@
 import BigNumber from './BigNumber.js'
 import { hash256 } from './Hash.js'
+import { assertValidHex, normalizeHex } from './hex.js'
 
 const BufferCtor =
   typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
@@ -80,28 +81,19 @@ for (let i = 0; i < 6; i++) {
 }
 
 const hexToArray = (msg: string): number[] => {
-  if (CAN_USE_BUFFER && PURE_HEX_REGEX.test(msg)) {
-    const normalized = msg.length % 2 === 0 ? msg : '0' + msg
+  assertValidHex(msg)
+  const normalized = msg.length % 2 === 0 ? msg : '0' + msg
+  if (CAN_USE_BUFFER) {
     return Array.from(BufferCtor.from(normalized, 'hex'))
   }
-  const res: number[] = new Array(Math.ceil(msg.length / 2))
-  let nibble = -1
-  let size = 0
-  for (let i = 0; i < msg.length; i++) {
-    const value = HEX_CHAR_TO_VALUE[msg.charCodeAt(i)]
-    if (value === -1) continue
-    if (nibble === -1) {
-      nibble = value
-    } else {
-      res[size++] = (nibble << 4) | value
-      nibble = -1
-    }
+  const out = new Array(normalized.length / 2)
+  let o = 0
+  for (let i = 0; i < normalized.length; i += 2) {
+    const hi = HEX_CHAR_TO_VALUE[normalized.charCodeAt(i)]
+    const lo = HEX_CHAR_TO_VALUE[normalized.charCodeAt(i + 1)]
+    out[o++] = (hi << 4) | lo
   }
-  if (nibble !== -1) {
-    res[size++] = nibble
-  }
-  if (size !== res.length) res.length = size
-  return res
+  return out
 }
 
 export function base64ToArray (msg: string): number[] {
@@ -237,6 +229,7 @@ export const toUTF8 = (arr: number[]): string => {
 
   for (let i = 0; i < arr.length; i++) {
     const byte = arr[i]
+
     // this byte is part of a multi-byte sequence, skip it
     // added to avoid modifying i within the loop which is considered unsafe.
     if (skip > 0) {
@@ -247,41 +240,26 @@ export const toUTF8 = (arr: number[]): string => {
     // 1-byte sequence (0xxxxxxx)
     if (byte <= 0x7f) {
       result += String.fromCharCode(byte)
-      continue
-    }
-
-    // 2-byte sequence (110xxxxx 10xxxxxx)
-    if (byte >= 0xc0 && byte <= 0xdf) {
-      const avail = arr.length - (i + 1)
-      const byte2 = avail >= 1 ? arr[i + 1] : 0
-      skip = Math.min(1, avail)
-
+    } else if (byte >= 0xc0 && byte <= 0xdf) {
+      // 2-byte sequence (110xxxxx 10xxxxxx)
+      const byte2 = arr[i + 1]
+      skip = 1
       const codePoint = ((byte & 0x1f) << 6) | (byte2 & 0x3f)
       result += String.fromCharCode(codePoint)
-      continue
-    }
-
-    // 3-byte sequence (1110xxxx 10xxxxxx 10xxxxxx)
-    if (byte >= 0xe0 && byte <= 0xef) {
-      const avail = arr.length - (i + 1)
-      const byte2 = avail >= 1 ? arr[i + 1] : 0
-      const byte3 = avail >= 2 ? arr[i + 2] : 0
-      skip = Math.min(2, avail)
-
+    } else if (byte >= 0xe0 && byte <= 0xef) {
+      // 3-byte sequence (1110xxxx 10xxxxxx 10xxxxxx)
+      const byte2 = arr[i + 1]
+      const byte3 = arr[i + 2]
+      skip = 2
       const codePoint =
         ((byte & 0x0f) << 12) | ((byte2 & 0x3f) << 6) | (byte3 & 0x3f)
       result += String.fromCharCode(codePoint)
-      continue
-    }
-
-    // 4-byte sequence (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
-    if (byte >= 0xf0 && byte <= 0xf7) {
-      const avail = arr.length - (i + 1)
-      const byte2 = avail >= 1 ? arr[i + 1] : 0
-      const byte3 = avail >= 2 ? arr[i + 2] : 0
-      const byte4 = avail >= 3 ? arr[i + 3] : 0
-      skip = Math.min(3, avail)
-
+    } else if (byte >= 0xf0 && byte <= 0xf7) {
+      // 4-byte sequence (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
+      const byte2 = arr[i + 1]
+      const byte3 = arr[i + 2]
+      const byte4 = arr[i + 3]
+      skip = 3
       const codePoint =
         ((byte & 0x07) << 18) |
         ((byte2 & 0x3f) << 12) |
@@ -292,7 +270,6 @@ export const toUTF8 = (arr: number[]): string => {
       const surrogate1 = 0xd800 + ((codePoint - 0x10000) >> 10)
       const surrogate2 = 0xdc00 + ((codePoint - 0x10000) & 0x3ff)
       result += String.fromCharCode(surrogate1, surrogate2)
-      continue
     }
   }
 

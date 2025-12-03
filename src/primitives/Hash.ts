@@ -1,6 +1,8 @@
 
 // @ts-nocheck
 /* eslint-disable @typescript-eslint/naming-convention */
+import { assertValidHex, normalizeHex } from './hex.js'
+
 const assert = (
   expression: unknown,
   message: string = 'Hash assertion failed'
@@ -168,42 +170,48 @@ abstract class BaseHash {
    * @returns Returns an array denoting the padding.
    */
   private _pad (): number[] {
-    const len = this.pendingTotal
+    //
+    let len = this.pendingTotal
     const bytes = this._delta8
     const k = bytes - ((len + this.padLength) % bytes)
     const res = new Array(k + this.padLength)
     res[0] = 0x80
-    let i: number
+    let i
     for (i = 1; i < k; i++) {
       res[i] = 0
     }
 
     // Append length
-    const lengthBytes = this.padLength
-    const maxBits = 1n << BigInt(lengthBytes * 8)
-    let totalBits = BigInt(len) * 8n
-
-    if (totalBits >= maxBits) {
-      throw new Error('Message too long for this hash function')
-    }
-
+    len <<= 3
+    let t
     if (this.endian === 'big') {
-      const lenArray = new Array<number>(lengthBytes)
-
-      for (let b = lengthBytes - 1; b >= 0; b--) {
-        lenArray[b] = Number(totalBits & 0xffn)
-        totalBits >>= 8n
+      for (t = 8; t < this.padLength; t++) {
+        res[i++] = 0
       }
 
-      for (let b = 0; b < lengthBytes; b++) {
-        res[i++] = lenArray[b]
-      }
+      res[i++] = 0
+      res[i++] = 0
+      res[i++] = 0
+      res[i++] = 0
+      res[i++] = (len >>> 24) & 0xff
+      res[i++] = (len >>> 16) & 0xff
+      res[i++] = (len >>> 8) & 0xff
+      res[i++] = len & 0xff
     } else {
-      for (let b = 0; b < lengthBytes; b++) {
-        res[i++] = Number(totalBits & 0xffn)
-        totalBits >>= 8n
+      res[i++] = len & 0xff
+      res[i++] = (len >>> 8) & 0xff
+      res[i++] = (len >>> 16) & 0xff
+      res[i++] = (len >>> 24) & 0xff
+      res[i++] = 0
+      res[i++] = 0
+      res[i++] = 0
+      res[i++] = 0
+
+      for (t = 8; t < this.padLength; t++) {
+        res[i++] = 0
       }
     }
+
     return res
   }
 }
@@ -262,10 +270,8 @@ export function toArray (
         }
       }
     } else {
-      msg = msg.replace(/[^a-z0-9]+/gi, '')
-      if (msg.length % 2 !== 0) {
-        msg = '0' + msg
-      }
+      assertValidHex(msg)
+      msg = normalizeHex(msg)
       for (let i = 0; i < msg.length; i += 2) {
         res.push(parseInt(msg[i] + msg[i + 1], 16))
       }
