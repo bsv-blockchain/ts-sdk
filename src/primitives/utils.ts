@@ -1,12 +1,11 @@
 import BigNumber from './BigNumber.js'
 import { hash256 } from './Hash.js'
-import { assertValidHex, normalizeHex } from './hex.js'
+import { assertValidHex } from './hex.js'
 
 const BufferCtor =
   typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
 const CAN_USE_BUFFER =
   BufferCtor != null && typeof BufferCtor.from === 'function'
-const PURE_HEX_REGEX = /^[0-9a-fA-F]+$/
 
 /**
  * Prepends a '0' to an odd character length word to ensure it has an even number of characters.
@@ -232,7 +231,7 @@ export const toUTF8 = (arr: number[]): string => {
       result += String.fromCharCode(byte1)
       continue
     }
-    const emitReplacement = () => {
+    const emitReplacement = (): void => {
       result += replacementChar
     }
     if (byte1 >= 0xc0 && byte1 <= 0xdf) {
