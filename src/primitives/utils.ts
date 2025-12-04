@@ -242,6 +242,7 @@ export const toUTF8 = (arr: number[]): string => {
       const byte2 = arr[i + 1]
       if ((byte2 & 0xc0) !== 0x80) {
         emitReplacement()
+        i += 1
         continue
       }
       const codePoint = ((byte1 & 0x1f) << 6) | (byte2 & 0x3f)
@@ -258,6 +259,7 @@ export const toUTF8 = (arr: number[]): string => {
       const byte3 = arr[i + 2]
       if ((byte2 & 0xc0) !== 0x80 || (byte3 & 0xc0) !== 0x80) {
         emitReplacement()
+        i += 2
         continue
       }
       const codePoint =
@@ -283,6 +285,7 @@ export const toUTF8 = (arr: number[]): string => {
         (byte4 & 0xc0) !== 0x80
       ) {
         emitReplacement()
+         i += 3
         continue
       }
       const codePoint =

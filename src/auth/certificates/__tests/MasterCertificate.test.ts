@@ -356,6 +356,7 @@ describe('MasterCertificate', () => {
         expect(newCert.fields[fieldName]).toMatch(/^[A-Za-z0-9+/]+=*$/)
       }
     })
+
     it('should allow issuing a self-signed certificate and decrypt it with the same wallet', async () => {
       const subjectWallet = new CompletedProtoWallet(subjectKey2)
 
@@ -386,38 +387,38 @@ describe('MasterCertificate', () => {
 
       expect(decrypted).toEqual(selfSignedFields)
     })
-  })
 
-  describe('issueCertificateForSubject subject identity resolution', () => {
     it('resolves subject === "self" to the certifier wallet identity key', async () => {
-      const certifierIdentity = (
+      const certifierWallet = new CompletedProtoWallet(new PrivateKey(99))
+
+      const certifierIdentityKey = (
         await certifierWallet.getPublicKey({ identityKey: true })
       ).publicKey
-
-      const fields = { foo: 'bar' }
 
       const cert = await MasterCertificate.issueCertificateForSubject(
         certifierWallet,
         'self',
-        fields,
+        { name: 'Alice' },
         'TEST_CERT'
       )
 
-      expect(cert.subject).toBe(certifierIdentity)
+      expect(cert.subject).toBe(certifierIdentityKey)
     })
 
     it('uses provided subjectIdentityKey when subject is a valid hex string', async () => {
-    const providedSubject = 'a'.repeat(64); // valid 32-byte hex
+      const certifierWallet = new CompletedProtoWallet(new PrivateKey(42))
 
-    const fields = { foo: 'bar' }
+      const validPubkey =
+        '0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798'
 
-    const cert = await MasterCertificate.issueCertificateForSubject(
-      certifierWallet,
-      providedSubject,
-      fields,
-      'TEST_CERT'
-    )
+      const cert = await MasterCertificate.issueCertificateForSubject(
+        certifierWallet,
+        validPubkey,
+        { name: 'Alice' },
+        'TEST_CERT'
+      )
 
-    expect(cert.subject).toBe(providedSubject)
+      expect(cert.subject).toBe(validPubkey)
+    })
   })
 })

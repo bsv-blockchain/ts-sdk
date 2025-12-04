@@ -257,7 +257,7 @@ export class MasterCertificate extends Certificate {
     const certificate = new MasterCertificate(
       certificateType,
       finalSerialNumber,
-      subject,
+      subjectIdentityKey,
       (await certifierWallet.getPublicKey({ identityKey: true })).publicKey,
       revocationOutpoint,
       certificateFields,

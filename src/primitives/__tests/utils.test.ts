@@ -320,3 +320,60 @@ describe('verifyNotNull', () => {
     expect(() => verifyNotNull(undefined, 'Another custom error')).toThrow('Another custom error')
   })
 })
+
+describe('toUTF8 strict UTF-8 decoding (TOB-21)', () => {
+
+  //
+  // 1. Replacement for invalid 2-byte continuation
+  //
+  it('replaces invalid 2-byte sequences with U+FFFD', () => {
+    // 0xC2 should expect a continuation byte 0x80–0xBF
+    const arr = [0xC2, 0x20]   // 0x20 is INVALID continuation
+    const str = toUTF8(arr)
+    expect(str).toBe('\uFFFD')
+  })
+
+  //
+  // 2. Valid 3-byte UTF-8 (e.g., "€")
+  //
+  it('decodes valid 3-byte sequences', () => {
+    const euro = [0xE2, 0x82, 0xAC]
+    expect(toUTF8(euro)).toBe('€')
+  })
+
+  //
+  // 3. Replacement for invalid 3-byte sequence
+  //
+  it('replaces invalid 3-byte sequences', () => {
+    // Middle byte invalid
+    const arr = [0xE2, 0x20, 0xAC]
+    expect(toUTF8(arr)).toBe('\uFFFD')
+  })
+
+  //
+  // 4. Valid 4-byte UTF-8 (e.g., U+1F600 😀)
+  //
+  it('decodes valid 4-byte sequences into surrogate pairs', () => {
+    const smile = [0xF0, 0x9F, 0x98, 0x80] // 😀
+    expect(toUTF8(smile)).toBe('😀')
+  })
+
+  //
+  // 5. Replacement for invalid 4-byte sequence
+  //
+  it('replaces invalid 4-byte sequences with U+FFFD', () => {
+    // 0x9F is valid, 0x20 is INVALID continuation for byte 3
+    const arr = [0xF0, 0x9F, 0x20, 0x80]
+    expect(toUTF8(arr)).toBe('\uFFFD')
+  })
+
+  //
+  // 6. Replacement of incomplete sequences at end of array
+  //
+  it('replaces incomplete UTF-8 sequence at end', () => {
+    const arr = [0xE2] // incomplete 3-byte seq
+    expect(toUTF8(arr)).toBe('\uFFFD')
+  })
+
+})
+
