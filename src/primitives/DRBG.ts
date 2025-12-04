@@ -2,7 +2,18 @@ import { SHA256HMAC } from './Hash.js'
 import { toHex, toArray } from './utils.js'
 
 /**
- * This class behaves as a HMAC-based deterministic random bit generator (DRBG). It implements a deterministic random number generator using SHA256HMAC HASH function. It takes an initial entropy and nonce when instantiated for seeding purpose.
+ * HMAC-DRBG used **only** for deterministic ECDSA nonce generation.
+ *
+ * This implementation follows the RFC 6979-style HMAC-DRBG construction for secp256k1
+ * and is wired internally into the ECDSA signing code. It is **not forward-secure**
+ * and MUST NOT be used as a general-purpose DRBG, key generator, or randomness source.
+ *
+ * Security note:
+ * - Intended scope: internal ECDSA nonce generation with fixed-size inputs.
+ * - Out-of-scope: generic randomness, long-lived session keys, or any context
+ *   where forward secrecy is required.
+ * - API stability: this class is internal.
+ *
  * @class DRBG
  *
  * @constructor

@@ -829,7 +829,17 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ---
 ### Class: DRBG
 
-This class behaves as a HMAC-based deterministic random bit generator (DRBG). It implements a deterministic random number generator using SHA256HMAC HASH function. It takes an initial entropy and nonce when instantiated for seeding purpose.
+HMAC-DRBG used **only** for deterministic ECDSA nonce generation.
+
+This implementation follows the RFC 6979-style HMAC-DRBG construction for secp256k1
+and is wired internally into the ECDSA signing code. It is **not forward-secure**
+and MUST NOT be used as a general-purpose DRBG, key generator, or randomness source.
+
+Security note:
+- Intended scope: internal ECDSA nonce generation with fixed-size inputs.
+- Out-of-scope: generic randomness, long-lived session keys, or any context
+  where forward secrecy is required.
+- API stability: this class is internal.
 
 Example
 
@@ -4953,8 +4963,10 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 | [AES](#function-aes) |
 | [AESGCM](#function-aesgcm) |
 | [AESGCMDecrypt](#function-aesgcmdecrypt) |
+| [assertValidHex](#function-assertvalidhex) |
 | [base64ToArray](#function-base64toarray) |
 | [ghash](#function-ghash) |
+| [normalizeHex](#function-normalizehex) |
 | [pbkdf2](#function-pbkdf2) |
 | [red](#function-red) |
 | [toArray](#function-toarray) |
@@ -4995,6 +5007,15 @@ export function AESGCMDecrypt(cipherText: number[], additionalAuthenticatedData:
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
+### Function: assertValidHex
+
+```ts
+export function assertValidHex(msg: string): void 
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Function: base64ToArray
 
 ```ts
@@ -5008,6 +5029,15 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 export function ghash(input: number[], hashSubKey: number[]): number[] 
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Function: normalizeHex
+
+```ts
+export function normalizeHex(msg: string): string 
 ```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -5939,7 +5969,7 @@ sign = (msg: BigNumber, key: BigNumber, forceLowS: boolean = false, customK?: Bi
         if (kBN == null)
             throw new Error("k is undefined");
         kBN = truncateToN(kBN, true);
-        if (kBN.cmpn(1) <= 0 || kBN.cmp(ns1) >= 0) {
+        if (kBN.cmpn(1) < 0 || kBN.cmp(ns1) > 0) {
             if (BigNumber.isBN(customK)) {
                 throw new Error("Invalid fixed custom K value (must be >1 and <N\u20111)");
             }
@@ -6090,49 +6120,78 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ```ts
 toUTF8 = (arr: number[]): string => {
     let result = "";
-    let skip = 0;
+    const replacementChar = "\uFFFD";
     for (let i = 0; i < arr.length; i++) {
-        const byte = arr[i];
-        if (skip > 0) {
-            skip--;
+        const byte1 = arr[i];
+        if (byte1 <= 127) {
+            result += String.fromCharCode(byte1);
             continue;
         }
-        if (byte <= 127) {
-            result += String.fromCharCode(byte);
-            continue;
-        }
-        if (byte >= 192 && byte <= 223) {
-            const avail = arr.length - (i + 1);
-            const byte2 = avail >= 1 ? arr[i + 1] : 0;
-            skip = Math.min(1, avail);
-            const codePoint = ((byte & 31) << 6) | (byte2 & 63);
+        const emitReplacement = (): void => {
+            result += replacementChar;
+        };
+        if (byte1 >= 192 && byte1 <= 223) {
+            if (i + 1 >= arr.length) {
+                emitReplacement();
+                continue;
+            }
+            const byte2 = arr[i + 1];
+            if ((byte2 & 192) !== 128) {
+                emitReplacement();
+                i += 1;
+                continue;
+            }
+            const codePoint = ((byte1 & 31) << 6) | (byte2 & 63);
             result += String.fromCharCode(codePoint);
+            i += 1;
             continue;
         }
-        if (byte >= 224 && byte <= 239) {
-            const avail = arr.length - (i + 1);
-            const byte2 = avail >= 1 ? arr[i + 1] : 0;
-            const byte3 = avail >= 2 ? arr[i + 2] : 0;
-            skip = Math.min(2, avail);
-            const codePoint = ((byte & 15) << 12) | ((byte2 & 63) << 6) | (byte3 & 63);
+        if (byte1 >= 224 && byte1 <= 239) {
+            if (i + 2 >= arr.length) {
+                emitReplacement();
+                continue;
+            }
+            const byte2 = arr[i + 1];
+            const byte3 = arr[i + 2];
+            if ((byte2 & 192) !== 128 || (byte3 & 192) !== 128) {
+                emitReplacement();
+                i += 2;
+                continue;
+            }
+            const codePoint = ((byte1 & 15) << 12) |
+                ((byte2 & 63) << 6) |
+                (byte3 & 63);
             result += String.fromCharCode(codePoint);
+            i += 2;
             continue;
         }
-        if (byte >= 240 && byte <= 247) {
-            const avail = arr.length - (i + 1);
-            const byte2 = avail >= 1 ? arr[i + 1] : 0;
-            const byte3 = avail >= 2 ? arr[i + 2] : 0;
-            const byte4 = avail >= 3 ? arr[i + 3] : 0;
-            skip = Math.min(3, avail);
-            const codePoint = ((byte & 7) << 18) |
+        if (byte1 >= 240 && byte1 <= 247) {
+            if (i + 3 >= arr.length) {
+                emitReplacement();
+                continue;
+            }
+            const byte2 = arr[i + 1];
+            const byte3 = arr[i + 2];
+            const byte4 = arr[i + 3];
+            if ((byte2 & 192) !== 128 ||
+                (byte3 & 192) !== 128 ||
+                (byte4 & 192) !== 128) {
+                emitReplacement();
+                i += 3;
+                continue;
+            }
+            const codePoint = ((byte1 & 7) << 18) |
                 ((byte2 & 63) << 12) |
                 ((byte3 & 63) << 6) |
                 (byte4 & 63);
-            const surrogate1 = 55296 + ((codePoint - 65536) >> 10);
-            const surrogate2 = 56320 + ((codePoint - 65536) & 1023);
-            result += String.fromCharCode(surrogate1, surrogate2);
+            const offset = codePoint - 65536;
+            const highSurrogate = 55296 + (offset >> 10);
+            const lowSurrogate = 56320 + (offset & 1023);
+            result += String.fromCharCode(highSurrogate, lowSurrogate);
+            i += 3;
             continue;
         }
+        emitReplacement();
     }
     return result;
 }
