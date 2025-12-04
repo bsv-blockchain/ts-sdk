@@ -364,7 +364,6 @@ describe('MasterCertificate', () => {
         organization: 'SelfCo'
       }
 
-      // ✅ FIX: resolve the subject's identity key as proper hex
       const subjectIdentityKey = (
         await subjectWallet.getPublicKey({ identityKey: true })
       ).publicKey
@@ -382,10 +381,43 @@ describe('MasterCertificate', () => {
         subjectWallet,
         selfSignedCert.masterKeyring,
         selfSignedCert.fields,
-        'self' // ✅ still fine here if decryptFields treats 'self' specially
+        'self' // still fine here if decryptFields treats 'self' specially
       )
 
       expect(decrypted).toEqual(selfSignedFields)
     })
+  })
+
+  describe('issueCertificateForSubject subject identity resolution', () => {
+    it('resolves subject === "self" to the certifier wallet identity key', async () => {
+      const certifierIdentity = (
+        await certifierWallet.getPublicKey({ identityKey: true })
+      ).publicKey
+
+      const fields = { foo: 'bar' }
+
+      const cert = await MasterCertificate.issueCertificateForSubject(
+        certifierWallet,
+        'self',
+        fields,
+        'TEST_CERT'
+      )
+
+      expect(cert.subject).toBe(certifierIdentity)
+    })
+
+    it('uses provided subjectIdentityKey when subject is a valid hex string', async () => {
+    const providedSubject = 'a'.repeat(64); // valid 32-byte hex
+
+    const fields = { foo: 'bar' }
+
+    const cert = await MasterCertificate.issueCertificateForSubject(
+      certifierWallet,
+      providedSubject,
+      fields,
+      'TEST_CERT'
+    )
+
+    expect(cert.subject).toBe(providedSubject)
   })
 })
