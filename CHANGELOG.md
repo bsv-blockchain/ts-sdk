@@ -192,6 +192,15 @@ All notable changes to this project will be documented in this file. The format 
 ### Security
 ---
 
+### [1.9.21] - 2025-12-04
+
+### Changed
+
+- Removed the export of DRBG from the package.
+- Added disclaimer to DRBG documentation.
+
+---
+
 ### [1.9.20] - 2025-12-02
 
 ### Security
