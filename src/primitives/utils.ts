@@ -285,7 +285,7 @@ export const toUTF8 = (arr: number[]): string => {
         (byte4 & 0xc0) !== 0x80
       ) {
         emitReplacement()
-         i += 3
+        i += 3
         continue
       }
       const codePoint =
