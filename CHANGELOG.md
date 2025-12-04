@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.20 - 2025-12-02](#1920---2025-12-02)
 - [1.9.19 - 2025-12-02](#1919---2025-12-02)
 - [1.9.18 - 2025-12-02](#1918---2025-12-02)
 - [1.9.17 - 2025-12-01](#1917---2025-12-01)
@@ -189,6 +190,21 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+---
+
+### [1.9.20] - 2025-12-02
+
+### Security
+
+- Corrected ECDSA nonce range validation to strictly follow the specification.
+  The implementation now correctly accepts `k = 1` and `k = n-1` when generating or
+  validating nonces, resolving the issue raised in TOB-23.
+
+### Fixed
+
+- Updated both locations in the ECDSA sign function where the incorrect bound
+  check was performed, ensuring consistent and standards-compliant behavior.
+
 ---
 
 ### [1.9.19] - 2025-12-02
