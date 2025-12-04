@@ -21,9 +21,9 @@ async function deepInputChain () {
   const path = [
     [
       { offset: 0, hash: txid, txid: true, duplicate: false },
-      { offset: 1, hash: 'otherHash1', txid: false, duplicate: false }
+      { offset: 1, hash: 'aa'.repeat(32), txid: false, duplicate: false }
     ],
-    [{ offset: 1, hash: 'mergedHash1', txid: false, duplicate: false }]
+    [{ offset: 1, hash: 'bb'.repeat(32), txid: false, duplicate: false }]
   ]
   const merklePath = new MerklePath(blockHeight, path)
   tx.merklePath = merklePath
@@ -65,9 +65,9 @@ async function wideInputSet () {
     const path = [
       [
         { offset: 0, hash: txid, txid: true, duplicate: false },
-        { offset: 1, hash: 'otherHash1', txid: false, duplicate: false }
+        { offset: 1, hash: 'aa'.repeat(32), txid: false, duplicate: false }
       ],
-      [{ offset: 1, hash: 'mergedHash1', txid: false, duplicate: false }]
+      [{ offset: 1, hash: 'bb'.repeat(32), txid: false, duplicate: false }]
     ]
     const merklePath = new MerklePath(blockHeight, path)
     sourceTx.merklePath = merklePath
@@ -110,9 +110,9 @@ async function largeInputsOutputs () {
     const path = [
       [
         { offset: 0, hash: txid, txid: true, duplicate: false },
-        { offset: 1, hash: 'otherHash1', txid: false, duplicate: false }
+        { offset: 1, hash: 'aa'.repeat(32), txid: false, duplicate: false }
       ],
-      [{ offset: 1, hash: 'mergedHash1', txid: false, duplicate: false }]
+      [{ offset: 1, hash: 'bb'.repeat(32), txid: false, duplicate: false }]
     ]
     const merklePath = new MerklePath(blockHeight, path)
     sourceTx.merklePath = merklePath
@@ -158,9 +158,9 @@ async function nestedInputs () {
     const path = [
       [
         { offset: 0, hash: txid, txid: true, duplicate: false },
-        { offset: 1, hash: 'otherHash1', txid: false, duplicate: false }
+        { offset: 1, hash: 'aa'.repeat(32), txid: false, duplicate: false }
       ],
-      [{ offset: 1, hash: 'mergedHash1', txid: false, duplicate: false }]
+      [{ offset: 1, hash: 'bb'.repeat(32), txid: false, duplicate: false }]
     ]
     const merklePath = new MerklePath(blockHeight, path)
     baseTx.merklePath = merklePath
