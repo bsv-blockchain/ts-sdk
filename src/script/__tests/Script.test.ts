@@ -286,7 +286,7 @@ describe('Script', () => {
       }
 
       // Expect the function to throw an error with the specified message
-      expect(createScript).toThrow('invalid hex string in script')
+      expect(createScript).toThrow('Invalid hex string')
     })
 
     it('should parse this long PUSHDATA1 script in ASM', () => {

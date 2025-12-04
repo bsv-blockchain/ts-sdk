@@ -1,11 +1,11 @@
 import BigNumber from './BigNumber.js'
 import { hash256 } from './Hash.js'
+import { assertValidHex } from './hex.js'
 
 const BufferCtor =
   typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
 const CAN_USE_BUFFER =
   BufferCtor != null && typeof BufferCtor.from === 'function'
-const PURE_HEX_REGEX = /^[0-9a-fA-F]+$/
 
 /**
  * Prepends a '0' to an odd character length word to ensure it has an even number of characters.
@@ -80,28 +80,19 @@ for (let i = 0; i < 6; i++) {
 }
 
 const hexToArray = (msg: string): number[] => {
-  if (CAN_USE_BUFFER && PURE_HEX_REGEX.test(msg)) {
-    const normalized = msg.length % 2 === 0 ? msg : '0' + msg
+  assertValidHex(msg)
+  const normalized = msg.length % 2 === 0 ? msg : '0' + msg
+  if (CAN_USE_BUFFER) {
     return Array.from(BufferCtor.from(normalized, 'hex'))
   }
-  const res: number[] = new Array(Math.ceil(msg.length / 2))
-  let nibble = -1
-  let size = 0
-  for (let i = 0; i < msg.length; i++) {
-    const value = HEX_CHAR_TO_VALUE[msg.charCodeAt(i)]
-    if (value === -1) continue
-    if (nibble === -1) {
-      nibble = value
-    } else {
-      res[size++] = (nibble << 4) | value
-      nibble = -1
-    }
+  const out = new Array(normalized.length / 2)
+  let o = 0
+  for (let i = 0; i < normalized.length; i += 2) {
+    const hi = HEX_CHAR_TO_VALUE[normalized.charCodeAt(i)]
+    const lo = HEX_CHAR_TO_VALUE[normalized.charCodeAt(i + 1)]
+    out[o++] = (hi << 4) | lo
   }
-  if (nibble !== -1) {
-    res[size++] = nibble
-  }
-  if (size !== res.length) res.length = size
-  return res
+  return out
 }
 
 export function base64ToArray (msg: string): number[] {
@@ -233,69 +224,84 @@ function utf8ToArray (str: string): number[] {
  */
 export const toUTF8 = (arr: number[]): string => {
   let result = ''
-  let skip = 0
-
+  const replacementChar = '\uFFFD'
   for (let i = 0; i < arr.length; i++) {
-    const byte = arr[i]
-    // this byte is part of a multi-byte sequence, skip it
-    // added to avoid modifying i within the loop which is considered unsafe.
-    if (skip > 0) {
-      skip--
+    const byte1 = arr[i]
+    if (byte1 <= 0x7f) {
+      result += String.fromCharCode(byte1)
       continue
     }
-
-    // 1-byte sequence (0xxxxxxx)
-    if (byte <= 0x7f) {
-      result += String.fromCharCode(byte)
-      continue
+    const emitReplacement = (): void => {
+      result += replacementChar
     }
-
-    // 2-byte sequence (110xxxxx 10xxxxxx)
-    if (byte >= 0xc0 && byte <= 0xdf) {
-      const avail = arr.length - (i + 1)
-      const byte2 = avail >= 1 ? arr[i + 1] : 0
-      skip = Math.min(1, avail)
-
-      const codePoint = ((byte & 0x1f) << 6) | (byte2 & 0x3f)
+    if (byte1 >= 0xc0 && byte1 <= 0xdf) {
+      if (i + 1 >= arr.length) {
+        emitReplacement()
+        continue
+      }
+      const byte2 = arr[i + 1]
+      if ((byte2 & 0xc0) !== 0x80) {
+        emitReplacement()
+        i += 1
+        continue
+      }
+      const codePoint = ((byte1 & 0x1f) << 6) | (byte2 & 0x3f)
       result += String.fromCharCode(codePoint)
+      i += 1
       continue
     }
-
-    // 3-byte sequence (1110xxxx 10xxxxxx 10xxxxxx)
-    if (byte >= 0xe0 && byte <= 0xef) {
-      const avail = arr.length - (i + 1)
-      const byte2 = avail >= 1 ? arr[i + 1] : 0
-      const byte3 = avail >= 2 ? arr[i + 2] : 0
-      skip = Math.min(2, avail)
-
+    if (byte1 >= 0xe0 && byte1 <= 0xef) {
+      if (i + 2 >= arr.length) {
+        emitReplacement()
+        continue
+      }
+      const byte2 = arr[i + 1]
+      const byte3 = arr[i + 2]
+      if ((byte2 & 0xc0) !== 0x80 || (byte3 & 0xc0) !== 0x80) {
+        emitReplacement()
+        i += 2
+        continue
+      }
       const codePoint =
-        ((byte & 0x0f) << 12) | ((byte2 & 0x3f) << 6) | (byte3 & 0x3f)
+        ((byte1 & 0x0f) << 12) |
+        ((byte2 & 0x3f) << 6) |
+        (byte3 & 0x3f)
+
       result += String.fromCharCode(codePoint)
+      i += 2
       continue
     }
-
-    // 4-byte sequence (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
-    if (byte >= 0xf0 && byte <= 0xf7) {
-      const avail = arr.length - (i + 1)
-      const byte2 = avail >= 1 ? arr[i + 1] : 0
-      const byte3 = avail >= 2 ? arr[i + 2] : 0
-      const byte4 = avail >= 3 ? arr[i + 3] : 0
-      skip = Math.min(3, avail)
-
+    if (byte1 >= 0xf0 && byte1 <= 0xf7) {
+      if (i + 3 >= arr.length) {
+        emitReplacement()
+        continue
+      }
+      const byte2 = arr[i + 1]
+      const byte3 = arr[i + 2]
+      const byte4 = arr[i + 3]
+      if (
+        (byte2 & 0xc0) !== 0x80 ||
+        (byte3 & 0xc0) !== 0x80 ||
+        (byte4 & 0xc0) !== 0x80
+      ) {
+        emitReplacement()
+        i += 3
+        continue
+      }
       const codePoint =
-        ((byte & 0x07) << 18) |
+        ((byte1 & 0x07) << 18) |
         ((byte2 & 0x3f) << 12) |
         ((byte3 & 0x3f) << 6) |
         (byte4 & 0x3f)
-
-      // Convert to UTF-16 surrogate pair
-      const surrogate1 = 0xd800 + ((codePoint - 0x10000) >> 10)
-      const surrogate2 = 0xdc00 + ((codePoint - 0x10000) & 0x3ff)
-      result += String.fromCharCode(surrogate1, surrogate2)
+      const offset = codePoint - 0x10000
+      const highSurrogate = 0xd800 + (offset >> 10)
+      const lowSurrogate = 0xdc00 + (offset & 0x3ff)
+      result += String.fromCharCode(highSurrogate, lowSurrogate)
+      i += 3
       continue
     }
+    emitReplacement()
   }
-
   return result
 }
 

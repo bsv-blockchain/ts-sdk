@@ -3,6 +3,7 @@ import * as hash from '../../primitives/Hash'
 import * as crypto from 'crypto'
 import PBKDF2Vectors from './PBKDF2.vectors'
 import { toArray, toHex } from '../../primitives/utils'
+import { SHA1 } from '../..//primitives/Hash'
 
 describe('Hash', function () {
   function test (Hash, cases): void {
@@ -176,5 +177,28 @@ describe('Hash', function () {
         expect(toHex(output)).toEqual(v.results.sha512)
       })
     }
+  })
+
+  describe('Hash strict length validation (TOB-21)', () => {
+
+    it('throws when pendingTotal is not a safe integer', () => {
+      const h = new SHA1()
+
+      h.pendingTotal = Number.MAX_SAFE_INTEGER + 10
+
+      expect(() => {
+        h.digest()
+      }).toThrow('Message too long for this hash function')
+    })
+
+    it('throws when pendingTotal is negative', () => {
+      const h = new SHA1()
+
+      h.pendingTotal = -5
+
+      expect(() => {
+        h.digest()
+      }).toThrow('Message too long for this hash function')
+    })
   })
 })

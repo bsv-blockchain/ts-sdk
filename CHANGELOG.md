@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.21 - 2025-12-04](#1921---2025-12-04)
 - [1.9.20 - 2025-12-02](#1920---2025-12-02)
 - [1.9.19 - 2025-12-02](#1919---2025-12-02)
 - [1.9.18 - 2025-12-02](#1918---2025-12-02)
@@ -190,6 +191,26 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+---
+
+### [1.9.21] - 2025-12-04
+
+### Security
+
+- Implemented strict validation for hex string parsing across the codebase,
+  addressing TOB-21.  
+  Non-hex characters now cause an immediate error instead of being silently
+  discarded, preventing message-forgery scenarios.
+
+### Fixed
+
+- Rewrote the `toArray` and `hexToArray` conversion logic to enforce strict
+  hexadecimal input handling rather than permissive filtering.  
+- Corrected UTF-8 decoding behavior to ensure invalid byte sequences produce
+  a single `U+FFFD` replacement character as specified.  
+- Updated all internal hash and array conversion utilities to maintain consistent
+  behavior with strong input validation.
+
 ---
 
 ### [1.9.21] - 2025-12-04
