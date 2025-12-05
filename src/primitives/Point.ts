@@ -445,7 +445,7 @@ export default class Point extends BasePoint {
    * const encodedPointHex = aPoint.encode(true, 'hex');
    */
   encode (compact: boolean = true, enc?: 'hex'): number[] | string {
-    if (this.inf === true) {
+    if (this.inf) {
       if (enc === 'hex') return '00'
       return [0x00]
     }
