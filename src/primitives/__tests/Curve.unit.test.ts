@@ -212,3 +212,66 @@ describe('Point codec', () => {
     makeShortTest(shortPointOddY)
   )
 })
+
+describe('JacobianPoint – Infinity handling and equality (TOB-18)', () => {
+  function J(x: any, y: any, z: any) {
+    return new JPoint(x, y, z)
+  }
+
+  it('Multiple infinity representations are canonicalized and equal', () => {
+    const inf1 = J(null, null, null)
+    const inf2 = J('0', '0', '0')
+    const inf3 = J(new BigNumber(0), new BigNumber(0), new BigNumber(0))
+
+    expect(inf1.isInfinity()).toBe(true)
+    expect(inf2.isInfinity()).toBe(true)
+    expect(inf3.isInfinity()).toBe(true)
+
+    expect(inf1.eq(inf2)).toBe(true)
+    expect(inf2.eq(inf3)).toBe(true)
+    expect(inf1.eq(inf3)).toBe(true)
+  })
+
+  it('Infinity must not equal a finite point', () => {
+    const inf = J(null, null, null)
+
+    const good = J(
+      new BigNumber('e7789226', 16),
+      new BigNumber('4b76b191', 16),
+      new BigNumber('cbf8d990', 16)
+    )
+
+    expect(inf.eq(good)).toBe(false)
+    expect(good.eq(inf)).toBe(false)
+  })
+
+  it('Infinity equals infinity (canonicalized)', () => {
+    const inf1 = J(null, null, null)
+    const inf2 = J('0', '0', '0')
+
+    expect(inf1.eq(inf2)).toBe(true)
+    expect(inf2.eq(inf1)).toBe(true)
+  })
+
+  it('Infinity is detected when z is zero in RED form', () => {
+    const redZero = new BigNumber(0).toRed(new Curve().red)
+    const p = J('1', '2', redZero)
+
+    expect(p.isInfinity()).toBe(true)
+
+    const clean = J(null, null, null)
+    expect(p.eq(clean)).toBe(true)
+    expect(clean.eq(p)).toBe(true)
+  })
+
+  it('eq() must handle mixed canonical and non-canonical infinity cases', () => {
+    const canonical = J(null, null, null)
+    const messy = J('1', '1', new BigNumber(0))
+
+    expect(messy.isInfinity()).toBe(true)
+    expect(canonical.eq(messy)).toBe(true)
+    expect(messy.eq(canonical)).toBe(true)
+  })
+})
+
+
