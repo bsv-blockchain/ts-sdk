@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
-- [1.9.22 - 2025-12-05](#1923---2025-12-05)
+- [1.9.23 - 2025-12-08](#1923---2025-12-08)
 - [1.9.22 - 2025-12-05](#1922---2025-12-04)
 - [1.9.21 - 2025-12-04](#1921---2025-12-04)
 - [1.9.20 - 2025-12-02](#1920---2025-12-02)
@@ -196,18 +196,20 @@ All notable changes to this project will be documented in this file. The format 
 
 ---
 
-## [1.9.23] - 2025-12-05
+## [1.9.23] - 2025-12-08
 
 ### Fixed
-- Gracefully handle encoding of the point at infinity (TOB-19).  
-  `Point.encode()` now returns the SEC1-compliant `0x00` encoding for
-  `Point(null, null)` instead of triggering an internal assertion due to
-  invalid reduction context.
+- Implemented strict infinity normalization for JacobianPoint, ensuring
+  all infinity representations (`null`, `"0"`, or BigNumber(0)) are treated
+  canonically and compare equal (TOB-18).
+- Gracefully handle encoding of the point at infinity (TOB-19).
+  `Point.encode()` now returns the SEC1-compliant `0x00` encoding instead
+  of triggering internal assertions when coordinates are null.
 
 ### Security
-- Addressed TOB-19: eliminated assertion failures caused by encoding elliptic
-  curve points with null coordinates. Ensures safe, standards-compliant
-  behavior for malformed or edge-case point objects.
+- Addressed TOB-18 and TOB-19: eliminated assertion failures and ensured
+  standards-compliant behavior for malformed or edge-case elliptic curve
+  point objects.
   
 ---
 
