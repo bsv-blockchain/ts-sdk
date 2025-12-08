@@ -73,6 +73,14 @@ export default class JacobianPoint extends BasePoint {
     }
 
     this.zOne = this.z === this.curve.one
+
+    // --- Canonicalize point at infinity ---
+    if (this.isInfinity()) {
+      this.x = this.curve.one
+      this.y = this.curve.one
+      this.z = new BigNumber(0).toRed(this.curve.red)
+      this.zOne = false
+    }
   }
 
   /**
@@ -361,9 +369,18 @@ export default class JacobianPoint extends BasePoint {
       return true
     }
 
+    p = p as JacobianPoint
+
+    // --- Infinity handling ---
+    if (this.isInfinity() && p.isInfinity()) {
+      return true
+    }
+    if (this.isInfinity() !== p.isInfinity()) {
+      return false
+    }
+
     // x1 * z2^2 == x2 * z1^2
     const z2 = this.z.redSqr()
-    p = p as JacobianPoint
     const pz2 = p.z.redSqr()
     if (this.x.redMul(pz2).redISub(p.x.redMul(z2)).cmpn(0) !== 0) {
       return false

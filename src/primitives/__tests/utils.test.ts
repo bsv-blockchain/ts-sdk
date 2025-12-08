@@ -11,6 +11,7 @@ import {
   toBase58Check,
   verifyNotNull
 } from '../../primitives/utils'
+import Point from '../../primitives/Point'
 
 describe('utils', () => {
   it('should convert to array', () => {
@@ -359,3 +360,19 @@ describe('toUTF8 strict UTF-8 decoding (TOB-21)', () => {
 
 })
 
+describe('Point.encode infinity handling', () => {
+  it('encodes infinity as 00 (array)', () => {
+    const p = new Point(null, null)
+    expect(p.encode()).toEqual([0x00])
+  })
+
+  it('encodes infinity as 00 (hex)', () => {
+    const p = new Point(null, null)
+    expect(p.encode(true, 'hex')).toBe('00')
+  })
+
+  it('does not throw for infinity', () => {
+    const p = new Point(null, null)
+    expect(() => p.encode()).not.toThrow()
+  })
+})
