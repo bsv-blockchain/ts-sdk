@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.15 - 2025-12-09](#1925---2025-12-09)
 - [1.9.24 - 2025-12-09](#1924---2025-12-09)
 - [1.9.23 - 2025-12-08](#1923---2025-12-08)
 - [1.9.22 - 2025-12-05](#1922---2025-12-04)
@@ -194,6 +195,13 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [1.9.25] - 2025-12-09
+
+### Added
+- Documentation disclaimer for our specific AESGCM implementation of padding for additional authenticated data (AAD) and ciphertext.
 
 ---
 
