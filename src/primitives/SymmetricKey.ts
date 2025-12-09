@@ -44,7 +44,7 @@ export default class SymmetricKey extends BigNumber {
     const iv = Random(32)
     msg = toArray(msg, enc)
     const keyBytes = this.toArray('be', 32)
-    const { result, authenticationTag } = AESGCM(msg, [], iv, keyBytes)
+    const { result, authenticationTag } = AESGCM(msg, iv, keyBytes)
     const totalLength = iv.length + result.length + authenticationTag.length
     const combined = new Array(totalLength)
     let offset = 0
@@ -89,7 +89,6 @@ export default class SymmetricKey extends BigNumber {
 
     const result = AESGCMDecrypt(
       ciphertext,
-      [],
       iv,
       messageTag,
       this.toArray('be', 32)

@@ -364,10 +364,14 @@ function gctr (
  * fully compliant AES-GCM encoding will require a compatibility strategy, as
  * existing ciphertexts produced by this implementation will otherwise become
  * undecryptable.
+ *
+ * This non-standard padding behavior is retained intentionally for backward
+ * compatibility: existing ciphertexts in production were generated with this
+ * encoding, and changing it would render previously encrypted data
+ * undecryptable by newer versions of the library.
  */
 export function AESGCM (
   plainText: number[],
-  additionalAuthenticatedData: number[],
   initializationVector: number[],
   key: number[]
 ): { result: number[], authenticationTag: number[] } {
@@ -380,7 +384,7 @@ export function AESGCM (
   }
 
   let preCounterBlock
-  let plainTag
+  let plainTag: number[] = []
   const hashSubKey = AES(createZeroBlock(16), key)
   preCounterBlock = [...initializationVector]
   if (initializationVector.length === 12) {
@@ -400,14 +404,7 @@ export function AESGCM (
 
   const cipherText = gctr(plainText, incrementLeastSignificantThirtyTwoBits(preCounterBlock), key)
 
-  plainTag = additionalAuthenticatedData.slice()
-
-  if (additionalAuthenticatedData.length === 0) {
-    plainTag = plainTag.concat(createZeroBlock(16))
-  } else if (additionalAuthenticatedData.length % 16 !== 0) {
-    plainTag = plainTag.concat(createZeroBlock(16 - (additionalAuthenticatedData.length % 16)))
-  }
-
+  plainTag = plainTag.concat(createZeroBlock(16))
   plainTag = plainTag.concat(cipherText)
 
   if (cipherText.length === 0) {
@@ -417,7 +414,7 @@ export function AESGCM (
   }
 
   plainTag = plainTag.concat(createZeroBlock(4))
-    .concat(getBytes(additionalAuthenticatedData.length * 8))
+    .concat(getBytes(0))
     .concat(createZeroBlock(4)).concat(getBytes(cipherText.length * 8))
 
   return {
@@ -428,7 +425,6 @@ export function AESGCM (
 
 export function AESGCMDecrypt (
   cipherText: number[],
-  additionalAuthenticatedData: number[],
   initializationVector: number[],
   authenticationTag: number[],
   key: number[]
@@ -446,7 +442,7 @@ export function AESGCMDecrypt (
   }
 
   let preCounterBlock
-  let compareTag
+  let compareTag: number[] = []
 
   // Generate the hash subkey
   const hashSubKey = AES(createZeroBlock(16), key)
@@ -467,14 +463,7 @@ export function AESGCMDecrypt (
   // Decrypt to obtain the plain text
   const plainText = gctr(cipherText, incrementLeastSignificantThirtyTwoBits(preCounterBlock), key)
 
-  compareTag = additionalAuthenticatedData.slice()
-
-  if (additionalAuthenticatedData.length === 0) {
-    compareTag = compareTag.concat(createZeroBlock(16))
-  } else if (additionalAuthenticatedData.length % 16 !== 0) {
-    compareTag = compareTag.concat(createZeroBlock(16 - (additionalAuthenticatedData.length % 16)))
-  }
-
+  compareTag = compareTag.concat(createZeroBlock(16))
   compareTag = compareTag.concat(cipherText)
 
   if (cipherText.length === 0) {
@@ -484,8 +473,9 @@ export function AESGCMDecrypt (
   }
 
   compareTag = compareTag.concat(createZeroBlock(4))
-    .concat(getBytes(additionalAuthenticatedData.length * 8))
-    .concat(createZeroBlock(4)).concat(getBytes(cipherText.length * 8))
+    .concat(getBytes(0))
+    .concat(createZeroBlock(4))
+    .concat(getBytes(cipherText.length * 8))
 
   // Generate the authentication tag
   const calculatedTag = gctr(ghash(compareTag, hashSubKey), preCounterBlock, key)

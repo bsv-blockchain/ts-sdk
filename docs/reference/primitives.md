@@ -5025,8 +5025,13 @@ fully compliant AES-GCM encoding will require a compatibility strategy, as
 existing ciphertexts produced by this implementation will otherwise become
 undecryptable.
 
+This non-standard padding behavior is retained intentionally for backward
+compatibility: existing ciphertexts in production were generated with this
+encoding, and changing it would render previously encrypted data
+undecryptable by newer versions of the library.
+
 ```ts
-export function AESGCM(plainText: number[], additionalAuthenticatedData: number[], initializationVector: number[], key: number[]): {
+export function AESGCM(plainText: number[], initializationVector: number[], key: number[]): {
     result: number[];
     authenticationTag: number[];
 } 
@@ -5038,7 +5043,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Function: AESGCMDecrypt
 
 ```ts
-export function AESGCMDecrypt(cipherText: number[], additionalAuthenticatedData: number[], initializationVector: number[], authenticationTag: number[], key: number[]): number[] | null 
+export function AESGCMDecrypt(cipherText: number[], initializationVector: number[], authenticationTag: number[], key: number[]): number[] | null 
 ```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
