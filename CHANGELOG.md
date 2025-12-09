@@ -203,6 +203,9 @@ All notable changes to this project will be documented in this file. The format 
 ### Added
 - Documentation disclaimer for our specific AESGCM implementation of padding for additional authenticated data (AAD) and ciphertext.
 
+### Removed
+- Removed support for additional authenticated data (AAD) padding in AESGCM.
+
 ---
 
 ## [1.9.24] - 2025-12-09
