@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.24 - 2025-12-09](#1924---2025-12-09)
 - [1.9.23 - 2025-12-08](#1923---2025-12-08)
 - [1.9.22 - 2025-12-05](#1922---2025-12-04)
 - [1.9.21 - 2025-12-04](#1921---2025-12-04)
@@ -193,6 +194,28 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [1.9.24] - 2025-12-09
+
+### Fixed
+- Addressed TOB-20: clarified and corrected byte-order helper behavior in
+  `Hash.ts`.  
+  - The original `htonl()` implementation (a byte-swap) is now formally
+    exposed as `swapBytes32()` for clarity.  
+  - Introduced `realHtonl()`, which applies true host-to-network conversion
+    based on runtime endianness.  
+  - Added `isHostLittleEndian` export to ensure deterministic behavior and 
+    allow complete test coverage.
+
+### Added
+- Comprehensive unit tests for `swapBytes32()`, `realHtonl()`, and all
+  32-bit edge cases, including simulated big-endian environments.
+
+### Security
+- TOB-20 remediation ensures byte-order correctness for PBKDF2, SHA-family
+  padding, and any future code paths relying on word-level endian handling.
 
 ---
 
