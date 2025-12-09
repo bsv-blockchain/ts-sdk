@@ -282,13 +282,15 @@ export function toArray (
   return res
 }
 
-function htonl (w: number): number {
-  const res =
-    (w >>> 24) |
-    ((w >>> 8) & 0xff00) |
-    ((w << 8) & 0xff0000) |
-    ((w & 0xff) << 24)
-  return res >>> 0
+/**
+ * @deprecated
+ * This function behaves differently from the standard C `htonl()`.
+ * It always performs an unconditional 32-bit byte swap.
+ * Use `swapBytes32()` for explicit byte swapping, or `realHtonl()` for
+ * standards-compliant host-to-network conversion.
+ */
+export function htonl (w: number): number {
+  return swapBytes32(w)
 }
 
 function toHex32 (msg: number[], endian?: 'little' | 'big'): string {
@@ -1856,4 +1858,67 @@ export function pbkdf2 (
   const s = Uint8Array.from(salt)
   const out = pbkdf2Fast(p, s, iterations, keylen)
   return Array.from(out)
+}
+
+/**
+ * Unconditionally swaps the byte order of a 32-bit unsigned integer.
+ *
+ * This function performs a strict 32-bit byte swap regardless of host
+ * endianness. It is equivalent to the behavior commonly referred to as
+ * `bswap32` in low-level libraries.
+ *
+ * This function is introduced as part of TOB-20 to provide a clearly-named
+ * alternative to `htonl()`, which was previously implemented as an
+ * unconditional byte swap and did not match the semantics of the traditional
+ * C `htonl()` function.
+ *
+ * @param w - A 32-bit unsigned integer.
+ * @returns The value with its byte order reversed.
+ *
+ * @example
+ * swapBytes32(0x11223344) // → 0x44332211
+ */
+export function swapBytes32 (w: number): number {
+  const res =
+    (w >>> 24) |
+    ((w >>> 8) & 0xff00) |
+    ((w << 8) & 0xff0000) |
+    ((w & 0xff) << 24)
+  return res >>> 0
+}
+
+// Detect the host machine's endianness at runtime.
+//
+// This is used by `realHtonl()` to determine whether the value must be
+// byte-swapped or returned unchanged. JavaScript engines on common platforms
+// are almost always little-endian, but this check is included for correctness.
+const isLittleEndian = (() => {
+  const b = new ArrayBuffer(4)
+  const a = new Uint32Array(b)
+  const c = new Uint8Array(b)
+  a[0] = 0x01020304
+  return c[0] === 0x04
+})()
+
+/**
+ * Converts a 32-bit unsigned integer from host byte order to network byte order.
+ *
+ * Unlike the legacy `htonl()` implementation (which always swapped bytes),
+ * this function behaves like the traditional C `htonl()`:
+ *
+ * - On **little-endian** machines → performs a byte swap.
+ * - On **big-endian** machines → returns the value unchanged.
+ *
+ * This function is provided to resolve TOB-20, which identified that the
+ * previous `htonl()` implementation had a misleading name and did not match
+ * platform-dependent semantics.
+ *
+ * @param w - A 32-bit unsigned integer.
+ * @returns The value converted to network byte order.
+ *
+ * @example
+ * realHtonl(0x11223344) // → 0x44332211 on little-endian systems
+ */
+export function realHtonl (w: number): number {
+  return isLittleEndian ? swapBytes32(w) : (w >>> 0)
 }
