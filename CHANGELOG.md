@@ -201,8 +201,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [1.9.26] - 2025-12-09
 
+### Added
+- Add getBytes64 helper for 64-bit length fields.
+
 ### Fixed
-- Clarified and corrected byte-order helper behavior when converting numeric values to byte arrays.
+- Use 64-bit length encoding for GHASH inputs.
 
 ---
 
