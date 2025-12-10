@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.26 - 2025-12-10](#1926---2025-12-10)
 - [1.9.25 - 2025-12-09](#1925---2025-12-09)
 - [1.9.24 - 2025-12-09](#1924---2025-12-09)
 - [1.9.23 - 2025-12-08](#1923---2025-12-08)
@@ -195,6 +196,17 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [1.9.26] - 2025-12-10
+
+### Security
+- Addressed TOB-25 by adding explicit ECDSA and elliptic-curve regression tests
+  ensuring correct propagation and handling of the point at infinity during
+  scalar multiplication and signature verification.
+  These tests prevent regressions where invalid infinity points could be
+  incorrectly treated as valid curve points.
 
 ---
 
