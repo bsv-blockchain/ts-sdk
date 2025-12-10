@@ -5299,24 +5299,24 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | | | |
 | --- | --- | --- |
-| [BI_EIGHT](#variable-bi_eight) | [biModSqrt](#variable-bimodsqrt) | [multiply](#variable-multiply) |
-| [BI_FOUR](#variable-bi_four) | [biModSub](#variable-bimodsub) | [rightShift](#variable-rightshift) |
-| [BI_ONE](#variable-bi_one) | [checkBit](#variable-checkbit) | [ripemd160](#variable-ripemd160) |
-| [BI_THREE](#variable-bi_three) | [encode](#variable-encode) | [scalarMultiplyWNAF](#variable-scalarmultiplywnaf) |
-| [BI_TWO](#variable-bi_two) | [exclusiveOR](#variable-exclusiveor) | [sha1](#variable-sha1) |
-| [BI_ZERO](#variable-bi_zero) | [fromBase58](#variable-frombase58) | [sha256](#variable-sha256) |
-| [GX_BIGINT](#variable-gx_bigint) | [fromBase58Check](#variable-frombase58check) | [sha256hmac](#variable-sha256hmac) |
-| [GY_BIGINT](#variable-gy_bigint) | [getBytes](#variable-getbytes) | [sha512](#variable-sha512) |
-| [MASK_256](#variable-mask_256) | [hash160](#variable-hash160) | [sha512hmac](#variable-sha512hmac) |
-| [N_BIGINT](#variable-n_bigint) | [hash256](#variable-hash256) | [sign](#variable-sign) |
-| [P_BIGINT](#variable-p_bigint) | [incrementLeastSignificantThirtyTwoBits](#variable-incrementleastsignificantthirtytwobits) | [toArray](#variable-toarray) |
-| [P_PLUS1_DIV4](#variable-p_plus1_div4) | [jpAdd](#variable-jpadd) | [toBase58](#variable-tobase58) |
-| [biMod](#variable-bimod) | [jpDouble](#variable-jpdouble) | [toBase58Check](#variable-tobase58check) |
-| [biModAdd](#variable-bimodadd) | [jpNeg](#variable-jpneg) | [toHex](#variable-tohex) |
-| [biModInv](#variable-bimodinv) | [minimallyEncode](#variable-minimallyencode) | [toUTF8](#variable-toutf8) |
-| [biModMul](#variable-bimodmul) | [modInvN](#variable-modinvn) | [verify](#variable-verify) |
-| [biModPow](#variable-bimodpow) | [modMulN](#variable-modmuln) | [zero2](#variable-zero2) |
-| [biModSqr](#variable-bimodsqr) | [modN](#variable-modn) |  |
+| [BI_EIGHT](#variable-bi_eight) | [biModSqrt](#variable-bimodsqrt) | [modN](#variable-modn) |
+| [BI_FOUR](#variable-bi_four) | [biModSub](#variable-bimodsub) | [multiply](#variable-multiply) |
+| [BI_ONE](#variable-bi_one) | [checkBit](#variable-checkbit) | [rightShift](#variable-rightshift) |
+| [BI_THREE](#variable-bi_three) | [encode](#variable-encode) | [ripemd160](#variable-ripemd160) |
+| [BI_TWO](#variable-bi_two) | [exclusiveOR](#variable-exclusiveor) | [scalarMultiplyWNAF](#variable-scalarmultiplywnaf) |
+| [BI_ZERO](#variable-bi_zero) | [fromBase58](#variable-frombase58) | [sha1](#variable-sha1) |
+| [GX_BIGINT](#variable-gx_bigint) | [fromBase58Check](#variable-frombase58check) | [sha256](#variable-sha256) |
+| [GY_BIGINT](#variable-gy_bigint) | [getBytes](#variable-getbytes) | [sha256hmac](#variable-sha256hmac) |
+| [MASK_256](#variable-mask_256) | [getBytes64](#variable-getbytes64) | [sha512](#variable-sha512) |
+| [N_BIGINT](#variable-n_bigint) | [hash160](#variable-hash160) | [sha512hmac](#variable-sha512hmac) |
+| [P_BIGINT](#variable-p_bigint) | [hash256](#variable-hash256) | [sign](#variable-sign) |
+| [P_PLUS1_DIV4](#variable-p_plus1_div4) | [incrementLeastSignificantThirtyTwoBits](#variable-incrementleastsignificantthirtytwobits) | [toArray](#variable-toarray) |
+| [biMod](#variable-bimod) | [jpAdd](#variable-jpadd) | [toBase58](#variable-tobase58) |
+| [biModAdd](#variable-bimodadd) | [jpDouble](#variable-jpdouble) | [toBase58Check](#variable-tobase58check) |
+| [biModInv](#variable-bimodinv) | [jpNeg](#variable-jpneg) | [toHex](#variable-tohex) |
+| [biModMul](#variable-bimodmul) | [minimallyEncode](#variable-minimallyencode) | [toUTF8](#variable-toutf8) |
+| [biModPow](#variable-bimodpow) | [modInvN](#variable-modinvn) | [verify](#variable-verify) |
+| [biModSqr](#variable-bimodsqr) | [modMulN](#variable-modmuln) | [zero2](#variable-zero2) |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5667,6 +5667,31 @@ getBytes = function (numericValue: number): number[] {
         (numericValue & 16711680) >> 16,
         (numericValue & 65280) >> 8,
         numericValue & 255
+    ];
+}
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: getBytes64
+
+```ts
+getBytes64 = function (numericValue: number): number[] {
+    if (numericValue < 0 || numericValue > Number.MAX_SAFE_INTEGER) {
+        throw new Error("getBytes64: value out of range");
+    }
+    const hi = Math.floor(numericValue / 4294967296);
+    const lo = numericValue >>> 0;
+    return [
+        (hi >>> 24) & 255,
+        (hi >>> 16) & 255,
+        (hi >>> 8) & 255,
+        hi & 255,
+        (lo >>> 24) & 255,
+        (lo >>> 16) & 255,
+        (lo >>> 8) & 255,
+        lo & 255
     ];
 }
 ```

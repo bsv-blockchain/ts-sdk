@@ -202,6 +202,26 @@ export const getBytes = function (numericValue: number): number[] {
   ]
 }
 
+export const getBytes64 = function (numericValue: number): number[] {
+  if (numericValue < 0 || numericValue > Number.MAX_SAFE_INTEGER) {
+    throw new Error('getBytes64: value out of range')
+  }
+
+  const hi = Math.floor(numericValue / 0x100000000)
+  const lo = numericValue >>> 0
+
+  return [
+    (hi >>> 24) & 0xFF,
+    (hi >>> 16) & 0xFF,
+    (hi >>> 8) & 0xFF,
+    hi & 0xFF,
+    (lo >>> 24) & 0xFF,
+    (lo >>> 16) & 0xFF,
+    (lo >>> 8) & 0xFF,
+    lo & 0xFF
+  ]
+}
+
 const createZeroBlock = function (length: number): number[] {
   return new Array(length).fill(0)
 }
@@ -398,8 +418,10 @@ export function AESGCM (
 
     preCounterBlock = preCounterBlock.concat(createZeroBlock(8))
 
-    preCounterBlock = ghash(preCounterBlock.concat(createZeroBlock(4))
-      .concat(getBytes(initializationVector.length * 8)), hashSubKey)
+    preCounterBlock = ghash(
+      preCounterBlock.concat(getBytes64(initializationVector.length * 8)),
+      hashSubKey
+    )
   }
 
   const cipherText = gctr(plainText, incrementLeastSignificantThirtyTwoBits(preCounterBlock), key)
@@ -413,9 +435,9 @@ export function AESGCM (
     plainTag = plainTag.concat(createZeroBlock(16 - (cipherText.length % 16)))
   }
 
-  plainTag = plainTag.concat(createZeroBlock(4))
-    .concat(getBytes(0))
-    .concat(createZeroBlock(4)).concat(getBytes(cipherText.length * 8))
+  plainTag = plainTag
+    .concat(getBytes64(0))
+    .concat(getBytes64(cipherText.length * 8))
 
   return {
     result: cipherText,
@@ -457,7 +479,10 @@ export function AESGCMDecrypt (
 
     preCounterBlock = preCounterBlock.concat(createZeroBlock(8))
 
-    preCounterBlock = ghash(preCounterBlock.concat(createZeroBlock(4)).concat(getBytes(initializationVector.length * 8)), hashSubKey)
+    preCounterBlock = ghash(
+      preCounterBlock.concat(getBytes64(initializationVector.length * 8)),
+      hashSubKey
+    )
   }
 
   // Decrypt to obtain the plain text
@@ -472,10 +497,9 @@ export function AESGCMDecrypt (
     compareTag = compareTag.concat(createZeroBlock(16 - (cipherText.length % 16)))
   }
 
-  compareTag = compareTag.concat(createZeroBlock(4))
-    .concat(getBytes(0))
-    .concat(createZeroBlock(4))
-    .concat(getBytes(cipherText.length * 8))
+  compareTag = compareTag
+    .concat(getBytes64(0))
+    .concat(getBytes64(cipherText.length * 8))
 
   // Generate the authentication tag
   const calculatedTag = gctr(ghash(compareTag, hashSubKey), preCounterBlock, key)
