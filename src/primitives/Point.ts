@@ -48,7 +48,7 @@ export const biModPow = (base: bigint, exp: bigint): bigint => {
   base = biMod(base)
 
   while (exp > 0n) {
-    if (exp & 1n) {
+    if ((exp & 1n) !== 0n) {
       result = biModMul(result, base)
     }
     base = biModMul(base, base)
@@ -403,7 +403,6 @@ export default class Point extends BasePoint {
     return res
   }
 
-
   /**
    * @constructor
    * @param x - The x-coordinate of the point. May be a number, a BigNumber, a string (which will be interpreted as hex), a number array, or null. If null, an "Infinity" point is constructed.
@@ -461,19 +460,19 @@ export default class Point extends BasePoint {
    * const isValid = aPoint.validate();
    */
   validate (): boolean {
-    if (this.inf || this.x == null || this.y == null) return false;
+    if (this.inf || this.x == null || this.y == null) return false
 
     try {
-      const xBig = BigInt("0x" + this.x.fromRed().toString(16));
-      const yBig = BigInt("0x" + this.y.fromRed().toString(16));
+      const xBig = BigInt('0x' + this.x.fromRed().toString(16))
+      const yBig = BigInt('0x' + this.y.fromRed().toString(16))
 
       // compute y² and x³ + 7 using bigint-secure field ops
-      const lhs = biModMul(yBig, yBig);
-      const rhs = biModAdd(biModMul(biModMul(xBig, xBig), xBig), 7n);
+      const lhs = biModMul(yBig, yBig)
+      const rhs = biModAdd(biModMul(biModMul(xBig, xBig), xBig), 7n)
 
-      return lhs === rhs;
+      return lhs === rhs
     } catch {
-      return false;
+      return false
     }
   }
 
