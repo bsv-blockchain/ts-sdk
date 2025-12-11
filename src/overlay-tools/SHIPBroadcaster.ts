@@ -108,6 +108,7 @@ export class HTTPSOverlayBroadcastFacilitator implements OverlayBroadcastFacilit
     } else {
       body = new Uint8Array(taggedBEEF.beef)
     }
+    console.log(`Broadcasting to Overlay Service at ${url}/submit`)
     const response = await fetch(`${url}/submit`, {
       method: 'POST',
       headers,
