@@ -44,14 +44,17 @@ export const biModInv = (a: bigint): bigint => { // binary‑ext GCD
 export const biModSqr = (a: bigint): bigint => biModMul(a, a)
 
 export const biModPow = (base: bigint, exp: bigint): bigint => {
-  let result = BI_ONE
+  let result = 1n
   base = biMod(base)
-  let e = exp
-  while (e > BI_ZERO) {
-    if ((e & BI_ONE) === BI_ONE) result = biModMul(result, base)
+
+  while (exp > 0n) {
+    if (exp & 1n) {
+      result = biModMul(result, base)
+    }
     base = biModMul(base, base)
-    e >>= BI_ONE
+    exp >>= 1n
   }
+
   return result
 }
 
@@ -59,7 +62,12 @@ export const P_PLUS1_DIV4 = (P_BIGINT + 1n) >> 2n
 
 export const biModSqrt = (a: bigint): bigint | null => {
   const r = biModPow(a, P_PLUS1_DIV4)
-  return biModMul(r, r) === biMod(a) ? r : null
+
+  if (biModMul(r, r) !== biMod(a)) {
+    return null
+  }
+
+  return r
 }
 
 const toBigInt = (x: BigNumber | number | number[] | string): bigint => {
@@ -220,6 +228,13 @@ export default class Point extends BasePoint {
   y: BigNumber | null
   inf: boolean
 
+  static _assertOnCurve (p: Point): Point {
+    if (!p.validate()) {
+      throw new Error('Invalid point')
+    }
+    return p
+  }
+
   /**
    * Creates a point object from a given Array. These numbers can represent coordinates in hex format, or points
    * in multiple established formats.
@@ -238,7 +253,6 @@ export default class Point extends BasePoint {
    */
   static fromDER (bytes: number[]): Point {
     const len = 32
-    // uncompressed, hybrid-odd, hybrid-even
     if (
       (bytes[0] === 0x04 || bytes[0] === 0x06 || bytes[0] === 0x07) &&
       bytes.length - 1 === 2 * len
@@ -258,12 +272,14 @@ export default class Point extends BasePoint {
         bytes.slice(1 + len, 1 + 2 * len)
       )
 
-      return res
+      return Point._assertOnCurve(res)
     } else if (
       (bytes[0] === 0x02 || bytes[0] === 0x03) &&
       bytes.length - 1 === len
     ) {
-      return Point.fromX(bytes.slice(1, 1 + len), bytes[0] === 0x03)
+      return Point._assertOnCurve(
+        Point.fromX(bytes.slice(1, 1 + len), bytes[0] === 0x03)
+      )
     }
     throw new Error('Unknown point format')
   }
@@ -287,7 +303,7 @@ export default class Point extends BasePoint {
    */
   static fromString (str: string): Point {
     const bytes = toArray(str, 'hex')
-    return Point.fromDER(bytes)
+    return Point._assertOnCurve(Point.fromDER(bytes))
   }
 
   /**
@@ -308,16 +324,22 @@ export default class Point extends BasePoint {
   static fromX (x: BigNumber | number | number[] | string, odd: boolean): Point {
     let xBigInt = toBigInt(x)
     xBigInt = biMod(xBigInt)
+
     const y2 = biModAdd(biModMul(biModSqr(xBigInt), xBigInt), 7n)
     const y = biModSqrt(y2)
-    if (y === null) throw new Error('Invalid point')
+    if (y === null) {
+      throw new Error('Invalid point')
+    }
+
     let yBig = y
     if ((yBig & BI_ONE) !== (odd ? BI_ONE : BI_ZERO)) {
       yBig = biModSub(P_BIGINT, yBig)
     }
+
     const xBN = new BigNumber(xBigInt.toString(16), 16)
     const yBN = new BigNumber(yBig.toString(16), 16)
-    return new Point(xBN, yBN)
+
+    return Point._assertOnCurve(new Point(xBN, yBN))
   }
 
   /**
@@ -339,35 +361,48 @@ export default class Point extends BasePoint {
     if (typeof obj === 'string') {
       obj = JSON.parse(obj)
     }
-    const res = new Point(obj[0], obj[1], isRed)
-    if (typeof obj[2] !== 'object') {
+
+    let res = new Point(obj[0], obj[1], isRed)
+    res = Point._assertOnCurve(res)
+
+    if (typeof obj[2] !== 'object' || obj[2] === null) {
       return res
     }
 
-    const obj2point = (obj): Point => {
-      return new Point(obj[0], obj[1], isRed)
+    const pre = obj[2]
+
+    const obj2point = (p): Point => {
+      const pt = new Point(p[0], p[1], isRed)
+      return Point._assertOnCurve(pt)
     }
 
-    const pre = obj[2]
     res.precomputed = {
       beta: null,
+
       doubles:
         typeof pre.doubles === 'object' && pre.doubles !== null
           ? {
               step: pre.doubles.step,
-              points: [res].concat(pre.doubles.points.map(obj2point))
+              points: [res].concat(
+                pre.doubles.points.map(obj2point)
+              )
             }
           : undefined,
+
       naf:
         typeof pre.naf === 'object' && pre.naf !== null
           ? {
               wnd: pre.naf.wnd,
-              points: [res].concat(pre.naf.points.map(obj2point))
+              points: [res].concat(
+                pre.naf.points.map(obj2point)
+              )
             }
           : undefined
     }
+
     return res
   }
+
 
   /**
    * @constructor
@@ -426,7 +461,20 @@ export default class Point extends BasePoint {
    * const isValid = aPoint.validate();
    */
   validate (): boolean {
-    return this.curve.validate(this)
+    if (this.inf || this.x == null || this.y == null) return false;
+
+    try {
+      const xBig = BigInt("0x" + this.x.fromRed().toString(16));
+      const yBig = BigInt("0x" + this.y.fromRed().toString(16));
+
+      // compute y² and x³ + 7 using bigint-secure field ops
+      const lhs = biModMul(yBig, yBig);
+      const rhs = biModAdd(biModMul(biModMul(xBig, xBig), xBig), 7n);
+
+      return lhs === rhs;
+    } catch {
+      return false;
+    }
   }
 
   /**
