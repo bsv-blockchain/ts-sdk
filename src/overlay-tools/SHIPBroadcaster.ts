@@ -116,6 +116,8 @@ export class HTTPSOverlayBroadcastFacilitator implements OverlayBroadcastFacilit
     if (response.ok) {
       return await response.json()
     } else {
+      console.log(`Overlay broadcast to ${url} failed with status ${response.status}`)
+      console.log('response', response)
       throw new Error('Failed to facilitate broadcast')
     }
   }
