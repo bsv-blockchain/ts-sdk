@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.27 - 2025-12-11](#1927---2025-12-11)
 - [1.9.26 - 2025-12-10](#1926---2025-12-10)
 - [1.9.25 - 2025-12-09](#1925---2025-12-09)
 - [1.9.24 - 2025-12-09](#1924---2025-12-09)
@@ -196,6 +197,17 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [1.9.27] - 2025-12-11
+
+### Fixed
+- Addressed TOB-24: hardened elliptic-curve point validation across `fromDER`, `fromX`, and `fromJSON`.
+- Added bigint-secure curve equation checking to `Point.validate()`.
+- Fixed modular sqrt and pow logic (`biModSqrt`, `biModPow`) to correctly detect invalid X coordinates.
+- Ensured consistent `Invalid point` errors for malformed input.
+- Added negative tests and roundtrip validation tests.
 
 ---
 
