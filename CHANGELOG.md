@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.28 - 2025-12-11](#1928---2025-12-11)
 - [1.9.27 - 2025-12-11](#1927---2025-12-11)
 - [1.9.26 - 2025-12-10](#1926---2025-12-10)
 - [1.9.25 - 2025-12-09](#1925---2025-12-09)
@@ -197,6 +198,20 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [1.9.28] - 2025-12-11
+
+### Added
+- Add getBytes64 helper for 64-bit length fields.
+- Added long ciphertext test case.
+
+### Changed
+- Changed AESGCM to use Uint8Arrays instead of number[] for all inputs and outputs for optimization.
+
+### Fixed
+- Use 64-bit length encoding for GHASH inputs.
 
 ---
 

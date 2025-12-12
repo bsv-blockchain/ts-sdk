@@ -41,19 +41,27 @@ export default class SymmetricKey extends BigNumber {
    * const encryptedMessage = key.encrypt('plainText', 'utf8');
    */
   encrypt (msg: number[] | string, enc?: 'hex'): string | number[] {
-    const iv = Random(32)
-    msg = toArray(msg, enc)
-    const keyBytes = this.toArray('be', 32)
-    const { result, authenticationTag } = AESGCM(msg, iv, keyBytes)
+    const iv = new Uint8Array(Random(32))
+    const msgBytes = new Uint8Array(toArray(msg, enc))
+    const keyBytes = new Uint8Array(this.toArray('be', 32))
+
+    const { result, authenticationTag } = AESGCM(
+      msgBytes,
+      iv,
+      keyBytes
+    )
+
     const totalLength = iv.length + result.length + authenticationTag.length
-    const combined = new Array(totalLength)
+    const combined = new Uint8Array(totalLength)
     let offset = 0
-    for (const chunk of [iv, result, authenticationTag]) {
-      for (let i = 0; i < chunk.length; i++) {
-        combined[offset++] = chunk[i]
-      }
-    }
-    return encode(combined, enc)
+
+    combined.set(iv, offset)
+    offset += iv.length
+    combined.set(result, offset)
+    offset += result.length
+    combined.set(authenticationTag, offset)
+
+    return encode(Array.from(combined), enc)
   }
 
   /**
@@ -73,29 +81,30 @@ export default class SymmetricKey extends BigNumber {
    * @throws {Error} Will throw an error if the decryption fails, likely due to message tampering or incorrect decryption key.
    */
   decrypt (msg: number[] | string, enc?: 'hex' | 'utf8'): string | number[] {
-    msg = toArray(msg, enc)
+    const msgBytes = new Uint8Array(toArray(msg, enc))
 
     const ivLength = 32
     const tagLength = 16
 
-    if (msg.length < ivLength + tagLength) {
+    if (msgBytes.length < ivLength + tagLength) {
       throw new Error('Ciphertext too short')
     }
 
-    const iv = msg.slice(0, ivLength)
-    const tagStart = msg.length - tagLength
-    const ciphertext = msg.slice(ivLength, tagStart)
-    const messageTag = msg.slice(tagStart)
+    const iv = msgBytes.slice(0, ivLength)
+    const tagStart = msgBytes.length - tagLength
+    const ciphertext = msgBytes.slice(ivLength, tagStart)
+    const messageTag = msgBytes.slice(tagStart)
 
+    const keyBytes = new Uint8Array(this.toArray('be', 32))
     const result = AESGCMDecrypt(
       ciphertext,
       iv,
       messageTag,
-      this.toArray('be', 32)
+      keyBytes
     )
     if (result === null) {
       throw new Error('Decryption failed!')
     }
-    return encode(result, enc)
+    return encode(Array.from(result), enc)
   }
 }
