@@ -222,33 +222,53 @@ export const getBytes64 = function (numericValue: number): number[] {
   ]
 }
 
-const createZeroBlock = function (length: number): number[] {
-  return new Array(length).fill(0)
+type Bytes = Uint8Array
+
+const createZeroBlock = function (length: number): Bytes {
+  // Uint8Array is already zero-filled
+  return new Uint8Array(length)
 }
 
-const R = [0xe1].concat(createZeroBlock(15))
+// R = 0xe1 || 15 zero bytes
+const R: Bytes = (() => {
+  const r = new Uint8Array(16)
+  r[0] = 0xe1
+  return r
+})()
 
-export const exclusiveOR = function (block0: number[], block1: number[]): number[] {
+const concatBytes = (...arrays: Bytes[]): Bytes => {
+  let total = 0
+  for (const a of arrays) total += a.length
+
+  const out = new Uint8Array(total)
+  let offset = 0
+  for (const a of arrays) {
+    out.set(a, offset)
+    offset += a.length
+  }
+  return out
+}
+
+export const exclusiveOR = function (block0: Bytes, block1: Bytes): Bytes {
   const len = block0.length
-  const result = new Array(len)
+  const result = new Uint8Array(len)
   for (let i = 0; i < len; i++) {
-    result[i] = block0[i] ^ block1[i]
+    result[i] = block0[i] ^ (block1[i] ?? 0)
   }
   return result
 }
 
-const xorInto = function (target: number[], block: number[]): void {
+const xorInto = function (target: Bytes, block: Bytes): void {
   for (let i = 0; i < target.length; i++) {
-    target[i] ^= block[i]
+    target[i] ^= block[i] ?? 0
   }
 }
 
-export const rightShift = function (block: number[]): number[] {
-  let i: number
+export const rightShift = function (block: Bytes): Bytes {
   let carry = 0
   let oldCarry = 0
 
-  for (i = 0; i < block.length; i++) {
+  for (let i = 0; i < block.length; i++) {
     oldCarry = carry
     carry = block[i] & 0x01
     block[i] = block[i] >> 1
@@ -261,7 +281,7 @@ export const rightShift = function (block: number[]): number[] {
   return block
 }
 
-export const multiply = function (block0: number[], block1: number[]): number[] {
+export const multiply = function (block0: Bytes, block1: Bytes): Bytes {
   const v = block1.slice()
   const z = createZeroBlock(16)
 
@@ -284,16 +304,14 @@ export const multiply = function (block0: number[], block1: number[]): number[] 
 }
 
 export const incrementLeastSignificantThirtyTwoBits = function (
-  block: number[]
-): number[] {
-  let i
+  block: Bytes
+): Bytes {
   const result = block.slice()
-  for (i = 15; i !== 11; i--) {
-    result[i] = result[i] + 1
 
-    if (result[i] === 256) {
-      result[i] = 0
-    } else {
+  for (let i = 15; i !== 11; i--) {
+    result[i] = (result[i] + 1) & 0xff // wrap explicitly
+
+    if (result[i] !== 0) {
       break
     }
   }
@@ -301,11 +319,12 @@ export const incrementLeastSignificantThirtyTwoBits = function (
   return result
 }
 
-export function ghash (input: number[], hashSubKey: number[]): number[] {
+export function ghash (input: Bytes, hashSubKey: Bytes): Bytes {
   let result = createZeroBlock(16)
+  const block = new Uint8Array(16)
 
   for (let i = 0; i < input.length; i += 16) {
-    const block = result.slice()
+    block.set(result)
     for (let j = 0; j < 16; j++) {
       block[j] ^= input[i + j] ?? 0
     }
@@ -316,14 +335,14 @@ export function ghash (input: number[], hashSubKey: number[]): number[] {
 }
 
 function gctr (
-  input: number[],
-  initialCounterBlock: number[],
-  key: number[]
-): number[] {
-  if (input.length === 0) return []
+  input: Bytes,
+  initialCounterBlock: Bytes,
+  key: Bytes
+): Bytes {
+  if (input.length === 0) return new Uint8Array(0)
 
-  const output = new Array(input.length)
-  let counterBlock = initialCounterBlock
+  const output = new Uint8Array(input.length)
+  let counterBlock = initialCounterBlock.slice()
   let pos = 0
   const n = Math.ceil(input.length / 16)
 
@@ -341,6 +360,42 @@ function gctr (
   }
 
   return output
+}
+
+function buildAuthInput (cipherText: Bytes): Bytes {
+  const aadLenBits = 0
+  const ctLenBits = cipherText.length * 8
+
+  const padLen =
+    cipherText.length === 0
+      ? 16
+      : (cipherText.length % 16 === 0 ? 0 : 16 - (cipherText.length % 16))
+
+  const total =
+    16 +
+    cipherText.length +
+    padLen +
+    16
+
+  const out = new Uint8Array(total)
+  let offset = 0
+
+  offset += 16
+
+  out.set(cipherText, offset)
+  offset += cipherText.length
+
+  offset += padLen
+
+  const aadLen = getBytes64(aadLenBits)
+  out.set(aadLen, offset)
+  offset += 8
+
+  const ctLen = getBytes64(ctLenBits)
+  out.set(ctLen, offset)
+  offset += 8
+
+  return out
 }
 
 /**
@@ -391,10 +446,10 @@ function gctr (
  * undecryptable by newer versions of the library.
  */
 export function AESGCM (
-  plainText: number[],
-  initializationVector: number[],
-  key: number[]
-): { result: number[], authenticationTag: number[] } {
+  plainText: Bytes,
+  initializationVector: Bytes,
+  key: Bytes
+): { result: Bytes, authenticationTag: Bytes } {
   if (initializationVector.length === 0) {
     throw new Error('Initialization vector must not be empty')
   }
@@ -403,54 +458,54 @@ export function AESGCM (
     throw new Error('Key must not be empty')
   }
 
-  let preCounterBlock
-  let plainTag: number[] = []
-  const hashSubKey = AES(createZeroBlock(16), key)
-  preCounterBlock = [...initializationVector]
+  const hashSubKey = new Uint8Array(AES(createZeroBlock(16), key))
+
+  let preCounterBlock: Bytes
+
   if (initializationVector.length === 12) {
-    preCounterBlock = preCounterBlock.concat(createZeroBlock(3)).concat([0x01])
+    preCounterBlock = concatBytes(initializationVector, createZeroBlock(3), new Uint8Array([0x01]))
   } else {
-    if (initializationVector.length % 16 !== 0) {
-      preCounterBlock = preCounterBlock.concat(
-        createZeroBlock(16 - (initializationVector.length % 16))
+    let ivPadded = initializationVector
+    if (ivPadded.length % 16 !== 0) {
+      ivPadded = concatBytes(
+        ivPadded,
+        createZeroBlock(16 - (ivPadded.length % 16))
       )
     }
 
-    preCounterBlock = preCounterBlock.concat(createZeroBlock(8))
-
-    preCounterBlock = ghash(
-      preCounterBlock.concat(getBytes64(initializationVector.length * 8)),
-      hashSubKey
+    const lenBlock = getBytes64(initializationVector.length * 8)
+    const s = concatBytes(
+      ivPadded,
+      createZeroBlock(8),
+      new Uint8Array(lenBlock)
     )
+
+    preCounterBlock = ghash(s, hashSubKey)
   }
 
-  const cipherText = gctr(plainText, incrementLeastSignificantThirtyTwoBits(preCounterBlock), key)
+  const cipherText = gctr(
+    plainText,
+    incrementLeastSignificantThirtyTwoBits(preCounterBlock),
+    key
+  )
 
-  plainTag = plainTag.concat(createZeroBlock(16))
-  plainTag = plainTag.concat(cipherText)
+  const authInput = buildAuthInput(cipherText)
 
-  if (cipherText.length === 0) {
-    plainTag = plainTag.concat(createZeroBlock(16))
-  } else if (cipherText.length % 16 !== 0) {
-    plainTag = plainTag.concat(createZeroBlock(16 - (cipherText.length % 16)))
-  }
-
-  plainTag = plainTag
-    .concat(getBytes64(0))
-    .concat(getBytes64(cipherText.length * 8))
+  const s = ghash(authInput, hashSubKey)
+  const authenticationTag = gctr(s, preCounterBlock, key)
 
   return {
     result: cipherText,
-    authenticationTag: gctr(ghash(plainTag, hashSubKey), preCounterBlock, key)
+    authenticationTag
   }
 }
 
 export function AESGCMDecrypt (
-  cipherText: number[],
-  initializationVector: number[],
-  authenticationTag: number[],
-  key: number[]
-): number[] | null {
+  cipherText: Bytes,
+  initializationVector: Bytes,
+  authenticationTag: Bytes,
+  key: Bytes
+): Bytes | null {
   if (cipherText.length === 0) {
     throw new Error('Cipher text must not be empty')
   }
@@ -463,49 +518,57 @@ export function AESGCMDecrypt (
     throw new Error('Key must not be empty')
   }
 
-  let preCounterBlock
-  let compareTag: number[] = []
-
   // Generate the hash subkey
-  const hashSubKey = AES(createZeroBlock(16), key)
+  const hashSubKey = new Uint8Array(AES(createZeroBlock(16), key))
 
-  preCounterBlock = [...initializationVector]
+  let preCounterBlock: Bytes
+
   if (initializationVector.length === 12) {
-    preCounterBlock = preCounterBlock.concat(createZeroBlock(3)).concat([0x01])
+    preCounterBlock = concatBytes(
+      initializationVector,
+      createZeroBlock(3),
+      new Uint8Array([0x01])
+    )
   } else {
-    if (initializationVector.length % 16 !== 0) {
-      preCounterBlock = preCounterBlock.concat(createZeroBlock(16 - (initializationVector.length % 16)))
+    let ivPadded = initializationVector
+    if (ivPadded.length % 16 !== 0) {
+      ivPadded = concatBytes(
+        ivPadded,
+        createZeroBlock(16 - (ivPadded.length % 16))
+      )
     }
 
-    preCounterBlock = preCounterBlock.concat(createZeroBlock(8))
-
-    preCounterBlock = ghash(
-      preCounterBlock.concat(getBytes64(initializationVector.length * 8)),
-      hashSubKey
+    const lenBlock = getBytes64(initializationVector.length * 8)
+    const s = concatBytes(
+      ivPadded,
+      createZeroBlock(8),
+      new Uint8Array(lenBlock)
     )
+
+    preCounterBlock = ghash(s, hashSubKey)
   }
 
   // Decrypt to obtain the plain text
-  const plainText = gctr(cipherText, incrementLeastSignificantThirtyTwoBits(preCounterBlock), key)
+  const plainText = gctr(
+    cipherText,
+    incrementLeastSignificantThirtyTwoBits(preCounterBlock),
+    key
+  )
 
-  compareTag = compareTag.concat(createZeroBlock(16))
-  compareTag = compareTag.concat(cipherText)
+  const authInput = buildAuthInput(cipherText)
+  const s = ghash(authInput, hashSubKey)
+  const calculatedTag = gctr(s, preCounterBlock, key)
 
-  if (cipherText.length === 0) {
-    compareTag = compareTag.concat(createZeroBlock(16))
-  } else if (cipherText.length % 16 !== 0) {
-    compareTag = compareTag.concat(createZeroBlock(16 - (cipherText.length % 16)))
+  if (calculatedTag.length !== authenticationTag.length) {
+    return null
   }
 
-  compareTag = compareTag
-    .concat(getBytes64(0))
-    .concat(getBytes64(cipherText.length * 8))
+  let diff = 0
+  for (let i = 0; i < calculatedTag.length; i++) {
+    diff |= calculatedTag[i] ^ authenticationTag[i]
+  }
 
-  // Generate the authentication tag
-  const calculatedTag = gctr(ghash(compareTag, hashSubKey), preCounterBlock, key)
-
-  // If the calculated tag does not match the provided tag, return null - the decryption failed.
-  if (calculatedTag.join() !== authenticationTag.join()) {
+  if (diff !== 0) {
     return null
   }
 
