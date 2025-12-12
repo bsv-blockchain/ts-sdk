@@ -951,3 +951,13 @@ export function verifyNotNull<T> (value: T | undefined | null, errorMessage: str
   if (value == null) throw new Error(errorMessage)
   return value
 }
+
+export function constantTimeEquals (a: Uint8Array | number[], b: Uint8Array | number[]): boolean {
+  if (a.length !== b.length) return false
+
+  let diff = 0
+  for (let i = 0; i < a.length; i++) {
+    diff |= a[i] ^ b[i]
+  }
+  return diff === 0
+}

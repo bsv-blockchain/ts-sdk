@@ -589,4 +589,56 @@ describe('ProtoWallet', () => {
       expect(linkage).toEqual(expectedLinkage)
     })
   })
+
+  it('Fails constant-time HMAC validation for wrong-but-same-length HMAC', async () => {
+    const userKey = PrivateKey.fromRandom()
+    const counterpartyKey = PrivateKey.fromRandom()
+    const user = new ProtoWallet(userKey)
+    const counterparty = new ProtoWallet(counterpartyKey)
+
+    const { hmac: correctHmac } = await user.createHmac({
+      data: sampleData,
+      protocolID: [2, 'tests'],
+      keyID: '4',
+      counterparty: counterpartyKey.toPublicKey().toString()
+    })
+
+    // Create a different HMAC with same length
+    const wrong = correctHmac.slice()
+    wrong[0] = (wrong[0] + 1) & 0xff  // minimally alter 1 byte
+
+    await expect(async () =>
+      await counterparty.verifyHmac({
+        hmac: wrong,
+        data: sampleData,
+        protocolID: [2, 'tests'],
+        keyID: '4',
+        counterparty: userKey.toPublicKey().toString()
+      })
+    ).rejects.toThrow('HMAC is not valid')
+  })
+
+  it('Validates correct HMAC using the constant-time comparison path', async () => {
+    const userKey = PrivateKey.fromRandom()
+    const counterpartyKey = PrivateKey.fromRandom()
+    const user = new ProtoWallet(userKey)
+    const counterparty = new ProtoWallet(counterpartyKey)
+
+    const { hmac } = await user.createHmac({
+      data: sampleData,
+      protocolID: [2, 'tests'],
+      keyID: '4',
+      counterparty: counterpartyKey.toPublicKey().toString()
+    })
+
+    const { valid } = await counterparty.verifyHmac({
+      hmac,
+      data: sampleData,
+      protocolID: [2, 'tests'],
+      keyID: '4',
+      counterparty: userKey.toPublicKey().toString()
+    })
+
+    expect(valid).toBe(true)
+  })
 })

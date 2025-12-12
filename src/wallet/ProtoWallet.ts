@@ -30,6 +30,7 @@ import {
   WalletEncryptArgs,
   WalletEncryptResult
 } from './Wallet.interfaces.js'
+import { constantTimeEquals, toArray } from '../primitives/utils.js'
 
 /**
  * A ProtoWallet is precursor to a full wallet, capable of performing all foundational cryptographic operations.
@@ -222,9 +223,13 @@ export class ProtoWallet {
       args.keyID,
       args.counterparty ?? 'self'
     )
-    const valid =
-      Hash.sha256hmac(key.toArray(), args.data).toString() ===
-      args.hmac.toString()
+    const computed = Hash.sha256hmac(key.toArray(), args.data)
+    const provided = args.hmac
+
+    const valid = constantTimeEquals(
+      toArray(computed),
+      toArray(provided)
+    )
     if (!valid) {
       const e = new Error('HMAC is not valid') as Error & { code: string }
       e.code = 'ERR_INVALID_HMAC'
