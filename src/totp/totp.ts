@@ -73,8 +73,8 @@ export class TOTP {
 
       if (
         constantTimeEquals(
-          toArray(passcode, "utf8"),
-          toArray(expected, "utf8")
+          toArray(passcode, 'utf8'),
+          toArray(expected, 'utf8')
         )
       ) {
         return true
