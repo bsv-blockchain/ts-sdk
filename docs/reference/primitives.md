@@ -1756,6 +1756,7 @@ export default class Point extends BasePoint {
     x: BigNumber | null;
     y: BigNumber | null;
     inf: boolean;
+    static _assertOnCurve(p: Point): Point 
     static fromDER(bytes: number[]): Point 
     static fromString(str: string): Point 
     static fromX(x: BigNumber | number | number[] | string, odd: boolean): Point 
@@ -5031,9 +5032,9 @@ encoding, and changing it would render previously encrypted data
 undecryptable by newer versions of the library.
 
 ```ts
-export function AESGCM(plainText: number[], initializationVector: number[], key: number[]): {
-    result: number[];
-    authenticationTag: number[];
+export function AESGCM(plainText: Bytes, initializationVector: Bytes, key: Bytes): {
+    result: Bytes;
+    authenticationTag: Bytes;
 } 
 ```
 
@@ -5043,7 +5044,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Function: AESGCMDecrypt
 
 ```ts
-export function AESGCMDecrypt(cipherText: number[], initializationVector: number[], authenticationTag: number[], key: number[]): number[] | null 
+export function AESGCMDecrypt(cipherText: Bytes, initializationVector: Bytes, authenticationTag: Bytes, key: Bytes): Bytes | null 
 ```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -5070,7 +5071,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Function: ghash
 
 ```ts
-export function ghash(input: number[], hashSubKey: number[]): number[] 
+export function ghash(input: Bytes, hashSubKey: Bytes): Bytes 
 ```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -5491,20 +5492,20 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 biModPow = (base: bigint, exp: bigint): bigint => {
-    let result = BI_ONE;
+    let result = 1n;
     base = biMod(base);
-    let e = exp;
-    while (e > BI_ZERO) {
-        if ((e & BI_ONE) === BI_ONE)
+    while (exp > 0n) {
+        if ((exp & 1n) !== 0n) {
             result = biModMul(result, base);
+        }
         base = biModMul(base, base);
-        e >>= BI_ONE;
+        exp >>= 1n;
     }
     return result;
 }
 ```
 
-See also: [BI_ONE](./primitives.md#variable-bi_one), [BI_ZERO](./primitives.md#variable-bi_zero), [biMod](./primitives.md#variable-bimod), [biModMul](./primitives.md#variable-bimodmul)
+See also: [biMod](./primitives.md#variable-bimod), [biModMul](./primitives.md#variable-bimodmul)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5525,7 +5526,10 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ```ts
 biModSqrt = (a: bigint): bigint | null => {
     const r = biModPow(a, P_PLUS1_DIV4);
-    return biModMul(r, r) === biMod(a) ? r : null;
+    if (biModMul(r, r) !== biMod(a)) {
+        return null;
+    }
+    return r;
 }
 ```
 
@@ -5579,11 +5583,11 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Variable: exclusiveOR
 
 ```ts
-exclusiveOR = function (block0: number[], block1: number[]): number[] {
+exclusiveOR = function (block0: Bytes, block1: Bytes): Bytes {
     const len = block0.length;
-    const result = new Array(len);
+    const result = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
-        result[i] = block0[i] ^ block1[i];
+        result[i] = block0[i] ^ (block1[i] ?? 0);
     }
     return result;
 }
@@ -5730,15 +5734,11 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Variable: incrementLeastSignificantThirtyTwoBits
 
 ```ts
-incrementLeastSignificantThirtyTwoBits = function (block: number[]): number[] {
-    let i;
+incrementLeastSignificantThirtyTwoBits = function (block: Bytes): Bytes {
     const result = block.slice();
-    for (i = 15; i !== 11; i--) {
-        result[i] = result[i] + 1;
-        if (result[i] === 256) {
-            result[i] = 0;
-        }
-        else {
+    for (let i = 15; i !== 11; i--) {
+        result[i] = (result[i] + 1) & 255;
+        if (result[i] !== 0) {
             break;
         }
     }
@@ -5910,7 +5910,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Variable: multiply
 
 ```ts
-multiply = function (block0: number[], block1: number[]): number[] {
+multiply = function (block0: Bytes, block1: Bytes): Bytes {
     const v = block1.slice();
     const z = createZeroBlock(16);
     for (let i = 0; i < 16; i++) {
@@ -5939,11 +5939,10 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Variable: rightShift
 
 ```ts
-rightShift = function (block: number[]): number[] {
-    let i: number;
+rightShift = function (block: Bytes): Bytes {
     let carry = 0;
     let oldCarry = 0;
-    for (i = 0; i < block.length; i++) {
+    for (let i = 0; i < block.length; i++) {
         oldCarry = carry;
         carry = block[i] & 1;
         block[i] = block[i] >> 1;

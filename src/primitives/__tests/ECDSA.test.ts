@@ -2,6 +2,7 @@ import * as ECDSA from '../../primitives/ECDSA'
 import BigNumber from '../../primitives/BigNumber'
 import Curve from '../../primitives/Curve'
 import Signature from '../../primitives/Signature'
+import Point from '../../primitives/Point'
 
 const msg = new BigNumber('deadbeef', 16)
 const key = new BigNumber(
@@ -88,6 +89,32 @@ describe('ECDSA', () => {
     // k = n → invalid
     expect(() =>
       ECDSA.sign(msg, key, undefined, n)
+    ).toThrow()
+  })
+
+  it('k·G + (−k·G) results in point at infinity (TOB-25)', () => {
+    const k = new BigNumber('123456789abcdef', 16)
+
+    const P = curve.g.mul(k)
+    const negP = P.neg()
+    const sum = P.add(negP)
+
+    expect(sum.isInfinity()).toBe(true)
+  })
+
+  it('scalar multiplication by zero returns point at infinity (TOB-25)', () => {
+    const zero = new BigNumber(0)
+    const result = curve.g.mul(zero)
+
+    expect(result.isInfinity()).toBe(true)
+  })
+
+  it('ECDSA verify rejects point-at-infinity public key (TOB-25)', () => {
+    const signature = ECDSA.sign(msg, key)
+    const infinityPub = new Point(null, null)
+
+    expect(() =>
+      ECDSA.verify(msg, signature, infinityPub)
     ).toThrow()
   })
 })

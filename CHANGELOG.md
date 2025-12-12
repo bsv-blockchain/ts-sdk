@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
-- [1.9.26 - 2025-12-09](#1926---2025-12-09)
+- [1.9.28 - 2025-12-11](#1928---2025-12-11)
+- [1.9.27 - 2025-12-11](#1927---2025-12-11)
+- [1.9.26 - 2025-12-10](#1926---2025-12-10)
 - [1.9.25 - 2025-12-09](#1925---2025-12-09)
 - [1.9.24 - 2025-12-09](#1924---2025-12-09)
 - [1.9.23 - 2025-12-08](#1923---2025-12-08)
@@ -199,13 +201,39 @@ All notable changes to this project will be documented in this file. The format 
 
 ---
 
-## [1.9.26] - 2025-12-09
+## [1.9.28] - 2025-12-11
 
 ### Added
 - Add getBytes64 helper for 64-bit length fields.
+- Added long ciphertext test case.
+
+### Changed
+- Changed AESGCM to use Uint8Arrays instead of number[] for all inputs and outputs for optimization.
 
 ### Fixed
 - Use 64-bit length encoding for GHASH inputs.
+
+---
+
+## [1.9.27] - 2025-12-11
+
+### Fixed
+- Addressed TOB-24: hardened elliptic-curve point validation across `fromDER`, `fromX`, and `fromJSON`.
+- Added bigint-secure curve equation checking to `Point.validate()`.
+- Fixed modular sqrt and pow logic (`biModSqrt`, `biModPow`) to correctly detect invalid X coordinates.
+- Ensured consistent `Invalid point` errors for malformed input.
+- Added negative tests and roundtrip validation tests.
+
+---
+
+## [1.9.26] - 2025-12-10
+
+### Security
+- Addressed TOB-25 by adding explicit ECDSA and elliptic-curve regression tests
+  ensuring correct propagation and handling of the point at infinity during
+  scalar multiplication and signature verification.
+  These tests prevent regressions where invalid infinity points could be
+  incorrectly treated as valid curve points.
 
 ---
 
