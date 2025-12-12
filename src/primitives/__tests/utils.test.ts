@@ -9,10 +9,10 @@ import {
   toBase58,
   fromBase58Check,
   toBase58Check,
-  verifyNotNull
+  verifyNotNull,
+  constantTimeEquals
 } from '../../primitives/utils'
 import Point from '../../primitives/Point'
-import { constantTimeEquals } from '../../primitives/utils'
 
 describe('utils', () => {
   it('should convert to array', () => {
