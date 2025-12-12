@@ -5,7 +5,7 @@ const PURE_HEX_REGEX = /^[0-9a-fA-F]*$/
 
 export function assertValidHex (msg: string): void {
   if (typeof msg !== 'string') {
-    throw new Error('Invalid hex string')
+    throw new TypeError('Invalid hex string')
   }
 
   // allow empty

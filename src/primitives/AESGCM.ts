@@ -308,7 +308,7 @@ export const incrementLeastSignificantThirtyTwoBits = function (
 ): Bytes {
   const result = block.slice()
 
-  for (let i = 15; i !== 11; i--) {
+  for (let i = 15; i > 11; i--) {
     result[i] = (result[i] + 1) & 0xff // wrap explicitly
 
     if (result[i] !== 0) {
@@ -366,10 +366,14 @@ function buildAuthInput (cipherText: Bytes): Bytes {
   const aadLenBits = 0
   const ctLenBits = cipherText.length * 8
 
-  const padLen =
-    cipherText.length === 0
-      ? 16
-      : (cipherText.length % 16 === 0 ? 0 : 16 - (cipherText.length % 16))
+  let padLen: number
+  if (cipherText.length === 0) {
+    padLen = 16
+  } else if (cipherText.length % 16 === 0) {
+    padLen = 0
+  } else {
+    padLen = 16 - (cipherText.length % 16)
+  }
 
   const total =
     16 +
@@ -393,7 +397,6 @@ function buildAuthInput (cipherText: Bytes): Bytes {
 
   const ctLen = getBytes64(ctLenBits)
   out.set(ctLen, offset)
-  offset += 8
 
   return out
 }
