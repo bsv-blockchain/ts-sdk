@@ -78,4 +78,25 @@ describe('totp generation and validation', () => {
       checkAdjacentWindow(time - i * periodMS, false)
     }
   })
+
+  test('should reject wrong passcode with same length', () => {
+    jest.setSystemTime(0)
+
+    const correct = TOTP.generate(secret, options)
+
+    // Same length but definitely wrong
+    const wrong = correct === '123456' ? '654321' : '123456'
+
+    expect(wrong.length).toBe(correct.length)
+    expect(TOTP.validate(secret, wrong, options)).toBe(false)
+  })
+
+  test('should validate correct passcode using constant-time comparison', () => {
+    jest.setSystemTime(0)
+
+    const correct = TOTP.generate(secret, options)
+
+    // Ensure the code path executes constantTimeEquals and returns true
+    expect(TOTP.validate(secret, correct, options)).toBe(true)
+  })
 })

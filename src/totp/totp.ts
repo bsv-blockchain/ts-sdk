@@ -1,5 +1,6 @@
 import { SHA1HMAC, SHA256HMAC, SHA512HMAC } from '../primitives/Hash.js'
 import BigNumber from '../primitives/BigNumber.js'
+import { constantTimeEquals, toArray } from '../primitives/utils.js'
 
 export type TOTPAlgorithm = 'SHA-1' | 'SHA-256' | 'SHA-512'
 
@@ -68,7 +69,14 @@ export class TOTP {
     }
 
     for (const c of counters) {
-      if (passcode === generateHOTP(secret, c, _options)) {
+      const expected = generateHOTP(secret, c, _options)
+
+      if (
+        constantTimeEquals(
+          toArray(passcode, "utf8"),
+          toArray(expected, "utf8")
+        )
+      ) {
         return true
       }
     }
