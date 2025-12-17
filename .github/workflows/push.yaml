@@ -43,17 +43,11 @@ jobs:
       id-token: write
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:
-    - name: Authenticate with registry
-      run: echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" > ~/.npmrc
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.BSV_NPM_TOKEN }}
     - uses: actions/checkout@v3
     - name: Use Node.js 20.x
       uses: actions/setup-node@v1
       with:
         node-version: 20.x
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.BSV_NPM_TOKEN }}
     - name: Cache node_modules
       id: cache-modules
       uses: actions/cache@v3
@@ -67,5 +61,3 @@ jobs:
       run: npm run build
     - name: Publish to NPM (expected to fail if version was not bumped manually)
       run: npm publish --provenance --access public
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.BSV_NPM_TOKEN }}
