@@ -8,9 +8,9 @@ jobs:
       matrix:
         node-version: [18.x, 20.x, 22.x]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
     - name: Cache node_modules
@@ -27,7 +27,7 @@ jobs:
     - name: Test with Coverage
       run: npm run test:coverage
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage/lcov.info
@@ -43,21 +43,21 @@ jobs:
       id-token: write
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:
-    - uses: actions/checkout@v3
-    - name: Use Node.js 20.x
-      uses: actions/setup-node@v1
+    - uses: actions/checkout@v4
+    - name: Use Node.js 22.x
+      uses: actions/setup-node@v4
       with:
-        node-version: 20.x
+        node-version: 22.x
     - name: Cache node_modules
       id: cache-modules
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: node_modules
-        key: 20.x-${{ runner.OS }}-build-${{ hashFiles('package.json') }}
+        key: 22.x-${{ runner.OS }}-build-${{ hashFiles('package.json') }}
     - name: Install deps
       if: steps.cache-modules.outputs.cache-hit != 'true'
       run: npm install
     - name: Build
       run: npm run build
-    - name: Publish to NPM (expected to fail if version was not bumped manually)
-      run: npm publish --provenance --access public
+    - name: Publish to NPM using Trusted Publishers (OIDC)
+      run: npm publish --access public
