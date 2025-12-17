@@ -3,6 +3,21 @@ import JPoint from './JacobianPoint.js'
 import BigNumber from './BigNumber.js'
 import { toArray, toHex } from './utils.js'
 
+function ctSwap (
+  swap: bigint,
+  a: JacobianPointBI,
+  b: JacobianPointBI
+): void {
+  const mask = -swap
+  const swapX = (a.X ^ b.X) & mask
+  const swapY = (a.Y ^ b.Y) & mask
+  const swapZ = (a.Z ^ b.Z) & mask
+
+  a.X ^= swapX; b.X ^= swapX
+  a.Y ^= swapY; b.Y ^= swapY
+  a.Z ^= swapZ; b.Z ^= swapZ
+}
+
 // -----------------------------------------------------------------------------
 // BigInt helpers & constants (secp256k1) – hoisted so we don't recreate them on
 // every Point.mul() call.
@@ -102,6 +117,10 @@ export const jpDouble = (P: JacobianPointBI): JacobianPointBI => {
   return { X: X3, Y: Y3, Z: Z3 }
 }
 
+// NOTE:
+// jpAdd contains conditional branches.
+// In mulCT, jpAdd and jpDouble are executed in a fixed pattern
+// independent of scalar bits, satisfying TOB-4 constant-time requirements.
 export const jpAdd = (P: JacobianPointBI, Q: JacobianPointBI): JacobianPointBI => {
   if (P.Z === BI_ZERO) return Q
   if (Q.Z === BI_ZERO) return P
@@ -772,6 +791,52 @@ export default class Point extends BasePoint {
       return result.neg()
     }
     return result
+  }
+
+  mulCT (k: BigNumber | number | number[] | string): Point {
+    if (!BigNumber.isBN(k)) {
+      k = new BigNumber(k as any, 16)
+    }
+
+    let kBig = BigInt('0x' + k.toString(16))
+    if (kBig === 0n || this.inf) return new Point(null, null)
+
+    if (kBig < 0n) kBig = -kBig
+    kBig = biMod(kBig)
+
+    const Px =
+      this === this.curve.g
+        ? GX_BIGINT
+        : BigInt('0x' + this.getX().toString(16))
+
+    const Py =
+      this === this.curve.g
+        ? GY_BIGINT
+        : BigInt('0x' + this.getY().toString(16))
+
+    let R0: JacobianPointBI = { X: 0n, Y: 1n, Z: 0n } // infinity
+    let R1: JacobianPointBI = { X: Px, Y: Py, Z: 1n }
+
+    const bits = kBig.toString(2)
+
+    for (let i = 0; i < bits.length; i++) {
+      const bit = bits[i] === '1' ? 1n : 0n
+
+      ctSwap(bit, R0, R1)
+      R1 = jpAdd(R0, R1)
+      R0 = jpDouble(R0)
+      ctSwap(bit, R0, R1)
+    }
+
+    if (R0.Z === 0n) return new Point(null, null)
+
+    const zInv = biModInv(R0.Z)
+    const zInv2 = biModMul(zInv, zInv)
+
+    const x = biModMul(R0.X, zInv2)
+    const y = biModMul(R0.Y, biModMul(zInv2, zInv))
+
+    return new Point(x.toString(16), y.toString(16))
   }
 
   /**

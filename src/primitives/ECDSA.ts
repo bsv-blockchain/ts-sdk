@@ -65,18 +65,15 @@ export const sign = (
   forceLowS: boolean = false,
   customK?: BigNumber | ((iter: number) => BigNumber)
 ): Signature => {
-  // —— prepare inputs ────────────────────────────────────────────────────────
   msg = truncateToN(msg)
   const msgBig = BigInt('0x' + msg.toString(16))
   const keyBig = BigInt('0x' + key.toString(16))
 
-  // DRBG seeding identical to previous implementation
   const bkey = key.toArray('be', bytes)
   const nonce = msg.toArray('be', bytes)
   const drbg = new DRBG(bkey, nonce)
 
   for (let iter = 0; ; iter++) {
-    // —— k generation & basic validity checks ───────────────────────────────
     let kBN =
       typeof customK === 'function'
         ? customK(iter)
@@ -84,31 +81,29 @@ export const sign = (
           ? customK
           : new BigNumber(drbg.generate(bytes), 16)
 
-    if (kBN == null) throw new Error('k is undefined')
+    if (kBN == null) {
+      throw new Error('k is undefined')
+    }
+
     kBN = truncateToN(kBN, true)
 
     if (kBN.cmpn(1) < 0 || kBN.cmp(ns1) > 0) {
       if (BigNumber.isBN(customK)) {
-        throw new Error('Invalid fixed custom K value (must be >1 and <N‑1)')
+        throw new Error('Invalid fixed custom K value (must be >1 and <N-1)')
       }
       continue
     }
 
-    const kBig = BigInt('0x' + kBN.toString(16))
+    const R = curve.g.mulCT(kBN)
 
-    // —— R = k·G (Jacobian, window‑NAF) ──────────────────────────────────────
-    const R = scalarMultiplyWNAF(kBig, { x: GX_BIGINT, y: GY_BIGINT })
-    if (R.Z === 0n) { // point at infinity – should never happen for valid k
+    if (R.isInfinity()) {
       if (BigNumber.isBN(customK)) {
         throw new Error('Invalid fixed custom K value (k·G at infinity)')
       }
       continue
     }
 
-    // affine X coordinate of R
-    const zInv = biModInv(R.Z)
-    const zInv2 = biModMul(zInv, zInv)
-    const xAff = biModMul(R.X, zInv2)
+    const xAff = BigInt('0x' + R.getX().toString(16))
     const rBig = modN(xAff)
 
     if (rBig === 0n) {
@@ -118,7 +113,7 @@ export const sign = (
       continue
     }
 
-    // —— s = k⁻¹ · (msg + r·key)  mod n ─────────────────────────────────────
+    const kBig = BigInt('0x' + kBN.toString(16))
     const kInv = modInvN(kBig)
     const rTimesKey = modMulN(rBig, keyBig)
     const sum = modN(msgBig + rTimesKey)
@@ -131,12 +126,10 @@ export const sign = (
       continue
     }
 
-    // low‑S mitigation (BIP‑62/BIP‑340 style)
     if (forceLowS && sBig > halfN) {
       sBig = N_BIGINT - sBig
     }
 
-    // —— convert back to BigNumber & return ─────────────────────────────────
     const r = new BigNumber(rBig.toString(16), 16)
     const s = new BigNumber(sBig.toString(16), 16)
     return new Signature(r, s)
