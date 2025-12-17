@@ -9,7 +9,8 @@ import {
   toBase58,
   fromBase58Check,
   toBase58Check,
-  verifyNotNull
+  verifyNotNull,
+  constantTimeEquals
 } from '../../primitives/utils'
 import Point from '../../primitives/Point'
 
@@ -374,5 +375,27 @@ describe('Point.encode infinity handling', () => {
   it('does not throw for infinity', () => {
     const p = new Point(null, null)
     expect(() => p.encode()).not.toThrow()
+  })
+})
+
+describe('constantTimeEquals', () => {
+  it('returns true for identical arrays', () => {
+    expect(constantTimeEquals([1, 2, 3], [1, 2, 3])).toBe(true)
+  })
+
+  it('returns false for arrays with different content', () => {
+    expect(constantTimeEquals([1, 2, 3], [1, 2, 4])).toBe(false)
+  })
+
+  it('returns false for arrays of different length', () => {
+    expect(constantTimeEquals([1, 2], [1, 2, 3])).toBe(false)
+  })
+
+  it('runs through entire array (no early exit)', () => {
+    expect(constantTimeEquals([0,0,0,0,9], [0,0,0,0,8])).toBe(false)
+  })
+
+  it('works with Uint8Array', () => {
+    expect(constantTimeEquals(new Uint8Array([5,6,7]), new Uint8Array([5,6,7]))).toBe(true)
   })
 })

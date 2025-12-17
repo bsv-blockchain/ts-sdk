@@ -4,6 +4,19 @@ import { createNonce, verifyNonce } from '../../auth/utils'
 
 const sampleData = [3, 1, 4, 1, 5, 9]
 
+let userKey: PrivateKey
+let counterpartyKey: PrivateKey
+let user: ProtoWallet
+let counterparty: ProtoWallet
+
+beforeEach(() => {
+  userKey = PrivateKey.fromRandom()
+  counterpartyKey = PrivateKey.fromRandom()
+  user = new ProtoWallet(userKey)
+  counterparty = new ProtoWallet(counterpartyKey)
+})
+
+
 describe('ProtoWallet', () => {
   it('Throws when unsupported functions are called', async () => {
     const wallet = new ProtoWallet('anyone')
@@ -80,10 +93,6 @@ describe('ProtoWallet', () => {
     )
   })
   it('Encrypts messages decryptable by the counterparty', async () => {
-    const userKey = PrivateKey.fromRandom()
-    const counterpartyKey = PrivateKey.fromRandom()
-    const user = new ProtoWallet(userKey)
-    const counterparty = new ProtoWallet(counterpartyKey)
     const { ciphertext } = await user.encrypt({
       plaintext: sampleData,
       protocolID: [2, 'tests'],
@@ -100,10 +109,6 @@ describe('ProtoWallet', () => {
     expect(ciphertext).not.toEqual(plaintext)
   })
   it('Fails to decryupt messages for the wrong protocol, key, and counterparty', async () => {
-    const userKey = PrivateKey.fromRandom()
-    const counterpartyKey = PrivateKey.fromRandom()
-    const user = new ProtoWallet(userKey)
-    const counterparty = new ProtoWallet(counterpartyKey)
     const { ciphertext } = await user.encrypt({
       plaintext: sampleData,
       protocolID: [2, 'tests'],
@@ -139,10 +144,6 @@ describe('ProtoWallet', () => {
     ).rejects.toThrow()
   })
   it('Correctly derives keys for a counterparty', async () => {
-    const userKey = PrivateKey.fromRandom()
-    const counterpartyKey = PrivateKey.fromRandom()
-    const user = new ProtoWallet(userKey)
-    const counterparty = new ProtoWallet(counterpartyKey)
     const { publicKey: identityKey } = await user.getPublicKey({
       identityKey: true
     })
@@ -162,10 +163,6 @@ describe('ProtoWallet', () => {
     expect(derivedForCounterparty).toEqual(derivedByCounterparty)
   })
   it('Signs messages verifiable by the counterparty', async () => {
-    const userKey = PrivateKey.fromRandom()
-    const counterpartyKey = PrivateKey.fromRandom()
-    const user = new ProtoWallet(userKey)
-    const counterparty = new ProtoWallet(counterpartyKey)
     const { signature } = await user.createSignature({
       data: sampleData,
       protocolID: [2, 'tests'],
@@ -183,10 +180,6 @@ describe('ProtoWallet', () => {
     expect(signature.length).not.toEqual(0)
   })
   it('Directly signs hash of message verifiable by the counterparty', async () => {
-    const userKey = PrivateKey.fromRandom()
-    const counterpartyKey = PrivateKey.fromRandom()
-    const user = new ProtoWallet(userKey)
-    const counterparty = new ProtoWallet(counterpartyKey)
     const { signature } = await user.createSignature({
       hashToDirectlySign: Hash.sha256(sampleData),
       protocolID: [2, 'tests'],
@@ -212,10 +205,6 @@ describe('ProtoWallet', () => {
     expect(signature.length).not.toEqual(0)
   })
   it('Fails to verify signature for the wrong data, protocol, key, and counterparty', async () => {
-    const userKey = PrivateKey.fromRandom()
-    const counterpartyKey = PrivateKey.fromRandom()
-    const user = new ProtoWallet(userKey)
-    const counterparty = new ProtoWallet(counterpartyKey)
     const { signature } = await user.createSignature({
       data: sampleData,
       protocolID: [2, 'tests'],
@@ -264,10 +253,6 @@ describe('ProtoWallet', () => {
     ).rejects.toThrow()
   })
   it('Computes HMAC over messages verifiable by the counterparty', async () => {
-    const userKey = PrivateKey.fromRandom()
-    const counterpartyKey = PrivateKey.fromRandom()
-    const user = new ProtoWallet(userKey)
-    const counterparty = new ProtoWallet(counterpartyKey)
     const { hmac } = await user.createHmac({
       data: sampleData,
       protocolID: [2, 'tests'],
@@ -285,10 +270,6 @@ describe('ProtoWallet', () => {
     expect(hmac.length).toEqual(32)
   })
   it('Fails to verify HMAC for the wrong data, protocol, key, and counterparty', async () => {
-    const userKey = PrivateKey.fromRandom()
-    const counterpartyKey = PrivateKey.fromRandom()
-    const user = new ProtoWallet(userKey)
-    const counterparty = new ProtoWallet(counterpartyKey)
     const { hmac } = await user.createHmac({
       data: sampleData,
       protocolID: [2, 'tests'],
@@ -337,8 +318,6 @@ describe('ProtoWallet', () => {
     ).rejects.toThrow()
   })
   it('Uses anyone for creating signatures and self for other operations if no counterparty is provided', async () => {
-    const userKey = PrivateKey.fromRandom()
-    const user = new ProtoWallet(userKey)
     const { hmac } = await user.createHmac({
       data: sampleData,
       protocolID: [2, 'tests'],
@@ -588,5 +567,47 @@ describe('ProtoWallet', () => {
       // Compare linkage and expectedLinkage
       expect(linkage).toEqual(expectedLinkage)
     })
+  })
+
+  it('Fails constant-time HMAC validation for wrong-but-same-length HMAC', async () => {
+    const { hmac: correctHmac } = await user.createHmac({
+      data: sampleData,
+      protocolID: [2, 'tests'],
+      keyID: '4',
+      counterparty: counterpartyKey.toPublicKey().toString()
+    })
+
+    // Create a different HMAC with same length
+    const wrong = correctHmac.slice()
+    wrong[0] = (wrong[0] + 1) & 0xff  // minimally alter 1 byte
+
+    await expect(async () =>
+      await counterparty.verifyHmac({
+        hmac: wrong,
+        data: sampleData,
+        protocolID: [2, 'tests'],
+        keyID: '4',
+        counterparty: userKey.toPublicKey().toString()
+      })
+    ).rejects.toThrow('HMAC is not valid')
+  })
+
+  it('Validates correct HMAC using the constant-time comparison path', async () => {
+    const { hmac } = await user.createHmac({
+      data: sampleData,
+      protocolID: [2, 'tests'],
+      keyID: '4',
+      counterparty: counterpartyKey.toPublicKey().toString()
+    })
+
+    const { valid } = await counterparty.verifyHmac({
+      hmac,
+      data: sampleData,
+      protocolID: [2, 'tests'],
+      keyID: '4',
+      counterparty: userKey.toPublicKey().toString()
+    })
+
+    expect(valid).toBe(true)
   })
 })

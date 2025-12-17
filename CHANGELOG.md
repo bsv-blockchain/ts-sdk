@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.29 - 2025-12-12](#1929---2025-12-12)
 - [1.9.28 - 2025-12-11](#1928---2025-12-11)
 - [1.9.27 - 2025-12-11](#1927---2025-12-11)
 - [1.9.26 - 2025-12-10](#1926---2025-12-10)
@@ -198,6 +199,24 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [1.9.29] - 2025-12-12
+### Added
+- Introduced constantTimeEquals() utility for timing-safe byte comparisons.
+- Added new unit tests covering constant-time comparison behavior, TOTP validation paths, and ProtoWallet HMAC verification.
+
+### Changed
+- Updated TOTP validation logic to compare passcodes using constant-time comparison.
+- Updated ProtoWallet HMAC verification to avoid string comparison and instead use constant-time byte comparison.
+
+### Fixed
+- Ensured incorrect but same-length HMACs correctly fail validation through secure comparison logic.
+- Fixed timing-side-channel vulnerability (TOB-8) where secrets and HMAC outputs were previously compared using ===.
+
+### Security
+- Hardened TOTP and HMAC verification paths against timing attacks by replacing all secret-derived comparisons with constant-time equivalents.
 
 ---
 
