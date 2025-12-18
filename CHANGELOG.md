@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.30 - 2025-12-17](#1930---2025-12-17)
 - [1.9.29 - 2025-12-12](#1929---2025-12-12)
 - [1.9.28 - 2025-12-11](#1928---2025-12-11)
 - [1.9.27 - 2025-12-11](#1927---2025-12-11)
@@ -199,6 +200,27 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [1.9.30] - 2025-12-18
+
+### Added
+- Added constant-time scalar multiplication (`mulCT`) for elliptic curve points.
+- Added comprehensive unit tests for constant-time scalar multiplication, including generator and non-generator points, negative scalars, and edge cases.
+- Expanded test coverage across Point, ECDSA, PublicKey, and PrivateKey to validate correctness and edge-case behavior.
+
+### Changed
+- Updated ECDSA signing to use constant-time scalar multiplication internally.
+- Refactored elliptic curve scalar multiplication internals to improve timing consistency without changing public APIs.
+
+### Fixed
+- Fixed incorrect handling of negative scalars during BigInt conversion in scalar multiplication.
+- Corrected discrepancies between constant-time and variable-time scalar multiplication results.
+- Ensured scalar multiplication by zero and point-at-infinity cases behave correctly and consistently.
+
+### Security
+- Reduced timing side-channel risk in elliptic curve scalar multiplication paths by introducing constant-time algorithms (TOB-4).
 
 ---
 
