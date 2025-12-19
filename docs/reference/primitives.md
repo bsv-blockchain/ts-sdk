@@ -4961,14 +4961,14 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | | |
 | --- | --- |
-| [AES](#function-aes) | [pbkdf2](#function-pbkdf2) |
-| [AESGCM](#function-aesgcm) | [realHtonl](#function-realhtonl) |
-| [AESGCMDecrypt](#function-aesgcmdecrypt) | [red](#function-red) |
-| [assertValidHex](#function-assertvalidhex) | [swapBytes32](#function-swapbytes32) |
-| [base64ToArray](#function-base64toarray) | [toArray](#function-toarray) |
+| [AES](#function-aes) | [normalizeHex](#function-normalizehex) |
+| [AESGCM](#function-aesgcm) | [pbkdf2](#function-pbkdf2) |
+| [AESGCMDecrypt](#function-aesgcmdecrypt) | [realHtonl](#function-realhtonl) |
+| [assertValidHex](#function-assertvalidhex) | [red](#function-red) |
+| [base64ToArray](#function-base64toarray) | [swapBytes32](#function-swapbytes32) |
+| [constantTimeEquals](#function-constanttimeequals) | [toArray](#function-toarray) |
 | [ghash](#function-ghash) | [toBase64](#function-tobase64) |
 | [htonl](#function-htonl) | [verifyNotNull](#function-verifynotnull) |
-| [normalizeHex](#function-normalizehex) |  |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5063,6 +5063,15 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 export function base64ToArray(msg: string): number[] 
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Function: constantTimeEquals
+
+```ts
+export function constantTimeEquals(a: Uint8Array | number[], b: Uint8Array | number[]): boolean 
 ```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -5736,7 +5745,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ```ts
 incrementLeastSignificantThirtyTwoBits = function (block: Bytes): Bytes {
     const result = block.slice();
-    for (let i = 15; i !== 11; i--) {
+    for (let i = 15; i > 11; i--) {
         result[i] = (result[i] + 1) & 255;
         if (result[i] !== 0) {
             break;
