@@ -229,7 +229,13 @@ export class SimplifiedFetchTransport implements Transport {
       }
 
       // Handle the response if data is received and callback is set
-      this.onDataCallback(responseMessage)
+      // Only process responses from auth endpoints as auth messages
+      const responseUrl = new URL(url)
+      const isAuthEndpoint = responseUrl.pathname === '/.well-known/auth' || responseUrl.pathname.endsWith('/.well-known/auth')
+
+      if (isAuthEndpoint && this.onDataCallback != null) {
+        this.onDataCallback(responseMessage)
+      }
     }
   }
 
