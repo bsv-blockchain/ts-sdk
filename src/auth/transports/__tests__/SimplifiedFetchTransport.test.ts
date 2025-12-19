@@ -123,4 +123,93 @@ describe('SimplifiedFetchTransport send', () => {
       'Failed to parse x-bsv-auth-requested-certificates returned by https://api.example.com/resource: not-json'
     )
   })
+
+  test('calls onDataCallback only for auth endpoint responses', async () => {
+    // Test auth endpoint - should call callback
+    const authFetchMock: jest.MockedFunction<typeof fetch> = jest.fn()
+    authFetchMock.mockResolvedValue(new Response('{"status": "ok"}', {
+      status: 200,
+      headers: {
+        'x-bsv-auth-version': '1.0',
+        'x-bsv-auth-identity-key': 'server-key',
+        'x-bsv-auth-signature': Utils.toHex(new Array(64).fill(0)),
+        'x-bsv-auth-message-type': 'general',
+        'x-bsv-auth-request-id': Utils.toBase64(new Array(32).fill(2))
+      }
+    }))
+
+    const authTransport = new SimplifiedFetchTransport('https://api.example.com', authFetchMock as any)
+    let callbackCalled = false
+    let callbackMessage: AuthMessage | undefined
+    await authTransport.onData(async (message) => {
+      callbackCalled = true
+      callbackMessage = message
+    })
+
+    const authMessage = createGeneralMessage()
+    authMessage.payload = createGeneralPayload('/.well-known/auth', 'POST')
+    await authTransport.send(authMessage)
+
+    expect(callbackCalled).toBe(true)
+    expect(callbackMessage).toMatchObject({
+      version: '1.0',
+      messageType: 'general',
+      identityKey: 'server-key'
+    })
+
+    // Test non-auth endpoint - should NOT call callback
+    const apiFetchMock: jest.MockedFunction<typeof fetch> = jest.fn()
+    apiFetchMock.mockResolvedValue(new Response('{"status": "ok"}', {
+      status: 200,
+      headers: {
+        'x-bsv-auth-version': '1.0',
+        'x-bsv-auth-identity-key': 'server-key',
+        'x-bsv-auth-signature': Utils.toHex(new Array(64).fill(0)),
+        'x-bsv-auth-message-type': 'general',
+        'x-bsv-auth-request-id': Utils.toBase64(new Array(32).fill(2))
+      }
+    }))
+
+    const apiTransport = new SimplifiedFetchTransport('https://api.example.com', apiFetchMock as any)
+    callbackCalled = false
+    callbackMessage = undefined
+    await apiTransport.onData(async (message) => {
+      callbackCalled = true
+      callbackMessage = message
+    })
+
+    const apiMessage = createGeneralMessage()
+    apiMessage.payload = createGeneralPayload('/api/walletInfo', 'GET')
+    await apiTransport.send(apiMessage)
+
+    expect(callbackCalled).toBe(false)
+    expect(callbackMessage).toBeUndefined()
+  })
+
+  test('calls onDataCallback for auth endpoint with trailing slash', async () => {
+    const fetchMock: jest.MockedFunction<typeof fetch> = jest.fn()
+    fetchMock.mockResolvedValue(new Response('{"status": "ok"}', {
+      status: 200,
+      headers: {
+        'x-bsv-auth-version': '1.0',
+        'x-bsv-auth-identity-key': 'server-key',
+        'x-bsv-auth-signature': Utils.toHex(new Array(64).fill(0)),
+        'x-bsv-auth-message-type': 'general',
+        'x-bsv-auth-request-id': Utils.toBase64(new Array(32).fill(2))
+      }
+    }))
+
+    const transport = new SimplifiedFetchTransport('https://api.example.com', fetchMock as any)
+    let callbackCalled = false
+    await transport.onData(async (message) => {
+      callbackCalled = true
+    })
+
+    // Test auth endpoint with trailing slash - should call callback
+    const authMessage = createGeneralMessage()
+    authMessage.payload = createGeneralPayload('/.well-known/auth/', 'POST')
+    await transport.send(authMessage)
+
+    expect(callbackCalled).toBe(true)
+  })
 })
