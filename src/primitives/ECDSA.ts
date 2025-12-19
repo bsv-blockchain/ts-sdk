@@ -39,6 +39,15 @@ function truncateToN (
   }
 }
 
+function bnToBigInt (bn: BigNumber): bigint {
+  const bytes = bn.toArray('be')
+  let x = 0n
+  for (let i = 0; i < bytes.length; i++) {
+    x = (x << 8n) | BigInt(bytes[i])
+  }
+  return x
+}
+
 const curve = new Curve()
 const bytes = curve.n.byteLength()
 const ns1 = curve.n.subn(1)
@@ -66,8 +75,8 @@ export const sign = (
   customK?: BigNumber | ((iter: number) => BigNumber)
 ): Signature => {
   msg = truncateToN(msg)
-  const msgBig = BigInt('0x' + msg.toString(16))
-  const keyBig = BigInt('0x' + key.toString(16))
+  const msgBig = bnToBigInt(msg)
+  const keyBig = bnToBigInt(key)
 
   const bkey = key.toArray('be', bytes)
   const nonce = msg.toArray('be', bytes)
@@ -156,18 +165,18 @@ export const sign = (
  */
 export const verify = (msg: BigNumber, sig: Signature, key: Point): boolean => {
 // Convert inputs to BigInt
-  const hash = BigInt('0x' + msg.toString(16))
+  const hash = bnToBigInt(msg)
   if ((key.x == null) || (key.y == null)) {
     throw new Error('Invalid public key: missing coordinates.')
   }
 
   const publicKey = {
-    x: BigInt('0x' + key.x.toString(16)),
-    y: BigInt('0x' + key.y.toString(16))
+    x: bnToBigInt(key.x),
+    y: bnToBigInt(key.y)
   }
   const signature = {
-    r: BigInt('0x' + sig.r.toString(16)),
-    s: BigInt('0x' + sig.s.toString(16))
+    r: bnToBigInt(sig.r),
+    s: bnToBigInt(sig.s)
   }
 
   const { r, s } = signature
