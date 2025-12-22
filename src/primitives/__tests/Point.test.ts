@@ -1,4 +1,5 @@
 import Point from '../../primitives/Point'
+import BigNumber from '../../primitives/BigNumber'
 
 describe('Point.fromJSON / fromDER / fromX curve validation (TOB-24)', () => {
   it('rejects clearly off-curve coordinates', () => {
@@ -98,6 +99,13 @@ describe('Point.mulCT (constant-time scalar multiplication)', () => {
     const r1 = G.mul(k.toString(10))
     const r2 = G.mulCT(k.toString(10))
 
+    expect(r2.eq(r1)).toBe(true)
+  })
+
+  it('handles negative scalars correctly', () => {
+    const k = new BigNumber('123456', 16)
+    const r1 = G.mul(k.neg())
+    const r2 = G.mulCT(k.neg())
     expect(r2.eq(r1)).toBe(true)
   })
 })

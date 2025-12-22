@@ -753,10 +753,14 @@ export default class Point extends BasePoint {
       return this
     }
 
-    let kBig = BigInt('0x' + k.toString(16))
-    const isNeg = kBig < BI_ZERO
-    if (isNeg) kBig = -kBig
+    const isNeg = k.isNeg()
+    const kAbs = isNeg ? k.neg() : k
+    let kBig = BigInt('0x' + kAbs.toString(16))
+
     kBig = biMod(kBig)
+    if (kBig === BI_ZERO) {
+      return new Point(null, null)
+    }
     if (kBig === BI_ZERO) {
       return new Point(null, null)
     }
@@ -797,12 +801,17 @@ export default class Point extends BasePoint {
     if (!BigNumber.isBN(k)) {
       k = new BigNumber(k as any, 16)
     }
+    k = k as BigNumber
 
-    let kBig = BigInt('0x' + k.toString(16))
-    if (kBig === 0n || this.inf) return new Point(null, null)
+    if (this.inf) return new Point(null, null)
 
-    if (kBig < 0n) kBig = -kBig
+    // ✅ SAFE sign handling (this is the fix)
+    const isNeg = k.isNeg()
+    const kAbs = isNeg ? k.neg() : k
+    let kBig = BigInt('0x' + kAbs.toString(16))
+
     kBig = biMod(kBig)
+    if (kBig === 0n) return new Point(null, null)
 
     const Px =
       this === this.curve.g
@@ -814,14 +823,12 @@ export default class Point extends BasePoint {
         ? GY_BIGINT
         : BigInt('0x' + this.getY().toString(16))
 
-    let R0: JacobianPointBI = { X: 0n, Y: 1n, Z: 0n } // infinity
+    let R0: JacobianPointBI = { X: 0n, Y: 1n, Z: 0n }
     let R1: JacobianPointBI = { X: Px, Y: Py, Z: 1n }
 
     const bits = kBig.toString(2)
-
     for (let i = 0; i < bits.length; i++) {
       const bit = bits[i] === '1' ? 1n : 0n
-
       ctSwap(bit, R0, R1)
       R1 = jpAdd(R0, R1)
       R0 = jpDouble(R0)
@@ -832,11 +839,11 @@ export default class Point extends BasePoint {
 
     const zInv = biModInv(R0.Z)
     const zInv2 = biModMul(zInv, zInv)
-
     const x = biModMul(R0.X, zInv2)
     const y = biModMul(R0.Y, biModMul(zInv2, zInv))
 
-    return new Point(x.toString(16), y.toString(16))
+    const result = new Point(x.toString(16), y.toString(16))
+    return isNeg ? result.neg() : result
   }
 
   /**
