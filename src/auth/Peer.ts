@@ -525,7 +525,10 @@ export class Peer {
 
     // Create signature
     const { signature } = await this.wallet.createSignature({
-      data: Peer.base64ToBytes(message.initialNonce + sessionNonce),
+      data: [
+        ...Peer.base64ToBytes(message.initialNonce),
+        ...Peer.base64ToBytes(sessionNonce)
+      ],
       protocolID: [2, 'auth message signature'],
       keyID: `${message.initialNonce} ${sessionNonce}`,
       counterparty: message.identityKey
@@ -573,9 +576,10 @@ export class Peer {
     }
 
     // Validate message signature
-    const dataToVerify = Peer.base64ToBytes(
-      (peerSession.sessionNonce ?? '') + (message.initialNonce ?? '')
-    )
+    const dataToVerify = [
+      ...Peer.base64ToBytes(peerSession.sessionNonce ?? ''),
+      ...Peer.base64ToBytes(message.initialNonce ?? '')
+    ]
     const { valid } = await this.wallet.verifySignature({
       data: dataToVerify,
       signature: message.signature as number[],
