@@ -261,7 +261,7 @@ export default class PrivateKey extends BigNumber {
   toPublicKey (): PublicKey {
     const c = new Curve()
     const p = c.g.mulCT(this)
-    return new PublicKey(p.getX(), p.getY())
+    return new PublicKey(p.x, p.y)
   }
 
   /**
