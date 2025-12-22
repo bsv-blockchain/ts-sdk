@@ -260,7 +260,7 @@ export default class PrivateKey extends BigNumber {
    */
   toPublicKey (): PublicKey {
     const c = new Curve()
-    const p = c.g.mul(this)
+    const p = c.g.mulCT(this)
     return new PublicKey(p.x, p.y)
   }
 
@@ -352,7 +352,7 @@ export default class PrivateKey extends BigNumber {
     if (!key.validate()) {
       throw new Error('Public key not valid for ECDH secret derivation')
     }
-    return key.mul(this)
+    return key.mulCT(this)
   }
 
   /**
