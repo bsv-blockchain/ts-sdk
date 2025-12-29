@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.31 - 2025-12-29](#1931---2025-12-29)
 - [1.9.30 - 2025-12-18](#1930---2025-12-18)
 - [1.9.29 - 2025-12-12](#1929---2025-12-12)
 - [1.9.28 - 2025-12-11](#1928---2025-12-11)
@@ -200,6 +201,22 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [1.9.31] - 2025-12-29
+
+### Changed
+- Refactored AES and AES-GCM internals to eliminate data-dependent table lookups and conditional branches in critical paths.
+- Replaced lookup-table-based AES S-box and MixColumns operations with constant-time, arithmetic-based implementations.
+- Updated GHASH multiplication to use branchless reduction logic for improved timing consistency.
+
+### Added
+- Constant-time helper primitives for AES operations, including finite-field multiplication, rotations, and reduction.
+- Additional unit tests covering constant-time AES and GHASH behavior, including reduction edge cases.
+
+### Security
+- Reduced cache-timing and branch-prediction side-channel risk in AES and AES-GCM implementations by removing data-dependent memory access patterns (TOB-5).
 
 ---
 
