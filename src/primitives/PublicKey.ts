@@ -114,7 +114,7 @@ export default class PublicKey extends Point {
     if (!this.validate()) {
       throw new Error('Public key not valid for ECDH secret derivation')
     }
-    return this.mul(priv)
+    return this.mulCT(priv)
   }
 
   /**
