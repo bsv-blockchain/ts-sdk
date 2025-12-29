@@ -206,17 +206,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [1.9.31] - 2025-12-29
 
-### Changed
-- Refactored AES and AES-GCM internals to eliminate data-dependent table lookups and conditional branches in critical paths.
-- Replaced lookup-table-based AES S-box and MixColumns operations with constant-time, arithmetic-based implementations.
-- Updated GHASH multiplication to use branchless reduction logic for improved timing consistency.
-
-### Added
-- Constant-time helper primitives for AES operations, including finite-field multiplication, rotations, and reduction.
-- Additional unit tests covering constant-time AES and GHASH behavior, including reduction edge cases.
-
 ### Security
-- Reduced cache-timing and branch-prediction side-channel risk in AES and AES-GCM implementations by removing data-dependent memory access patterns (TOB-5).
+- Documented the use of table-based AES and AES-GCM implementations and their associated cache-timing considerations as part of a TOB-5 security review.
+- Clarified that applications requiring strict side-channel resistance should use platform-native cryptography APIs or vetted constant-time libraries.
 
 ---
 

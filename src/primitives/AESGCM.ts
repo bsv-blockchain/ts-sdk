@@ -1,5 +1,16 @@
-
 // @ts-nocheck
+
+// NOTE:
+// Table-based AES is intentionally retained for performance.
+// JavaScript runtimes (JIT, GC, speculative execution) cannot provide
+// strong constant-time guarantees, and arithmetic-only AES implementations
+// cause catastrophic performance degradation in practice.
+//
+// This implementation therefore prioritizes correctness, performance,
+// and compatibility over attempting misleading "constant-time" behavior.
+//
+// Applications requiring strict side-channel resistance SHOULD use
+// platform-native crypto APIs (e.g. WebCrypto) or audited native libraries.
 const SBox = new Uint8Array([
   0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
   0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
@@ -282,15 +293,22 @@ export const multiply = function (block0: Bytes, block1: Bytes): Bytes {
 
   for (let i = 0; i < 16; i++) {
     for (let j = 7; j >= 0; j--) {
-      // Conditionally xor v into z (branchless)
-      const bit = (block0[i] >> j) & 1
-      const mask = -bit
-      for (let k = 0; k < 16; k++) {
-        z[k] ^= v[k] & mask
+      if ((block0[i] & (1 << j)) !== 0) {
+        for (let k = 0; k < 16; k++) {
+          z[k] ^= v[k]
+        }
       }
 
-      // Shift v right and conditionally reduce (branchless)
-      rightShiftReduce(v)
+      const lsb = v[15] & 1
+      for (let k = 15; k >= 0; k--) {
+        v[k] = (v[k] >>> 1) | ((k > 0 ? v[k - 1] : 0) << 7)
+      }
+
+      if (lsb !== 0) {
+        for (let k = 0; k < 16; k++) {
+          v[k] ^= R[k]
+        }
+      }
     }
   }
 
@@ -569,57 +587,14 @@ export function AESGCMDecrypt (
   return plainText
 }
 
-function aesSBox (x: number): number {
-  x &= 0xff
-
-  let inv = 1
-  const isZero = ctIsZero8(x)
-
-  // Compute x^254 for all x (safe even when x = 0)
-  for (let i = 0; i < 254; i++) {
-    inv = gfMul(inv, x)
-  }
-
-  // Force inv = 0 when x = 0 (constant-time)
-  inv &= -(1 - isZero)
-
-  const s =
-    inv ^
-    rotl8(inv, 1) ^
-    rotl8(inv, 2) ^
-    rotl8(inv, 3) ^
-    rotl8(inv, 4) ^
-    0x63
-
-  return s & 0xff
-}
-
 function rotl8 (x: number, shift: number): number {
   return ((x << shift) | (x >>> (8 - shift))) & 0xff
-}
-
-function gfMul (a: number, b: number): number {
-  let p = 0
-  for (let i = 0; i < 8; i++) {
-    p ^= a & -(b & 1)
-    const hi = a & 0x80
-    a = (a << 1) & 0xff
-    a ^= 0x1b & -(hi >>> 7)
-    b >>>= 1
-  }
-  return p
-}
-
-function xtime (x: number): number {
-  // Multiply by 2 in GF(2^8), branchless
-  const hi = x & 0x80
-  return ((x << 1) ^ (0x1b & -(hi >>> 7))) & 0xff
 }
 
 function rightShiftReduce (v: Bytes): void {
   let carry = 0
 
-  for (let i = 0; i < 16; i--) {
+  for (let i = 15; i >= 0; i--) {
     const newCarry = v[i] & 1
     v[i] = (v[i] >>> 1) | (carry << 7)
     carry = newCarry
@@ -630,12 +605,4 @@ function rightShiftReduce (v: Bytes): void {
   for (let i = 0; i < 16; i++) {
     v[i] ^= R[i] & mask
   }
-}
-
-function ctIsZero8 (x: number): number {
-  x &= 0xff
-  let y = x | (x >> 4)
-  y |= y >> 2
-  y |= y >> 1
-  return (y ^ 1) & 1
 }
