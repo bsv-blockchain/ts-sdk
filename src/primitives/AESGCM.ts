@@ -275,7 +275,6 @@ export const multiply = function (block0: Bytes, block1: Bytes): Bytes {
   return z
 }
 
-
 export const incrementLeastSignificantThirtyTwoBits = function (
   block: Bytes
 ): Bytes {
