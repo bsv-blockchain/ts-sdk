@@ -586,23 +586,3 @@ export function AESGCMDecrypt (
 
   return plainText
 }
-
-function rotl8 (x: number, shift: number): number {
-  return ((x << shift) | (x >>> (8 - shift))) & 0xff
-}
-
-function rightShiftReduce (v: Bytes): void {
-  let carry = 0
-
-  for (let i = 15; i >= 0; i--) {
-    const newCarry = v[i] & 1
-    v[i] = (v[i] >>> 1) | (carry << 7)
-    carry = newCarry
-  }
-
-  // If LSB of original v[15] was 1, xor with R
-  const mask = -(carry & 1) // 0x00 or 0xFF
-  for (let i = 0; i < 16; i++) {
-    v[i] ^= R[i] & mask
-  }
-}
