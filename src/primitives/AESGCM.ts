@@ -237,12 +237,6 @@ export const exclusiveOR = function (block0: Bytes, block1: Bytes): Bytes {
   return result
 }
 
-const xorInto = function (target: Bytes, block: Bytes): void {
-  for (let i = 0; i < target.length; i++) {
-    target[i] ^= block[i] ?? 0
-  }
-}
-
 export const rightShift = function (block: Bytes): Bytes {
   let carry = 0
   let oldCarry = 0
@@ -286,15 +280,12 @@ export const incrementLeastSignificantThirtyTwoBits = function (
   block: Bytes
 ): Bytes {
   const result = block.slice()
-
   for (let i = 15; i > 11; i--) {
     result[i] = (result[i] + 1) & 0xff // wrap explicitly
-
     if (result[i] !== 0) {
       break
     }
   }
-
   return result
 }
 
@@ -561,7 +552,7 @@ function aesSBox (x: number): number {
   x &= 0xff
 
   let inv = 1
-  let isZero = ctIsZero8(x)
+  const isZero = ctIsZero8(x)
 
   // Compute x^254 for all x (safe even when x = 0)
   for (let i = 0; i < 254; i++) {
@@ -569,9 +560,9 @@ function aesSBox (x: number): number {
   }
 
   // Force inv = 0 when x = 0 (constant-time)
-  inv &= -(!isZero)
+  inv &= -(1 - isZero)
 
-  let s =
+  const s =
     inv ^
     rotl8(inv, 1) ^
     rotl8(inv, 2) ^
