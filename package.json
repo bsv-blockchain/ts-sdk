@@ -221,7 +221,8 @@
     "prepublish": "npm run build",
     "doc": "ts2md",
     "docs:serve": "mkdocs serve",
-    "docs:build": "mkdocs build"
+    "docs:build": "mkdocs build",
+    "test:ci": "npm run build && jest --forceExit"
   },
   "repository": {
     "type": "git",
