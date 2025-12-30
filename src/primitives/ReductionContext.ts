@@ -3,6 +3,16 @@ import K256 from './K256.js'
 import Mersenne from './Mersenne.js'
 
 /**
+ * SECURITY NOTE:
+ * This reduction context avoids obvious variable-time constructs (such as
+ * sliding-window exponentiation and conditional modular reduction) to reduce
+ * timing side-channel leakage. However, JavaScript BigInt arithmetic does not
+ * provide constant-time guarantees. These mitigations improve resistance to
+ * coarse timing attacks but do not make the implementation suitable for
+ * hostile multi-tenant or shared-CPU environments.
+ */
+
+/**
  * A base reduction engine that provides several arithmetic operations over
  * big numbers under a modulus context. It's particularly suitable for
  * calculations required in cryptography algorithms and encoding schemas.
@@ -152,11 +162,21 @@ export default class ReductionContext {
   add (a: BigNumber, b: BigNumber): BigNumber {
     this.verify2(a, b)
 
-    const res = a.add(b)
-    if (res.cmp(this.m) >= 0) {
-      res.isub(this.m)
+    // Start from a red clone
+    const res = a.clone()
+
+    // In-place add keeps red context
+    res.iadd(b)
+
+    // Always subtract modulus (still red)
+    res.isub(this.m)
+
+    // If negative, add modulus back
+    if (res.isNeg()) {
+      res.iadd(this.m)
     }
-    return res.forceRed(this)
+
+    return res
   }
 
   /**
@@ -178,11 +198,14 @@ export default class ReductionContext {
   iadd (a: BigNumber, b: BigNumber): BigNumber {
     this.verify2(a, b)
 
-    const res = a.iadd(b)
-    if (res.cmp(this.m) >= 0) {
-      res.isub(this.m)
+    a.iadd(b)
+    a.isub(this.m)
+
+    if (a.isNeg()) {
+      a.iadd(this.m)
     }
-    return res
+
+    return a
   }
 
   /**
@@ -439,52 +462,25 @@ export default class ReductionContext {
    * context.pow(new BigNumber(3), new BigNumber(2)); // Returns 2 (3^2 % 7)
    */
   pow (a: BigNumber, num: BigNumber): BigNumber {
+    this.verify1(a)
+
     if (num.isZero()) return new BigNumber(1).toRed(this)
-    if (num.cmpn(1) === 0) return a.clone()
 
-    const windowSize = 4
-    const wnd = new Array(1 << windowSize)
-    wnd[0] = new BigNumber(1).toRed(this)
-    wnd[1] = a
-    let i = 2
-    for (; i < wnd.length; i++) {
-      wnd[i] = this.mul(wnd[i - 1], a)
-    }
+    let result = new BigNumber(1).toRed(this)
+    let base = a.clone()
+    const bits = num.bitLength()
 
-    let res = wnd[0]
-    let current = 0
-    let currentLen = 0
-    let start = num.bitLength() % 26
-    if (start === 0) {
-      start = 26
-    }
+    for (let i = bits - 1; i >= 0; i--) {
+      // Always square
+      result = this.sqr(result)
 
-    for (i = num.length - 1; i >= 0; i--) {
-      const word = num.words[i]
-      for (let j = start - 1; j >= 0; j--) {
-        const bit = (word >> j) & 1
-        if (res !== wnd[0]) {
-          res = this.sqr(res)
-        }
-
-        if (bit === 0 && current === 0) {
-          currentLen = 0
-          continue
-        }
-
-        current <<= 1
-        current |= bit
-        currentLen++
-        if (currentLen !== windowSize && (i !== 0 || j !== 0)) continue
-
-        res = this.mul(res, wnd[current])
-        currentLen = 0
-        current = 0
+      // Multiply if bit is set
+      if (num.testn(i)) {
+        result = this.mul(result, base)
       }
-      start = 26
     }
 
-    return res
+    return result
   }
 
   /**
