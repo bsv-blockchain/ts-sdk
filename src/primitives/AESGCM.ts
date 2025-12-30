@@ -275,12 +275,6 @@ export const exclusiveOR = function (block0: Bytes, block1: Bytes): Bytes {
   return result
 }
 
-const xorInto = function (target: Bytes, block: Bytes): void {
-  for (let i = 0; i < target.length; i++) {
-    target[i] ^= block[i] ?? 0
-  }
-}
-
 export const rightShift = function (block: Bytes): Bytes {
   let carry = 0
   let oldCarry = 0
@@ -321,7 +315,7 @@ export const multiply = function (block0: Bytes, block1: Bytes): Bytes {
   const z = createZeroBlock(16)
 
   for (let i = 0; i < 16; i++) {
-    let b = block0[i]
+    const b = block0[i]
 
     for (let j = 7; j >= 0; j--) {
       // mask = 0xff if bit is set, 0x00 otherwise
