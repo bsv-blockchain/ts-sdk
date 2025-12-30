@@ -1326,14 +1326,14 @@ export default class BigNumber {
     const exp = p.subn(2)
 
     // Use modular exponentiation via ReductionContext if available
-    if (a.red) {
+    if (a.red !== null) {
       return a.redPow(exp)
     }
 
     // Fallback: non-reduction context modular exponentiation
     let result = new BigNumber(1n)
     let base = a.clone()
-    let e = exp.clone()
+    const e = exp.clone()
 
     while (!e.isZero()) {
       if (e.isOdd()) result = result.mul(base).umod(p)

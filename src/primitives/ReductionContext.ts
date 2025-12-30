@@ -467,7 +467,7 @@ export default class ReductionContext {
     if (num.isZero()) return new BigNumber(1).toRed(this)
 
     let result = new BigNumber(1).toRed(this)
-    let base = a.clone()
+    const base = a.clone()
     const bits = num.bitLength()
 
     for (let i = bits - 1; i >= 0; i--) {
