@@ -1,5 +1,22 @@
 
 // @ts-nocheck
+
+/**
+ * SECURITY DISCLAIMER – AES-GCM IMPLEMENTATION
+ *
+ * This module provides a self-contained AES-GCM implementation intended for
+ * functional correctness and portability with minimal dependencies.
+ *
+ * While efforts are made to reduce timing side-channel leakage (e.g. avoiding
+ * secret-dependent branches in GHASH), JavaScript does not guarantee
+ * constant-time execution. As such, this implementation should not be used in
+ * environments where attackers can reliably measure fine-grained execution
+ * timing (e.g. shared hosts, co-resident VMs, or untrusted browser contexts).
+ *
+ * For high-assurance cryptographic use cases, prefer platform-provided
+ * WebCrypto APIs or well-audited constant-time libraries.
+ */
+
 const SBox = new Uint8Array([
   0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
   0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
@@ -281,21 +298,50 @@ export const rightShift = function (block: Bytes): Bytes {
   return block
 }
 
+/**
+ * SECURITY NOTE – TIMING SIDE-CHANNEL MITIGATION
+ *
+ * This GHASH multiplication implementation avoids data-dependent conditional
+ * branches by using mask-based operations instead. This reduces timing
+ * side-channel leakage compared to a naive implementation that branches on
+ * secret bits.
+ *
+ * IMPORTANT: JavaScript and TypedArray operations do NOT provide constant-time
+ * execution guarantees. While this implementation mitigates obvious control-
+ * flow timing leaks, it must not be considered constant-time in a strict
+ * cryptographic sense and is not suitable for hostile shared-CPU or
+ * multi-tenant environments.
+ *
+ * Applications requiring strict constant-time AES-GCM SHOULD use a dedicated,
+ * audited cryptographic library (e.g. noble-ciphers, WebCrypto, or BearSSL
+ * bindings).
+ */
 export const multiply = function (block0: Bytes, block1: Bytes): Bytes {
   const v = block1.slice()
   const z = createZeroBlock(16)
 
   for (let i = 0; i < 16; i++) {
+    let b = block0[i]
+
     for (let j = 7; j >= 0; j--) {
-      if ((block0[i] & (1 << j)) !== 0) {
-        xorInto(z, v)
+      // mask = 0xff if bit is set, 0x00 otherwise
+      const bit = (b >> j) & 1
+      const mask = -bit & 0xff
+
+      // z ^= v & mask
+      for (let k = 0; k < 16; k++) {
+        z[k] ^= v[k] & mask
       }
 
-      if ((v[15] & 1) !== 0) {
-        rightShift(v)
-        xorInto(v, R)
-      } else {
-        rightShift(v)
+      // compute reduction mask
+      const lsb = v[15] & 1
+      const rmask = -lsb & 0xff
+
+      rightShift(v)
+
+      // v ^= R & rmask
+      for (let k = 0; k < 16; k++) {
+        v[k] ^= R[k] & rmask
       }
     }
   }
