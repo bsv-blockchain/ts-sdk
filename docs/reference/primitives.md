@@ -4961,14 +4961,14 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | | |
 | --- | --- |
-| [AES](#function-aes) | [pbkdf2](#function-pbkdf2) |
-| [AESGCM](#function-aesgcm) | [realHtonl](#function-realhtonl) |
-| [AESGCMDecrypt](#function-aesgcmdecrypt) | [red](#function-red) |
-| [assertValidHex](#function-assertvalidhex) | [swapBytes32](#function-swapbytes32) |
-| [base64ToArray](#function-base64toarray) | [toArray](#function-toarray) |
+| [AES](#function-aes) | [normalizeHex](#function-normalizehex) |
+| [AESGCM](#function-aesgcm) | [pbkdf2](#function-pbkdf2) |
+| [AESGCMDecrypt](#function-aesgcmdecrypt) | [realHtonl](#function-realhtonl) |
+| [assertValidHex](#function-assertvalidhex) | [red](#function-red) |
+| [base64ToArray](#function-base64toarray) | [swapBytes32](#function-swapbytes32) |
+| [constantTimeEquals](#function-constanttimeequals) | [toArray](#function-toarray) |
 | [ghash](#function-ghash) | [toBase64](#function-tobase64) |
 | [htonl](#function-htonl) | [verifyNotNull](#function-verifynotnull) |
-| [normalizeHex](#function-normalizehex) |  |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5063,6 +5063,15 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 export function base64ToArray(msg: string): number[] 
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Function: constantTimeEquals
+
+```ts
+export function constantTimeEquals(a: Uint8Array | number[], b: Uint8Array | number[]): boolean 
 ```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -5736,7 +5745,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ```ts
 incrementLeastSignificantThirtyTwoBits = function (block: Bytes): Bytes {
     const result = block.slice();
-    for (let i = 15; i !== 11; i--) {
+    for (let i = 15; i > 11; i--) {
         result[i] = (result[i] + 1) & 255;
         if (result[i] !== 0) {
             break;
@@ -6265,81 +6274,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 toUTF8 = (arr: number[]): string => {
-    let result = "";
-    const replacementChar = "\uFFFD";
-    for (let i = 0; i < arr.length; i++) {
-        const byte1 = arr[i];
-        if (byte1 <= 127) {
-            result += String.fromCharCode(byte1);
-            continue;
-        }
-        const emitReplacement = (): void => {
-            result += replacementChar;
-        };
-        if (byte1 >= 192 && byte1 <= 223) {
-            if (i + 1 >= arr.length) {
-                emitReplacement();
-                continue;
-            }
-            const byte2 = arr[i + 1];
-            if ((byte2 & 192) !== 128) {
-                emitReplacement();
-                i += 1;
-                continue;
-            }
-            const codePoint = ((byte1 & 31) << 6) | (byte2 & 63);
-            result += String.fromCharCode(codePoint);
-            i += 1;
-            continue;
-        }
-        if (byte1 >= 224 && byte1 <= 239) {
-            if (i + 2 >= arr.length) {
-                emitReplacement();
-                continue;
-            }
-            const byte2 = arr[i + 1];
-            const byte3 = arr[i + 2];
-            if ((byte2 & 192) !== 128 || (byte3 & 192) !== 128) {
-                emitReplacement();
-                i += 2;
-                continue;
-            }
-            const codePoint = ((byte1 & 15) << 12) |
-                ((byte2 & 63) << 6) |
-                (byte3 & 63);
-            result += String.fromCharCode(codePoint);
-            i += 2;
-            continue;
-        }
-        if (byte1 >= 240 && byte1 <= 247) {
-            if (i + 3 >= arr.length) {
-                emitReplacement();
-                continue;
-            }
-            const byte2 = arr[i + 1];
-            const byte3 = arr[i + 2];
-            const byte4 = arr[i + 3];
-            if ((byte2 & 192) !== 128 ||
-                (byte3 & 192) !== 128 ||
-                (byte4 & 192) !== 128) {
-                emitReplacement();
-                i += 3;
-                continue;
-            }
-            const codePoint = ((byte1 & 7) << 18) |
-                ((byte2 & 63) << 12) |
-                ((byte3 & 63) << 6) |
-                (byte4 & 63);
-            const offset = codePoint - 65536;
-            const highSurrogate = 55296 + (offset >> 10);
-            const lowSurrogate = 56320 + (offset & 1023);
-            result += String.fromCharCode(highSurrogate, lowSurrogate);
-            i += 3;
-            continue;
-        }
-        emitReplacement();
-    }
-    return result;
+    return new TextDecoder().decode(new Uint8Array(arr));
 }
 ```
 
