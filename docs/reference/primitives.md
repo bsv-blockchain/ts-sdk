@@ -4,6 +4,15 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ## Interfaces
 
+| |
+| --- |
+| [JacobianPointBI](#interface-jacobianpointbi) |
+| [SignatureHashCache](#interface-signaturehashcache) |
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+
 ### Interface: JacobianPointBI
 
 ```ts
@@ -11,6 +20,20 @@ export interface JacobianPointBI {
     X: bigint;
     Y: bigint;
     Z: bigint;
+}
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Interface: SignatureHashCache
+
+```ts
+export interface SignatureHashCache {
+    hashPrevouts?: number[];
+    hashSequence?: number[];
+    hashOutputsAll?: number[];
+    hashOutputsSingle?: Map<number, number[]>;
 }
 ```
 
@@ -25,11 +48,11 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 | [BigNumber](#class-bignumber) | [Polynomial](#class-polynomial) | [SHA512](#class-sha512) |
 | [Curve](#class-curve) | [PrivateKey](#class-privatekey) | [SHA512HMAC](#class-sha512hmac) |
 | [DRBG](#class-drbg) | [PublicKey](#class-publickey) | [Schnorr](#class-schnorr) |
-| [JacobianPoint](#class-jacobianpoint) | [RIPEMD160](#class-ripemd160) | [Signature](#class-signature) |
-| [K256](#class-k256) | [Reader](#class-reader) | [SymmetricKey](#class-symmetrickey) |
-| [KeyShares](#class-keyshares) | [ReductionContext](#class-reductioncontext) | [TransactionSignature](#class-transactionsignature) |
-| [Mersenne](#class-mersenne) | [SHA1](#class-sha1) | [Writer](#class-writer) |
-| [MontgomoryMethod](#class-montgomorymethod) | [SHA1HMAC](#class-sha1hmac) |  |
+| [JacobianPoint](#class-jacobianpoint) | [RIPEMD160](#class-ripemd160) | [Secp256r1](#class-secp256r1) |
+| [K256](#class-k256) | [Reader](#class-reader) | [Signature](#class-signature) |
+| [KeyShares](#class-keyshares) | [ReductionContext](#class-reductioncontext) | [SymmetricKey](#class-symmetrickey) |
+| [Mersenne](#class-mersenne) | [SHA1](#class-sha1) | [TransactionSignature](#class-transactionsignature) |
+| [MontgomoryMethod](#class-montgomorymethod) | [SHA1HMAC](#class-sha1hmac) | [Writer](#class-writer) |
 | [Point](#class-point) | [SHA256](#class-sha256) |  |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -97,6 +120,7 @@ export default class BigNumber {
     inspect(): string 
     toString(base: number | "hex" = 10, padding: number = 1): string 
     toNumber(): number 
+    toBigInt(): bigint 
     toJSON(): string 
     toArray(endian: "le" | "be" = "be", length?: number): number[] 
     bitLength(): number { if (this._magnitude === 0n)
@@ -141,15 +165,14 @@ export default class BigNumber {
     sqr(): BigNumber 
     isqr(): this 
     pow(num: BigNumber): BigNumber 
-    iushln(bits: number): this { this.assert(typeof bits === "number" && bits >= 0); if (bits === 0)
-        return this; this._magnitude <<= BigInt(bits); this._finishInitialization(); return this.strip(); }
-    ishln(bits: number): this 
-    iushrn(bits: number, hint?: number, extended?: BigNumber): this 
-    ishrn(bits: number, hint?: number, extended?: BigNumber): this 
-    shln(bits: number): BigNumber 
-    ushln(bits: number): BigNumber 
-    shrn(bits: number): BigNumber 
-    ushrn(bits: number): BigNumber 
+    iushln(bits: number | bigint): this 
+    ishln(bits: number | bigint): this 
+    iushrn(bits: number | bigint, hint?: number, extended?: BigNumber): this 
+    ishrn(bits: number | bigint, hint?: number, extended?: BigNumber): this 
+    shln(bits: number | bigint): BigNumber 
+    ushln(bits: number | bigint): BigNumber 
+    shrn(bits: number | bigint): BigNumber 
+    ushrn(bits: number | bigint): BigNumber 
     testn(bit: number): boolean 
     imaskn(bits: number): this 
     maskn(bits: number): BigNumber 
@@ -562,6 +585,18 @@ Argument Details
 + **length**
   + Optional length of the output array.
 
+#### Method toBigInt
+
+Returns the signed BigInt representation of this BigNumber without any safety checks.
+
+```ts
+toBigInt(): bigint 
+```
+
+Returns
+
+bigint value for this BigNumber.
+
 #### Method toBitArray
 
 Converts a BigNumber to an array of bits.
@@ -794,7 +829,17 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ---
 ### Class: DRBG
 
-This class behaves as a HMAC-based deterministic random bit generator (DRBG). It implements a deterministic random number generator using SHA256HMAC HASH function. It takes an initial entropy and nonce when instantiated for seeding purpose.
+HMAC-DRBG used **only** for deterministic ECDSA nonce generation.
+
+This implementation follows the RFC 6979-style HMAC-DRBG construction for secp256k1
+and is wired internally into the ECDSA signing code. It is **not forward-secure**
+and MUST NOT be used as a general-purpose DRBG, key generator, or randomness source.
+
+Security note:
+- Intended scope: internal ECDSA nonce generation with fixed-size inputs.
+- Out-of-scope: generic randomness, long-lived session keys, or any context
+  where forward secrecy is required.
+- API stability: this class is internal.
 
 Example
 
@@ -808,7 +853,7 @@ export default class DRBG {
     V: number[];
     constructor(entropy: number[] | string, nonce: number[] | string) 
     hmac(): SHA256HMAC 
-    update(seed?): void 
+    update(seed?: number[]): void 
     generate(len: number): string 
 }
 ```
@@ -864,7 +909,7 @@ Updates the `K` and `V` values of the instance based on the seed.
 The seed if not provided uses `V` as seed.
 
 ```ts
-update(seed?): void 
+update(seed?: number[]): void 
 ```
 
 Returns
@@ -1711,6 +1756,7 @@ export default class Point extends BasePoint {
     x: BigNumber | null;
     y: BigNumber | null;
     inf: boolean;
+    static _assertOnCurve(p: Point): Point 
     static fromDER(bytes: number[]): Point 
     static fromString(str: string): Point 
     static fromX(x: BigNumber | number | number[] | string, odd: boolean): Point 
@@ -1740,6 +1786,7 @@ export default class Point extends BasePoint {
     getX(): BigNumber 
     getY(): BigNumber 
     mul(k: BigNumber | number | number[] | string): Point 
+    mulCT(k: BigNumber | number | number[] | string): Point 
     mulAdd(k1: BigNumber, p2: Point, k2: BigNumber): Point 
     jmulAdd(k1: BigNumber, p2: Point, k2: BigNumber): JPoint 
     eq(p: Point): boolean 
@@ -3898,7 +3945,7 @@ const sha256 = new SHA256();
 ```ts
 export class SHA256 {
     constructor() 
-    update(msg: number[] | string, enc?: "hex" | "utf8"): this 
+    update(msg: Uint8Array | number[] | string, enc?: "hex" | "utf8"): this 
     digest(): number[] 
     digestHex(): string 
 }
@@ -3919,8 +3966,8 @@ This class also uses the SHA-256 cryptographic hash algorithm that produces a 25
 export class SHA256HMAC {
     blockSize = 64;
     outSize = 32;
-    constructor(key: number[] | string) 
-    update(msg: number[] | string, enc?: "hex"): SHA256HMAC 
+    constructor(key: Uint8Array | number[] | string) 
+    update(msg: Uint8Array | number[] | string, enc?: "hex"): SHA256HMAC 
     digest(): number[] 
     digestHex(): string 
 }
@@ -3935,7 +3982,7 @@ If the key size is larger than the blockSize, it is digested using SHA-256.
 If the key size is less than the blockSize, it is padded with zeroes.
 
 ```ts
-constructor(key: number[] | string) 
+constructor(key: Uint8Array | number[] | string) 
 ```
 
 Argument Details
@@ -4006,7 +4053,7 @@ let hashedMessage = myHMAC.digestHex();
 Updates the `SHA256HMAC` object with part of the message to be hashed.
 
 ```ts
-update(msg: number[] | string, enc?: "hex"): SHA256HMAC 
+update(msg: Uint8Array | number[] | string, enc?: "hex"): SHA256HMAC 
 ```
 See also: [SHA256HMAC](./primitives.md#class-sha256hmac)
 
@@ -4067,8 +4114,8 @@ This class also uses the SHA-512 cryptographic hash algorithm that produces a 51
 export class SHA512HMAC {
     blockSize = 128;
     outSize = 32;
-    constructor(key: number[] | string) 
-    update(msg: number[] | string, enc?: "hex" | "utf8"): SHA512HMAC 
+    constructor(key: Uint8Array | number[] | string) 
+    update(msg: Uint8Array | number[] | string, enc?: "hex" | "utf8"): SHA512HMAC 
     digest(): number[] 
     digestHex(): string 
 }
@@ -4083,7 +4130,7 @@ If the key size is larger than the blockSize, it is digested using SHA-512.
 If the key size is less than the blockSize, it is padded with zeroes.
 
 ```ts
-constructor(key: number[] | string) 
+constructor(key: Uint8Array | number[] | string) 
 ```
 
 Argument Details
@@ -4154,7 +4201,7 @@ let hashedMessage = myHMAC.digestHex();
 Updates the `SHA512HMAC` object with part of the message to be hashed.
 
 ```ts
-update(msg: number[] | string, enc?: "hex" | "utf8"): SHA512HMAC 
+update(msg: Uint8Array | number[] | string, enc?: "hex" | "utf8"): SHA512HMAC 
 ```
 See also: [SHA512HMAC](./primitives.md#class-sha512hmac)
 
@@ -4282,6 +4329,141 @@ Argument Details
   + Shared secret
 + **proof**
   + Proof (R, S', z)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Class: Secp256r1
+
+Pure BigInt implementation of the NIST P-256 (secp256r1) curve with ECDSA sign/verify.
+
+This class is standalone (no dependency on the existing secp256k1 primitives) and exposes
+key generation, point encoding/decoding, scalar multiplication, and SHA-256 based ECDSA.
+
+```ts
+export default class Secp256r1 {
+    readonly p = P;
+    readonly n = N;
+    readonly a = A;
+    readonly b = B;
+    readonly g = G;
+    pointFromAffine(x: bigint, y: bigint): P256Point 
+    pointFromHex(hex: string): P256Point 
+    pointToHex(p: P256Point, compressed = false): string 
+    add(p1: P256Point, p2: P256Point): P256Point 
+    multiply(point: P256Point, scalar: bigint): P256Point 
+    multiplyBase(scalar: bigint): P256Point 
+    isOnCurve(p: P256Point): boolean 
+    generatePrivateKeyHex(): string 
+    publicKeyFromPrivate(privateKey: string | bigint): P256Point 
+    sign(message: ByteSource, privateKey: string | bigint, opts: {
+        prehashed?: boolean;
+        nonce?: bigint;
+    } = {}): {
+        r: string;
+        s: string;
+    } 
+    verify(message: ByteSource, signature: {
+        r: string | bigint;
+        s: string | bigint;
+    }, publicKey: P256Point | string, opts: {
+        prehashed?: boolean;
+    } = {}): boolean 
+}
+```
+
+See also: [P256Point](./primitives.md#type-p256point), [multiply](./primitives.md#variable-multiply), [sign](./compat.md#variable-sign), [verify](./compat.md#variable-verify)
+
+#### Method add
+
+Add two points (handles infinity).
+
+```ts
+add(p1: P256Point, p2: P256Point): P256Point 
+```
+See also: [P256Point](./primitives.md#type-p256point)
+
+#### Method generatePrivateKeyHex
+
+Generate a new random private key as 32-byte hex.
+
+```ts
+generatePrivateKeyHex(): string 
+```
+
+#### Method isOnCurve
+
+Check if a point lies on the curve (including infinity).
+
+```ts
+isOnCurve(p: P256Point): boolean 
+```
+See also: [P256Point](./primitives.md#type-p256point)
+
+#### Method multiply
+
+Scalar multiply an arbitrary point using double-and-add.
+
+```ts
+multiply(point: P256Point, scalar: bigint): P256Point 
+```
+See also: [P256Point](./primitives.md#type-p256point)
+
+#### Method multiplyBase
+
+Scalar multiply the base point.
+
+```ts
+multiplyBase(scalar: bigint): P256Point 
+```
+See also: [P256Point](./primitives.md#type-p256point)
+
+#### Method pointFromHex
+
+Decode a point from compressed or uncompressed hex.
+
+```ts
+pointFromHex(hex: string): P256Point 
+```
+See also: [P256Point](./primitives.md#type-p256point)
+
+#### Method pointToHex
+
+Encode a point to compressed or uncompressed hex. Infinity is encoded as `00`.
+
+```ts
+pointToHex(p: P256Point, compressed = false): string 
+```
+See also: [P256Point](./primitives.md#type-p256point)
+
+#### Method sign
+
+Create an ECDSA signature over a message. Uses SHA-256 unless `prehashed` is true.
+Returns low-s normalized signature hex parts.
+
+```ts
+sign(message: ByteSource, privateKey: string | bigint, opts: {
+    prehashed?: boolean;
+    nonce?: bigint;
+} = {}): {
+    r: string;
+    s: string;
+} 
+```
+
+#### Method verify
+
+Verify an ECDSA signature against a message and public key.
+
+```ts
+verify(message: ByteSource, signature: {
+    r: string | bigint;
+    s: string | bigint;
+}, publicKey: P256Point | string, opts: {
+    prehashed?: boolean;
+} = {}): boolean 
+```
+See also: [P256Point](./primitives.md#type-p256point)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -4682,19 +4864,8 @@ export default class TransactionSignature extends Signature {
     public static readonly SIGHASH_FORKID = 64;
     public static readonly SIGHASH_ANYONECANPAY = 128;
     scope: number;
-    static format(params: {
-        sourceTXID: string;
-        sourceOutputIndex: number;
-        sourceSatoshis: number;
-        transactionVersion: number;
-        otherInputs: TransactionInput[];
-        outputs: TransactionOutput[];
-        inputIndex: number;
-        subscript: Script;
-        inputSequence: number;
-        lockTime: number;
-        scope: number;
-    }): number[] 
+    static format(params: TransactionSignatureFormatParams): number[] 
+    static formatBytes(params: TransactionSignatureFormatParams): Uint8Array 
     static fromChecksigFormat(buf: number[]): TransactionSignature 
     constructor(r: BigNumber, s: BigNumber, scope: number) 
     public hasLowS(): boolean 
@@ -4702,7 +4873,41 @@ export default class TransactionSignature extends Signature {
 }
 ```
 
-See also: [BigNumber](./primitives.md#class-bignumber), [Script](./script.md#class-script), [Signature](./primitives.md#class-signature), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput)
+See also: [BigNumber](./primitives.md#class-bignumber), [Signature](./primitives.md#class-signature)
+
+#### Method format
+
+Formats the SIGHASH preimage for the targeted input, optionally using a cache to skip recomputing shared hash prefixes.
+
+```ts
+static format(params: TransactionSignatureFormatParams): number[] 
+```
+
+Argument Details
+
++ **params**
+  + Context for the signing input plus transaction metadata.
++ **params.cache**
+  + Optional cache storing previously computed `hashPrevouts`, `hashSequence`, or `hashOutputs*` values; it will be populated if present.
+
+#### Method formatBytes
+
+Formats the same SIGHASH preimage bytes as `format`, supporting the optional cache for hash reuse.
+
+```ts
+static formatBytes(params: TransactionSignatureFormatParams): Uint8Array 
+```
+
+Returns
+
+Bytes for signing.
+
+Argument Details
+
++ **params**
+  + Context for the signing operation.
++ **params.cache**
+  + Optional `SignatureHashCache` that may already contain hashed prefixes and is populated during formatting.
 
 #### Method hasLowS
 
@@ -4721,11 +4926,12 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 export class Writer {
-    public bufs: number[][];
-    constructor(bufs?: number[][]) 
+    public bufs: WriterChunk[];
+    constructor(bufs?: WriterChunk[]) 
     getLength(): number 
+    toUint8Array(): Uint8Array 
     toArray(): number[] 
-    write(buf: number[]): this 
+    write(buf: WriterChunk): this 
     writeReverse(buf: number[]): this 
     writeUInt8(n: number): this 
     writeInt8(n: number): this 
@@ -4754,16 +4960,16 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ---
 ## Functions
 
-| |
-| --- |
-| [AES](#function-aes) |
-| [AESGCM](#function-aesgcm) |
-| [AESGCMDecrypt](#function-aesgcmdecrypt) |
-| [ghash](#function-ghash) |
-| [pbkdf2](#function-pbkdf2) |
-| [red](#function-red) |
-| [toArray](#function-toarray) |
-| [toBase64](#function-tobase64) |
+| | |
+| --- | --- |
+| [AES](#function-aes) | [normalizeHex](#function-normalizehex) |
+| [AESGCM](#function-aesgcm) | [pbkdf2](#function-pbkdf2) |
+| [AESGCMDecrypt](#function-aesgcmdecrypt) | [realHtonl](#function-realhtonl) |
+| [assertValidHex](#function-assertvalidhex) | [red](#function-red) |
+| [base64ToArray](#function-base64toarray) | [swapBytes32](#function-swapbytes32) |
+| [constantTimeEquals](#function-constanttimeequals) | [toArray](#function-toarray) |
+| [ghash](#function-ghash) | [toBase64](#function-tobase64) |
+| [htonl](#function-htonl) | [verifyNotNull](#function-verifynotnull) |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -4780,10 +4986,56 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ---
 ### Function: AESGCM
 
+SECURITY NOTE – NON-STANDARD AES-GCM PADDING
+
+This implementation intentionally deviates from NIST SP 800-38D’s AES-GCM
+specification in how the GHASH input is formed when the additional
+authenticated data (AAD) or ciphertext length is zero.
+
+In the standard, AAD and ciphertext are each padded with the minimum number
+of zero bytes required to reach a multiple of 16 bytes; when the length is
+already a multiple of 16 (including the case length = 0), no padding block
+is added. In this implementation, when AAD.length === 0 or ciphertext.length
+=== 0, an extra 16-byte block of zeros is appended before the length fields
+are processed. The same formatting logic is used symmetrically in both
+AESGCM (encryption) and AESGCMDecrypt (decryption).
+
+As a result:
+  - Authentication tags produced here are NOT compatible with tags produced
+    by standards-compliant AES-GCM implementations in the cases where AAD
+    or ciphertext are empty.
+  - Ciphertexts generated by this code must be decrypted by this exact
+    implementation (or one that reproduces the same GHASH formatting), and
+    must not be mixed with ciphertexts produced by a strictly standard
+    AES-GCM library.
+
+Cryptographic impact: this change alters only the encoding of the message
+that is input to GHASH; it does not change the block cipher, key derivation,
+IV handling, or the basic “encrypt-then-MAC over (AAD, ciphertext, lengths)”
+structure of AES-GCM. Under the usual assumptions that AES is a secure block
+cipher and GHASH with a secret subkey is a secure polynomial MAC, this
+variant continues to provide confidentiality and integrity for data encrypted
+and decrypted consistently with this implementation. We are not aware of any
+attack that exploits the presence of this extra zero block when AAD or
+ciphertext are empty.
+
+However, this padding behavior is non-compliant with NIST SP 800-38D and has
+not been analyzed as extensively as standard AES-GCM. Code that requires
+strict standards compliance or interoperability with external AES-GCM
+implementations SHOULD NOT use this module as-is. Any future migration to a
+fully compliant AES-GCM encoding will require a compatibility strategy, as
+existing ciphertexts produced by this implementation will otherwise become
+undecryptable.
+
+This non-standard padding behavior is retained intentionally for backward
+compatibility: existing ciphertexts in production were generated with this
+encoding, and changing it would render previously encrypted data
+undecryptable by newer versions of the library.
+
 ```ts
-export function AESGCM(plainText: number[], additionalAuthenticatedData: number[], initializationVector: number[], key: number[]): {
-    result: number[];
-    authenticationTag: number[];
+export function AESGCM(plainText: Bytes, initializationVector: Bytes, key: Bytes): {
+    result: Bytes;
+    authenticationTag: Bytes;
 } 
 ```
 
@@ -4793,7 +5045,34 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Function: AESGCMDecrypt
 
 ```ts
-export function AESGCMDecrypt(cipherText: number[], additionalAuthenticatedData: number[], initializationVector: number[], authenticationTag: number[], key: number[]): number[] | null 
+export function AESGCMDecrypt(cipherText: Bytes, initializationVector: Bytes, authenticationTag: Bytes, key: Bytes): Bytes | null 
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Function: assertValidHex
+
+```ts
+export function assertValidHex(msg: string): void 
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Function: base64ToArray
+
+```ts
+export function base64ToArray(msg: string): number[] 
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Function: constantTimeEquals
+
+```ts
+export function constantTimeEquals(a: Uint8Array | number[], b: Uint8Array | number[]): boolean 
 ```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -4802,7 +5081,25 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Function: ghash
 
 ```ts
-export function ghash(input: number[], hashSubKey: number[]): number[] 
+export function ghash(input: Bytes, hashSubKey: Bytes): Bytes 
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Function: htonl
+
+```ts
+export function htonl(w: number): number 
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Function: normalizeHex
+
+```ts
+export function normalizeHex(msg: string): string 
 ```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -4836,11 +5133,82 @@ Argument Details
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
+### Function: realHtonl
+
+Converts a 32-bit unsigned integer from host byte order to network byte order.
+
+Unlike the legacy `htonl()` implementation (which always swapped bytes),
+this function behaves like the traditional C `htonl()`:
+
+- On **little-endian** machines → performs a byte swap.
+- On **big-endian** machines → returns the value unchanged.
+
+This function is provided to resolve TOB-20, which identified that the
+previous `htonl()` implementation had a misleading name and did not match
+platform-dependent semantics.
+
+Example
+
+```ts
+realHtonl(0x11223344) // → 0x44332211 on little-endian systems
+```
+
+```ts
+export function realHtonl(w: number): number 
+```
+
+Returns
+
+The value converted to network byte order.
+
+Argument Details
+
++ **w**
+  + A 32-bit unsigned integer.
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Function: red
 
 ```ts
 export function red(x: bigint): bigint 
 ```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Function: swapBytes32
+
+Unconditionally swaps the byte order of a 32-bit unsigned integer.
+
+This function performs a strict 32-bit byte swap regardless of host
+endianness. It is equivalent to the behavior commonly referred to as
+`bswap32` in low-level libraries.
+
+This function is introduced as part of TOB-20 to provide a clearly-named
+alternative to `htonl()`, which was previously implemented as an
+unconditional byte swap and did not match the semantics of the traditional
+C `htonl()` function.
+
+Example
+
+```ts
+swapBytes32(0x11223344) // → 0x44332211
+```
+
+```ts
+export function swapBytes32(w: number): number 
+```
+
+Returns
+
+The value with its byte order reversed.
+
+Argument Details
+
++ **w**
+  + A 32-bit unsigned integer.
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -4890,32 +5258,76 @@ Argument Details
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
+### Function: verifyNotNull
+
+Verifies that a value is not null or undefined, throwing an error if it is.
+
+Example
+
+```ts
+const myValue = verifyNotNull(someValue, 'someValue must be defined')
+```
+
+```ts
+export function verifyNotNull<T>(value: T | undefined | null, errorMessage: string = "Expected a valid value, but got undefined or null."): T 
+```
+
+Returns
+
+- The verified value
+
+Argument Details
+
++ **value**
+  + The value to verify
++ **errorMessage**
+  + The error message to throw if the value is null or undefined
+
+Throws
+
+- If the value is null or undefined
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ## Types
 
+### Type: P256Point
+
+```ts
+export type P256Point = {
+    x: bigint;
+    y: bigint;
+} | null
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ## Enums
 
 ## Variables
 
 | | | |
 | --- | --- | --- |
-| [BI_EIGHT](#variable-bi_eight) | [biModSqrt](#variable-bimodsqrt) | [multiply](#variable-multiply) |
-| [BI_FOUR](#variable-bi_four) | [biModSub](#variable-bimodsub) | [rightShift](#variable-rightshift) |
-| [BI_ONE](#variable-bi_one) | [checkBit](#variable-checkbit) | [ripemd160](#variable-ripemd160) |
-| [BI_THREE](#variable-bi_three) | [encode](#variable-encode) | [scalarMultiplyWNAF](#variable-scalarmultiplywnaf) |
-| [BI_TWO](#variable-bi_two) | [exclusiveOR](#variable-exclusiveor) | [sha1](#variable-sha1) |
-| [BI_ZERO](#variable-bi_zero) | [fromBase58](#variable-frombase58) | [sha256](#variable-sha256) |
-| [GX_BIGINT](#variable-gx_bigint) | [fromBase58Check](#variable-frombase58check) | [sha256hmac](#variable-sha256hmac) |
-| [GY_BIGINT](#variable-gy_bigint) | [getBytes](#variable-getbytes) | [sha512](#variable-sha512) |
-| [MASK_256](#variable-mask_256) | [hash160](#variable-hash160) | [sha512hmac](#variable-sha512hmac) |
-| [N_BIGINT](#variable-n_bigint) | [hash256](#variable-hash256) | [sign](#variable-sign) |
-| [P_BIGINT](#variable-p_bigint) | [incrementLeastSignificantThirtyTwoBits](#variable-incrementleastsignificantthirtytwobits) | [toArray](#variable-toarray) |
-| [P_PLUS1_DIV4](#variable-p_plus1_div4) | [jpAdd](#variable-jpadd) | [toBase58](#variable-tobase58) |
-| [biMod](#variable-bimod) | [jpDouble](#variable-jpdouble) | [toBase58Check](#variable-tobase58check) |
-| [biModAdd](#variable-bimodadd) | [jpNeg](#variable-jpneg) | [toHex](#variable-tohex) |
-| [biModInv](#variable-bimodinv) | [minimallyEncode](#variable-minimallyencode) | [toUTF8](#variable-toutf8) |
-| [biModMul](#variable-bimodmul) | [modInvN](#variable-modinvn) | [verify](#variable-verify) |
-| [biModPow](#variable-bimodpow) | [modMulN](#variable-modmuln) | [zero2](#variable-zero2) |
-| [biModSqr](#variable-bimodsqr) | [modN](#variable-modn) |  |
+| [BI_EIGHT](#variable-bi_eight) | [biModSqrt](#variable-bimodsqrt) | [modN](#variable-modn) |
+| [BI_FOUR](#variable-bi_four) | [biModSub](#variable-bimodsub) | [multiply](#variable-multiply) |
+| [BI_ONE](#variable-bi_one) | [checkBit](#variable-checkbit) | [rightShift](#variable-rightshift) |
+| [BI_THREE](#variable-bi_three) | [encode](#variable-encode) | [ripemd160](#variable-ripemd160) |
+| [BI_TWO](#variable-bi_two) | [exclusiveOR](#variable-exclusiveor) | [scalarMultiplyWNAF](#variable-scalarmultiplywnaf) |
+| [BI_ZERO](#variable-bi_zero) | [fromBase58](#variable-frombase58) | [sha1](#variable-sha1) |
+| [GX_BIGINT](#variable-gx_bigint) | [fromBase58Check](#variable-frombase58check) | [sha256](#variable-sha256) |
+| [GY_BIGINT](#variable-gy_bigint) | [getBytes](#variable-getbytes) | [sha256hmac](#variable-sha256hmac) |
+| [MASK_256](#variable-mask_256) | [getBytes64](#variable-getbytes64) | [sha512](#variable-sha512) |
+| [N_BIGINT](#variable-n_bigint) | [hash160](#variable-hash160) | [sha512hmac](#variable-sha512hmac) |
+| [P_BIGINT](#variable-p_bigint) | [hash256](#variable-hash256) | [sign](#variable-sign) |
+| [P_PLUS1_DIV4](#variable-p_plus1_div4) | [incrementLeastSignificantThirtyTwoBits](#variable-incrementleastsignificantthirtytwobits) | [toArray](#variable-toarray) |
+| [biMod](#variable-bimod) | [jpAdd](#variable-jpadd) | [toBase58](#variable-tobase58) |
+| [biModAdd](#variable-bimodadd) | [jpDouble](#variable-jpdouble) | [toBase58Check](#variable-tobase58check) |
+| [biModInv](#variable-bimodinv) | [jpNeg](#variable-jpneg) | [toHex](#variable-tohex) |
+| [biModMul](#variable-bimodmul) | [minimallyEncode](#variable-minimallyencode) | [toUTF8](#variable-toutf8) |
+| [biModPow](#variable-bimodpow) | [modInvN](#variable-modinvn) | [verify](#variable-verify) |
+| [biModSqr](#variable-bimodsqr) | [modMulN](#variable-modmuln) | [zero2](#variable-zero2) |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5090,20 +5502,20 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 biModPow = (base: bigint, exp: bigint): bigint => {
-    let result = BI_ONE;
+    let result = 1n;
     base = biMod(base);
-    let e = exp;
-    while (e > BI_ZERO) {
-        if ((e & BI_ONE) === BI_ONE)
+    while (exp > 0n) {
+        if ((exp & 1n) !== 0n) {
             result = biModMul(result, base);
+        }
         base = biModMul(base, base);
-        e >>= BI_ONE;
+        exp >>= 1n;
     }
     return result;
 }
 ```
 
-See also: [BI_ONE](./primitives.md#variable-bi_one), [BI_ZERO](./primitives.md#variable-bi_zero), [biMod](./primitives.md#variable-bimod), [biModMul](./primitives.md#variable-bimodmul)
+See also: [biMod](./primitives.md#variable-bimod), [biModMul](./primitives.md#variable-bimodmul)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5124,7 +5536,10 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ```ts
 biModSqrt = (a: bigint): bigint | null => {
     const r = biModPow(a, P_PLUS1_DIV4);
-    return biModMul(r, r) === biMod(a) ? r : null;
+    if (biModMul(r, r) !== biMod(a)) {
+        return null;
+    }
+    return r;
 }
 ```
 
@@ -5178,11 +5593,11 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Variable: exclusiveOR
 
 ```ts
-exclusiveOR = function (block0: number[], block1: number[]): number[] {
+exclusiveOR = function (block0: Bytes, block1: Bytes): Bytes {
     const len = block0.length;
-    const result = new Array(len);
+    const result = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
-        result[i] = block0[i] ^ block1[i];
+        result[i] = block0[i] ^ (block1[i] ?? 0);
     }
     return result;
 }
@@ -5273,10 +5688,35 @@ getBytes = function (numericValue: number): number[] {
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
+### Variable: getBytes64
+
+```ts
+getBytes64 = function (numericValue: number): number[] {
+    if (numericValue < 0 || numericValue > Number.MAX_SAFE_INTEGER) {
+        throw new Error("getBytes64: value out of range");
+    }
+    const hi = Math.floor(numericValue / 4294967296);
+    const lo = numericValue >>> 0;
+    return [
+        (hi >>> 24) & 255,
+        (hi >>> 16) & 255,
+        (hi >>> 8) & 255,
+        hi & 255,
+        (lo >>> 24) & 255,
+        (lo >>> 16) & 255,
+        (lo >>> 8) & 255,
+        lo & 255
+    ];
+}
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Variable: hash160
 
 ```ts
-hash160 = (msg: number[] | string, enc?: "hex" | "utf8"): number[] => {
+hash160 = (msg: Uint8Array | number[] | string, enc?: "hex" | "utf8"): number[] => {
     const first = new SHA256().update(msg, enc).digest();
     return new RIPEMD160().update(first).digest();
 }
@@ -5290,7 +5730,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Variable: hash256
 
 ```ts
-hash256 = (msg: number[] | string, enc?: "hex" | "utf8"): number[] => {
+hash256 = (msg: Uint8Array | number[] | string, enc?: "hex" | "utf8"): number[] => {
     const first = new SHA256().update(msg, enc).digest();
     return new SHA256().update(first).digest();
 }
@@ -5304,15 +5744,11 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Variable: incrementLeastSignificantThirtyTwoBits
 
 ```ts
-incrementLeastSignificantThirtyTwoBits = function (block: number[]): number[] {
-    let i;
+incrementLeastSignificantThirtyTwoBits = function (block: Bytes): Bytes {
     const result = block.slice();
-    for (i = 15; i !== 11; i--) {
-        result[i] = result[i] + 1;
-        if (result[i] === 256) {
-            result[i] = 0;
-        }
-        else {
+    for (let i = 15; i > 11; i--) {
+        result[i] = (result[i] + 1) & 255;
+        if (result[i] !== 0) {
             break;
         }
     }
@@ -5484,7 +5920,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Variable: multiply
 
 ```ts
-multiply = function (block0: number[], block1: number[]): number[] {
+multiply = function (block0: Bytes, block1: Bytes): Bytes {
     const v = block1.slice();
     const z = createZeroBlock(16);
     for (let i = 0; i < 16; i++) {
@@ -5513,11 +5949,10 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Variable: rightShift
 
 ```ts
-rightShift = function (block: number[]): number[] {
-    let i: number;
+rightShift = function (block: Bytes): Bytes {
     let carry = 0;
     let oldCarry = 0;
-    for (i = 0; i < block.length; i++) {
+    for (let i = 0; i < block.length; i++) {
         oldCarry = carry;
         carry = block[i] & 1;
         block[i] = block[i] >> 1;
@@ -5622,7 +6057,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Variable: sha256
 
 ```ts
-sha256 = (msg: number[] | string, enc?: "hex" | "utf8"): number[] => {
+sha256 = (msg: Uint8Array | number[] | string, enc?: "hex" | "utf8"): number[] => {
     return new SHA256().update(msg, enc).digest();
 }
 ```
@@ -5635,7 +6070,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Variable: sha256hmac
 
 ```ts
-sha256hmac = (key: number[] | string, msg: number[] | string, enc?: "hex"): number[] => {
+sha256hmac = (key: Uint8Array | number[] | string, msg: Uint8Array | number[] | string, enc?: "hex"): number[] => {
     return new SHA256HMAC(key).update(msg, enc).digest();
 }
 ```
@@ -5661,7 +6096,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Variable: sha512hmac
 
 ```ts
-sha512hmac = (key: number[] | string, msg: number[] | string, enc?: "hex"): number[] => {
+sha512hmac = (key: Uint8Array | number[] | string, msg: Uint8Array | number[] | string, enc?: "hex"): number[] => {
     return new SHA512HMAC(key).update(msg, enc).digest();
 }
 ```
@@ -5676,8 +6111,8 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ```ts
 sign = (msg: BigNumber, key: BigNumber, forceLowS: boolean = false, customK?: BigNumber | ((iter: number) => BigNumber)): Signature => {
     msg = truncateToN(msg);
-    const msgBig = BigInt("0x" + msg.toString(16));
-    const keyBig = BigInt("0x" + key.toString(16));
+    const msgBig = bnToBigInt(msg);
+    const keyBig = bnToBigInt(key);
     const bkey = key.toArray("be", bytes);
     const nonce = msg.toArray("be", bytes);
     const drbg = new DRBG(bkey, nonce);
@@ -5687,26 +6122,24 @@ sign = (msg: BigNumber, key: BigNumber, forceLowS: boolean = false, customK?: Bi
             : BigNumber.isBN(customK)
                 ? customK
                 : new BigNumber(drbg.generate(bytes), 16);
-        if (kBN == null)
+        if (kBN == null) {
             throw new Error("k is undefined");
+        }
         kBN = truncateToN(kBN, true);
-        if (kBN.cmpn(1) <= 0 || kBN.cmp(ns1) >= 0) {
+        if (kBN.cmpn(1) < 0 || kBN.cmp(ns1) > 0) {
             if (BigNumber.isBN(customK)) {
-                throw new Error("Invalid fixed custom K value (must be >1 and <N\u20111)");
+                throw new Error("Invalid fixed custom K value (must be >1 and <N-1)");
             }
             continue;
         }
-        const kBig = BigInt("0x" + kBN.toString(16));
-        const R = scalarMultiplyWNAF(kBig, { x: GX_BIGINT, y: GY_BIGINT });
-        if (R.Z === 0n) {
+        const R = curve.g.mulCT(kBN);
+        if (R.isInfinity()) {
             if (BigNumber.isBN(customK)) {
                 throw new Error("Invalid fixed custom K value (k\u00B7G at infinity)");
             }
             continue;
         }
-        const zInv = biModInv(R.Z);
-        const zInv2 = biModMul(zInv, zInv);
-        const xAff = biModMul(R.X, zInv2);
+        const xAff = BigInt("0x" + R.getX().toString(16));
         const rBig = modN(xAff);
         if (rBig === 0n) {
             if (BigNumber.isBN(customK)) {
@@ -5714,6 +6147,7 @@ sign = (msg: BigNumber, key: BigNumber, forceLowS: boolean = false, customK?: Bi
             }
             continue;
         }
+        const kBig = BigInt("0x" + kBN.toString(16));
         const kInv = modInvN(kBig);
         const rTimesKey = modMulN(rBig, keyBig);
         const sum = modN(msgBig + rTimesKey);
@@ -5734,7 +6168,7 @@ sign = (msg: BigNumber, key: BigNumber, forceLowS: boolean = false, customK?: Bi
 }
 ```
 
-See also: [BigNumber](./primitives.md#class-bignumber), [DRBG](./primitives.md#class-drbg), [GX_BIGINT](./primitives.md#variable-gx_bigint), [GY_BIGINT](./primitives.md#variable-gy_bigint), [N_BIGINT](./primitives.md#variable-n_bigint), [Signature](./primitives.md#class-signature), [biModInv](./primitives.md#variable-bimodinv), [biModMul](./primitives.md#variable-bimodmul), [modInvN](./primitives.md#variable-modinvn), [modMulN](./primitives.md#variable-modmuln), [modN](./primitives.md#variable-modn), [scalarMultiplyWNAF](./primitives.md#variable-scalarmultiplywnaf), [toArray](./primitives.md#variable-toarray)
+See also: [BigNumber](./primitives.md#class-bignumber), [DRBG](./primitives.md#class-drbg), [N_BIGINT](./primitives.md#variable-n_bigint), [Signature](./primitives.md#class-signature), [modInvN](./primitives.md#variable-modinvn), [modMulN](./primitives.md#variable-modmuln), [modN](./primitives.md#variable-modn), [toArray](./primitives.md#variable-toarray)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5760,6 +6194,8 @@ toArray = (msg: any, enc?: "hex" | "utf8" | "base64"): any[] => {
     }
 }
 ```
+
+See also: [base64ToArray](./primitives.md#function-base64toarray)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5818,15 +6254,18 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 toHex = (msg: number[]): string => {
-    let res = "";
-    for (const num of msg) {
-        res += zero2(num.toString(16));
+    if (CAN_USE_BUFFER) {
+        return BufferCtor.from(msg).toString("hex");
     }
-    return res;
+    if (msg.length === 0)
+        return "";
+    const out = new Array(msg.length);
+    for (let i = 0; i < msg.length; i++) {
+        out[i] = HEX_BYTE_STRINGS[msg[i] & 255];
+    }
+    return out.join("");
 }
 ```
-
-See also: [zero2](./primitives.md#variable-zero2)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5836,42 +6275,78 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ```ts
 toUTF8 = (arr: number[]): string => {
     let result = "";
-    let skip = 0;
+    const replacementChar = "\uFFFD";
     for (let i = 0; i < arr.length; i++) {
-        const byte = arr[i];
-        if (skip > 0) {
-            skip--;
+        const byte1 = arr[i];
+        if (byte1 <= 127) {
+            result += String.fromCharCode(byte1);
             continue;
         }
-        if (byte <= 127) {
-            result += String.fromCharCode(byte);
-        }
-        else if (byte >= 192 && byte <= 223) {
+        const emitReplacement = (): void => {
+            result += replacementChar;
+        };
+        if (byte1 >= 192 && byte1 <= 223) {
+            if (i + 1 >= arr.length) {
+                emitReplacement();
+                continue;
+            }
             const byte2 = arr[i + 1];
-            skip = 1;
-            const codePoint = ((byte & 31) << 6) | (byte2 & 63);
+            if ((byte2 & 192) !== 128) {
+                emitReplacement();
+                i += 1;
+                continue;
+            }
+            const codePoint = ((byte1 & 31) << 6) | (byte2 & 63);
             result += String.fromCharCode(codePoint);
+            i += 1;
+            continue;
         }
-        else if (byte >= 224 && byte <= 239) {
+        if (byte1 >= 224 && byte1 <= 239) {
+            if (i + 2 >= arr.length) {
+                emitReplacement();
+                continue;
+            }
             const byte2 = arr[i + 1];
             const byte3 = arr[i + 2];
-            skip = 2;
-            const codePoint = ((byte & 15) << 12) | ((byte2 & 63) << 6) | (byte3 & 63);
+            if ((byte2 & 192) !== 128 || (byte3 & 192) !== 128) {
+                emitReplacement();
+                i += 2;
+                continue;
+            }
+            const codePoint = ((byte1 & 15) << 12) |
+                ((byte2 & 63) << 6) |
+                (byte3 & 63);
             result += String.fromCharCode(codePoint);
+            i += 2;
+            continue;
         }
-        else if (byte >= 240 && byte <= 247) {
+        if (byte1 >= 240 && byte1 <= 247) {
+            if (i + 3 >= arr.length) {
+                emitReplacement();
+                continue;
+            }
             const byte2 = arr[i + 1];
             const byte3 = arr[i + 2];
             const byte4 = arr[i + 3];
-            skip = 3;
-            const codePoint = ((byte & 7) << 18) |
+            if ((byte2 & 192) !== 128 ||
+                (byte3 & 192) !== 128 ||
+                (byte4 & 192) !== 128) {
+                emitReplacement();
+                i += 3;
+                continue;
+            }
+            const codePoint = ((byte1 & 7) << 18) |
                 ((byte2 & 63) << 12) |
                 ((byte3 & 63) << 6) |
                 (byte4 & 63);
-            const surrogate1 = 55296 + ((codePoint - 65536) >> 10);
-            const surrogate2 = 56320 + ((codePoint - 65536) & 1023);
-            result += String.fromCharCode(surrogate1, surrogate2);
+            const offset = codePoint - 65536;
+            const highSurrogate = 55296 + (offset >> 10);
+            const lowSurrogate = 56320 + (offset & 1023);
+            result += String.fromCharCode(highSurrogate, lowSurrogate);
+            i += 3;
+            continue;
         }
+        emitReplacement();
     }
     return result;
 }
@@ -5884,17 +6359,17 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 verify = (msg: BigNumber, sig: Signature, key: Point): boolean => {
-    const hash = BigInt("0x" + msg.toString(16));
+    const hash = bnToBigInt(msg);
     if ((key.x == null) || (key.y == null)) {
         throw new Error("Invalid public key: missing coordinates.");
     }
     const publicKey = {
-        x: BigInt("0x" + key.x.toString(16)),
-        y: BigInt("0x" + key.y.toString(16))
+        x: bnToBigInt(key.x),
+        y: bnToBigInt(key.y)
     };
     const signature = {
-        r: BigInt("0x" + sig.r.toString(16)),
-        s: BigInt("0x" + sig.s.toString(16))
+        r: bnToBigInt(sig.r),
+        s: bnToBigInt(sig.s)
     };
     const { r, s } = signature;
     const z = hash;
