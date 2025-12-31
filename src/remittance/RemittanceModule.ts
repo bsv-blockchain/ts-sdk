@@ -24,7 +24,7 @@ export interface RemittanceModule<
    * If true, the payer can build a settlement without an invoice being provided by the payee.
    * In this case, the option terms provided to `buildSettlement` may be used in lieu of an invoice.
    *
-   * If false, an invoice must always be provided to `buildSettlement`. 
+   * If false, an invoice must always be provided to `buildSettlement`.
    */
   allowUnsolicitedSettlements: boolean
 
@@ -37,13 +37,13 @@ export interface RemittanceModule<
    *
    * However, a module MAY still create option terms/invoices even if it can sometimes support unsolicited settlements.
    */
-  createOption?: (args: { threadId: ThreadId; invoice: Invoice }, ctx: ModuleContext) => Promise<TOptionTerms>
+  createOption?: (args: { threadId: ThreadId, invoice: Invoice }, ctx: ModuleContext) => Promise<TOptionTerms>
 
   /**
    * Builds the settlement artifact for a chosen option.
    *
    * For UTXO settlement systems, this is usually a transaction (or partially-signed tx) to be broadcast.
-   * 
+   *
    * For unsolicited settlements, an invoice may not always be provided and the option terms may be used in lieu of an invoice to settle against.
    *
    * For example, the option terms may include a tx template with outputs to fulfill the settlement.
@@ -53,22 +53,22 @@ export interface RemittanceModule<
    * Termination can be returned to abort the protocol with a reason.
    */
   buildSettlement: (
-    args: { threadId: ThreadId; invoice?: Invoice; option: TOptionTerms; note?: string },
+    args: { threadId: ThreadId, invoice?: Invoice, option: TOptionTerms, note?: string },
     ctx: ModuleContext
-  ) => Promise<{ action: 'settle'; artifact: TSettlementArtifact } | { action: 'terminate'; termination: Termination }>
+  ) => Promise<{ action: 'settle', artifact: TSettlementArtifact } | { action: 'terminate', termination: Termination }>
 
   /**
    * Accepts a settlement artifact on the payee side.
    *
    * The module should validate and internalize/store whatever it needs.
    * The manager will wrap the returned value as receipt.receiptData.
-   * 
+   *
    * If the settlement is invalid, the module should return either a termination or receiptData (possibly with a refund or indicating the failure), depending how the module chooses to handle it.
    */
   acceptSettlement: (
-    args: { threadId: ThreadId; invoice?: Invoice; settlement: TSettlementArtifact; sender: PubKeyHex },
+    args: { threadId: ThreadId, invoice?: Invoice, settlement: TSettlementArtifact, sender: PubKeyHex },
     ctx: ModuleContext
-  ) => Promise<{ action: 'accept'; receiptData?: TReceiptData } | { action: 'terminate'; termination: Termination }>
+  ) => Promise<{ action: 'accept', receiptData?: TReceiptData } | { action: 'terminate', termination: Termination }>
 
   /**
    * Processes a receipt on the payer side.
@@ -76,7 +76,7 @@ export interface RemittanceModule<
    * This is where a module can automatically internalize a refund, mark a local order fulfilled, receive goods and services, etc.
    */
   processReceipt?: (
-    args: { threadId: ThreadId; invoice?: Invoice; receiptData: TReceiptData; sender: PubKeyHex },
+    args: { threadId: ThreadId, invoice?: Invoice, receiptData: TReceiptData, sender: PubKeyHex },
     ctx: ModuleContext
   ) => Promise<void>
 
@@ -86,7 +86,7 @@ export interface RemittanceModule<
    * This is where a module can clean up any internal state, reverse provisional actions, take refunds, etc.
    */
   processTermination?: (
-    args: { threadId: ThreadId; invoice?: Invoice; settlement?: Settlement; termination: Termination; sender: PubKeyHex },
+    args: { threadId: ThreadId, invoice?: Invoice, settlement?: Settlement, termination: Termination, sender: PubKeyHex },
     ctx: ModuleContext
   ) => Promise<void>
 }

@@ -21,12 +21,12 @@ import { PubKeyHex } from '../wallet/Wallet.interfaces.js'
  */
 export interface IdentityLayer {
   /** Determine which certificates to request from a counterparty. */
-  determineCertificatesToRequest: (args: { counterparty: PubKeyHex; threadId: ThreadId }, ctx: ModuleContext) => Promise<IdentityVerificationRequest>
+  determineCertificatesToRequest: (args: { counterparty: PubKeyHex, threadId: ThreadId }, ctx: ModuleContext) => Promise<IdentityVerificationRequest>
   /** Respond to an incoming identity verification request. */
   respondToRequest: (
-    args: { counterparty: PubKeyHex; threadId: ThreadId; request: IdentityVerificationRequest },
+    args: { counterparty: PubKeyHex, threadId: ThreadId, request: IdentityVerificationRequest },
     ctx: ModuleContext
-  ) => Promise<{ action: 'respond'; response: IdentityVerificationResponse } | { action: 'terminate'; termination: Termination }>
+  ) => Promise<{ action: 'respond', response: IdentityVerificationResponse } | { action: 'terminate', termination: Termination }>
   /** Assess whether received certificates satisfy the requirements for transaction settlement. */
   assessReceivedCertificateSufficiency: (counterparty: PubKeyHex, received: IdentityVerificationResponse, threadId: ThreadId) => Promise<IdentityVerificationAcknowledgment | Termination>
 }

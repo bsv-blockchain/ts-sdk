@@ -93,7 +93,7 @@ export interface IdentityVerificationRequest {
 
 /**
  * An identity certificate response.
- * 
+ *
  * Contains certificates issued by the certifiers named in the corresponding request, with fields revealed to the counterparty.
  */
 export interface IdentityVerificationResponse {
