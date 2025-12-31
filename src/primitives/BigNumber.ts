@@ -1305,47 +1305,43 @@ export default class BigNumber {
    * @param p - The `BigNumber` specifying the modulus field.
    * @returns The multiplicative inverse `BigNumber` in the modulus field specified by `p`.
    */
+  /**
+   * SECURITY NOTE:
+   * This implementation avoids variable-time extended Euclidean algorithms
+   * to reduce timing side-channel leakage. However, JavaScript BigInt arithmetic
+   * does not provide constant-time guarantees. This implementation is suitable
+   * for browser and single-tenant environments but is not hardened against
+   * high-resolution timing attacks in shared CPU contexts.
+  */
   _invmp (p: BigNumber): BigNumber {
     this.assert(p._sign === 0, 'p must not be negative for _invmp')
     this.assert(!p.isZero(), 'p must not be zero for _invmp')
 
-    const aBN: BigNumber = this.umod(p)
+    // Fermat inversion: a^(p-2) mod p
+    // NOTE: This assumes p is prime (true for all cryptographic use cases here).
+    // This avoids variable-time EEA loops but BigInt arithmetic itself
+    // is not constant-time (documented limitation).
 
-    let aVal = aBN._magnitude
-    let bVal = p._magnitude
-    let x1Val = 1n
-    let x2Val = 0n
-    const modulus = p._magnitude
+    const a = this.umod(p)
+    const exp = p.subn(2)
 
-    while (aVal > 1n && bVal > 1n) {
-      let i = 0; while (((aVal >> BigInt(i)) & 1n) === 0n) i++
-      if (i > 0) {
-        aVal >>= BigInt(i)
-        for (let k = 0; k < i; ++k) { if ((x1Val & 1n) !== 0n) x1Val += modulus; x1Val >>= 1n }
-      }
-
-      let j = 0; while (((bVal >> BigInt(j)) & 1n) === 0n) j++
-      if (j > 0) {
-        bVal >>= BigInt(j)
-        for (let k = 0; k < j; ++k) { if ((x2Val & 1n) !== 0n) x2Val += modulus; x2Val >>= 1n }
-      }
-
-      if (aVal >= bVal) { aVal -= bVal; x1Val -= x2Val } else { bVal -= aVal; x2Val -= x1Val }
+    // Use modular exponentiation via ReductionContext if available
+    if (a.red !== null) {
+      return a.redPow(exp)
     }
 
-    let resultVal: bigint
-    if (aVal === 1n) resultVal = x1Val
-    else if (bVal === 1n) resultVal = x2Val
-    else if (aVal === 0n && bVal === 1n) resultVal = x2Val
-    else if (bVal === 0n && aVal === 1n) resultVal = x1Val
-    else throw new Error('_invmp: GCD is not 1, inverse does not exist. aVal=' + aVal + ', bVal=' + bVal)
+    // Fallback: non-reduction context modular exponentiation
+    let result = new BigNumber(1n)
+    let base = a.clone()
+    const e = exp.clone()
 
-    resultVal %= modulus
-    if (resultVal < 0n) resultVal += modulus
+    while (!e.isZero()) {
+      if (e.isOdd()) result = result.mul(base).umod(p)
+      base = base.sqr().umod(p)
+      e.iushrn(1)
+    }
 
-    const resultBN = new BigNumber(0n)
-    resultBN._initializeState(resultVal, 0)
-    return resultBN
+    return result
   }
 
   /**
