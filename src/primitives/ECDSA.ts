@@ -22,7 +22,7 @@ import DRBG from './DRBG.js'
  * @example
  * let msg = new BigNumber('1234567890abcdef', 16);
  * let truncatedMsg = truncateToN(msg);
- * 
+ *
  * This behavior follows the message truncation rules defined in FIPS 186-4.
  */
 function truncateToN (
@@ -94,8 +94,9 @@ export const sign = (
   const nBitLength = curve.n.bitLength()
   if (msg.bitLength() > nBitLength) {
     throw new Error(
-      `ECDSA message is too large: expected <= ${nBitLength} bits. ` +
-      `Callers must hash messages before signing.`
+      'ECDSA message is too large: expected <= ' +
+      nBitLength +
+      ' bits. Callers must hash messages before signing.'
     )
   }
 
