@@ -22,6 +22,8 @@ import DRBG from './DRBG.js'
  * @example
  * let msg = new BigNumber('1234567890abcdef', 16);
  * let truncatedMsg = truncateToN(msg);
+ * 
+ * This behavior follows the message truncation rules defined in FIPS 186-4.
  */
 function truncateToN (
   msg: BigNumber,
@@ -67,6 +69,21 @@ const halfN = N_BIGINT >> 1n
  * const msg = new BigNumber('2664878')
  * const key = new BigNumber('123456')
  * const signature = sign(msg, key)
+ */
+/**
+ * SECURITY NOTE:
+ *
+ * This function implements ECDSA signing and expects `msg` to be the output of
+ * a cryptographic hash function (e.g. SHA-256), not an arbitrary-length message.
+ *
+ * Per FIPS 186-4 / SEC 1, the message representative used by ECDSA must not
+ * exceed the bit length of the curve order `n`. Inputs larger than `n` must be
+ * hashed before signing.
+ *
+ * As a short-term mitigation for TOB-22, this implementation explicitly rejects
+ * messages whose bit length exceeds that of the curve order.
+ *
+ * Long-term, callers SHOULD always hash messages before invoking `sign()`.
  */
 export const sign = (
   msg: BigNumber,
@@ -171,6 +188,15 @@ export const sign = (
  * const signature = sign(msg, new BigNumber('123456'))
  * const isVerified = verify(msg, sig, key)
  */
+/**
+ * SECURITY NOTE:
+ *
+ * This verification routine assumes that `msg` is a hashed message
+ * representative produced using the same hash function used during signing.
+ *
+ * As part of TOB-22 short-term hardening, messages exceeding the curve order
+ * bit length are rejected to prevent misuse with non-hashed inputs.
+ */
 export const verify = (msg: BigNumber, sig: Signature, key: Point): boolean => {
   const nBitLength = curve.n.bitLength()
   if (msg.bitLength() > nBitLength) {
@@ -178,7 +204,7 @@ export const verify = (msg: BigNumber, sig: Signature, key: Point): boolean => {
     return false
   }
 
-// Convert inputs to BigInt
+  // Convert inputs to BigInt
   const hash = bnToBigInt(msg)
   if ((key.x == null) || (key.y == null)) {
     throw new Error('Invalid public key: missing coordinates.')
