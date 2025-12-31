@@ -323,21 +323,17 @@ export const rightShift = function (block: Bytes): Bytes {
 export const multiply = function (block0: Bytes, block1: Bytes): Bytes {
   const v = block1.slice()
   const z = createZeroBlock(16)
-
   for (let i = 0; i < 16; i++) {
-
     for (let j = 7; j >= 0; j--) {
       if ((block0[i] & (1 << j)) !== 0) {
         for (let k = 0; k < 16; k++) {
           z[k] ^= v[k]
         }
       }
-
       const lsb = v[15] & 1
       for (let k = 15; k >= 0; k--) {
         v[k] = (v[k] >>> 1) | ((k > 0 ? v[k - 1] : 0) << 7)
       }
-
       if (lsb !== 0) {
         for (let k = 0; k < 16; k++) {
           v[k] ^= R[k]
@@ -345,7 +341,6 @@ export const multiply = function (block0: Bytes, block1: Bytes): Bytes {
       }
     }
   }
-
   return z
 }
 
