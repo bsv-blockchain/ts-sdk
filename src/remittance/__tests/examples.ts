@@ -3,6 +3,7 @@ import {
   Invoice,
   IdentityVerificationRequest,
   IdentityVerificationResponse,
+  IdentityVerificationAcknowledgment,
   Settlement,
   Receipt,
   SAT_UNIT
@@ -26,6 +27,7 @@ const exampleInvoice: RemittanceEnvelope<'invoice', Invoice> = {
     ],
     note: 'This is a test invoice',
     total: { value: '150', unit: { namespace: 'bsv', code: 'sat', decimals: 0 } },
+    invoiceNumber: 'INV-123',
     options: {
       'module-1': { someOptionField: 'someValue' },
       'module-2': { anotherOptionField: 42 }
@@ -73,6 +75,19 @@ const exampleIdentityVerificationResponse: RemittanceEnvelope<'identityVerificat
         name: 'key-for-name'
       }
     }]
+  }
+}
+
+/** Example identity verification acknowledgment envelope. */
+const exampleIdentityVerificationAcknowledgment: RemittanceEnvelope<'identityVerificationAcknowledgment', IdentityVerificationAcknowledgment> = {
+  v: 1,
+  id: 'identity-verification-ack-123',
+  kind: 'identityVerificationAcknowledgment',
+  threadId: 'thread-abc',
+  createdAt: Date.now(),
+  payload: {
+    kind: 'identityVerificationAcknowledgment',
+    threadId: 'thread-abc'
   }
 }
 

@@ -204,6 +204,16 @@
       "require": "./dist/cjs/src/kvstore/*.js",
       "types": "./dist/types/src/kvstore/*.d.ts"
     },
+    "./remittance": {
+      "import": "./dist/esm/src/remittance/index.js",
+      "require": "./dist/cjs/src/remittance/index.js",
+      "types": "./dist/types/src/remittance/index.d.ts"
+    },
+    "./remittance/*": {
+      "import": "./dist/esm/src/remittance/*.js",
+      "require": "./dist/cjs/src/remittance/*.js",
+      "types": "./dist/types/src/remittance/*.d.ts"
+    },
     "./umd": {
       "import": "./dist/umd/bundle.js"
     }

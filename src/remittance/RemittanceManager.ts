@@ -1,6 +1,8 @@
 import type {
   Invoice,
+  IdentityVerificationRequest,
   IdentityVerificationResponse,
+  IdentityVerificationAcknowledgment,
   Settlement,
   Receipt,
   Termination,
@@ -10,7 +12,8 @@ import type {
   UnixMillis,
   LoggerLike,
   ModuleContext,
-  RemittanceKind
+  RemittanceKind,
+  RemittanceOptionId
 } from './types.js'
 import type { CommsLayer } from './CommsLayer.js'
 import type { IdentityLayer } from './IdentityLayer.js'
@@ -35,6 +38,10 @@ export interface RemittanceManagerRuntimeOptions {
   autoIssueReceipt: boolean
   /** Invoice expiry in seconds, or -1 for no expiry. */
   invoiceExpirySeconds: number
+  /** Identity verification timeout in milliseconds. */
+  identityTimeoutMs: number
+  /** Identity verification poll interval in milliseconds. */
+  identityPollIntervalMs: number
 }
 
 export interface RemittanceManagerConfig {
@@ -90,11 +97,16 @@ export interface Thread {
   identity: {
     certsSent: IdentityVerificationResponse['certificates']
     certsReceived: IdentityVerificationResponse['certificates']
+    requestSent: boolean
+    responseSent: boolean
+    acknowledgmentSent: boolean
+    acknowledgmentReceived: boolean
   }
 
   invoice?: Invoice
   settlement?: Settlement
   receipt?: Receipt
+  termination?: Termination
 
   flags: {
     hasIdentified: boolean
@@ -186,7 +198,9 @@ export class RemittanceManager {
       },
       receiptProvided: cfg.options?.receiptProvided ?? true,
       autoIssueReceipt: cfg.options?.autoIssueReceipt ?? true,
-      invoiceExpirySeconds: cfg.options?.invoiceExpirySeconds ?? 3600
+      invoiceExpirySeconds: cfg.options?.invoiceExpirySeconds ?? 3600,
+      identityTimeoutMs: cfg.options?.identityTimeoutMs ?? 30_000,
+      identityPollIntervalMs: cfg.options?.identityPollIntervalMs ?? 500
     }
 
     this.threads = threads
@@ -309,7 +323,11 @@ export class RemittanceManager {
       protocolLog: [],
       identity: {
         certsSent: [],
-        certsReceived: []
+        certsReceived: [],
+        requestSent: false,
+        responseSent: false,
+        acknowledgmentSent: false,
+        acknowledgmentReceived: false
       },
       flags: {
         hasIdentified: false,
@@ -322,9 +340,8 @@ export class RemittanceManager {
 
     this.threads.push(thread)
 
-    // Optional identity hello exchange.
-    if (this.runtime.exchangeIdentityInfo) { // !!! FIXME !!! (ientity processes need implementing acrooss all the flows, according to runtime options)
-      await this.ensureIdentityExchange(thread, hostOverride) // !!! FIXME !!!
+    if (this.shouldRequestIdentity(thread, 'beforeInvoicing')) {
+      await this.ensureIdentityExchange(thread, hostOverride)
     }
 
     const invoice = await this.composeInvoice(threadId, myKey, to, input)
@@ -340,6 +357,48 @@ export class RemittanceManager {
 
     const env = this.makeEnvelope('invoice', threadId, invoice)
     const mid = await this.sendEnvelope(to, env, hostOverride)
+    thread.protocolLog.push({ direction: 'out', envelope: env, transportMessageId: mid })
+    thread.updatedAt = this.now()
+    await this.persistState()
+
+    return new InvoiceHandle(this, threadId)
+  }
+
+  /**
+   * Sends an invoice for an existing thread, e.g. after an identity request was received.
+   */
+  async sendInvoiceForThread (threadId: ThreadId, input: ComposeInvoiceInput, hostOverride?: string): Promise<InvoiceHandle> {
+    await this.refreshMyIdentityKey()
+    const thread = this.getThreadOrThrow(threadId)
+
+    if (thread.flags.error) throw new Error('Thread is in error state')
+    if (thread.myRole !== 'maker') throw new Error('Only makers can send invoices')
+    if (thread.invoice) throw new Error('Thread already has an invoice')
+
+    if (thread.identity.responseSent && !thread.flags.hasIdentified) {
+      await this.waitForIdentityAcknowledgment(threadId, {
+        timeoutMs: this.runtime.identityTimeoutMs,
+        pollIntervalMs: this.runtime.identityPollIntervalMs
+      })
+    }
+
+    if (this.shouldRequestIdentity(thread, 'beforeInvoicing')) {
+      await this.ensureIdentityExchange(thread, hostOverride)
+    }
+
+    const myKey = this.requireMyIdentityKey('sendInvoice requires the wallet to provide an identity key')
+    const invoice = await this.composeInvoice(threadId, myKey, thread.counterparty, input)
+    thread.invoice = invoice
+    thread.flags.hasInvoiced = true
+
+    for (const mod of this.moduleRegistry.values()) {
+      if (typeof mod.createOption !== 'function') continue
+      const option = await mod.createOption({ threadId, invoice }, this.moduleContext())
+      invoice.options[mod.id] = option
+    }
+
+    const env = this.makeEnvelope('invoice', threadId, invoice)
+    const mid = await this.sendEnvelope(thread.counterparty, env, hostOverride)
     thread.protocolLog.push({ direction: 'out', envelope: env, transportMessageId: mid })
     thread.updatedAt = this.now()
     await this.persistState()
@@ -372,7 +431,7 @@ export class RemittanceManager {
    *
    * If receipts are enabled (receiptProvided), this method will optionally wait for a receipt.
    */
-  async pay (threadId: ThreadId, optionId?: string, hostOverride?: string): Promise<Receipt | Termination | undefined> { // TODO : we definitely want to support Termination return types and unsolicited settlements with directly-provided options forwarded to the module
+  async pay (threadId: ThreadId, optionId?: string, hostOverride?: string): Promise<Receipt | Termination | undefined> {
     await this.refreshMyIdentityKey()
 
     const thread = this.getThreadOrThrow(threadId)
@@ -381,9 +440,8 @@ export class RemittanceManager {
     if (thread.flags.error) throw new Error('Thread is in error state')
     if (thread.settlement) throw new Error('Invoice already paid (settlement exists)')
 
-    // Identity exchange is optional but may be required for some modules.
-    if (this.runtime.exchangeIdentityInfo) { // !!! FIXME !!! (properly respect runtime options)
-      await this.ensureIdentityExchange(thread, hostOverride) // !!! FIXME !!! (identity processes need implementing acrooss all the flows)
+    if (this.shouldRequestIdentity(thread, 'beforeSettlement')) {
+      await this.ensureIdentityExchange(thread, hostOverride)
     }
 
     // Check expiry.
@@ -404,23 +462,30 @@ export class RemittanceManager {
     const option = thread.invoice.options[chosenOptionId]
     const myKey = this.requireMyIdentityKey('pay() requires the wallet to provide an identity key')
 
-    const artifact = await module.buildSettlement(
+    const buildResult = await module.buildSettlement(
       { threadId, invoice: thread.invoice, option, note: thread.invoice.note },
       this.moduleContext()
     )
+
+    if (buildResult.action === 'terminate') {
+      const termination = buildResult.termination
+      await this.sendTermination(thread, thread.counterparty, termination.message, termination.details, termination.code)
+      await this.persistState()
+      return termination
+    }
 
     const settlement: Settlement = {
       kind: 'settlement',
       threadId,
       moduleId: module.id,
-      optionId: module.id,
+      optionId: chosenOptionId,
       sender: myKey,
       createdAt: this.now(),
-      artifact,
+      artifact: buildResult.artifact,
       note: thread.invoice.note
     }
 
-    const env = this.makeEnvelope('settlement', threadId, { settlement })
+    const env = this.makeEnvelope('settlement', threadId, settlement)
 
     // Send settlement to payee (invoice.payee).
     const mid = await this.sendEnvelope(thread.invoice.payee, env, hostOverride)
@@ -444,7 +509,7 @@ export class RemittanceManager {
    *
    * Uses polling via syncThreads because live listeners are optional.
    */
-  async waitForReceipt (threadId: ThreadId, opts: { timeoutMs?: number; pollIntervalMs?: number } = {}): Promise<Receipt> {
+  async waitForReceipt (threadId: ThreadId, opts: { timeoutMs?: number; pollIntervalMs?: number } = {}): Promise<Receipt | Termination> {
     const timeoutMs = opts.timeoutMs ?? 30_000
     const pollIntervalMs = opts.pollIntervalMs ?? 500
 
@@ -452,12 +517,98 @@ export class RemittanceManager {
     while (this.now() - start < timeoutMs) {
       const t = this.getThreadOrThrow(threadId)
       if (typeof t.receipt === 'object') return t.receipt
+      if (typeof t.termination === 'object') return t.termination
 
       await this.syncThreads()
       await sleep(pollIntervalMs)
     }
 
     throw new Error('Timed out waiting for receipt')
+  }
+
+  /**
+   * Sends an unsolicited settlement to a counterparty.
+   */
+  async sendUnsolicitedSettlement (
+    to: PubKeyHex,
+    args: { moduleId: RemittanceOptionId; option: unknown; optionId?: RemittanceOptionId; note?: string },
+    hostOverride?: string
+  ): Promise<ThreadId> {
+    await this.refreshMyIdentityKey()
+
+    const module = this.moduleRegistry.get(args.moduleId)
+    if (!module) throw new Error(`No configured remittance module for option: ${args.moduleId}`)
+    if (!module.allowUnsolicitedSettlements) {
+      throw new Error(`Remittance module ${args.moduleId} does not allow unsolicited settlements`)
+    }
+
+    const threadId = this.threadIdFactory()
+    const createdAt = this.now()
+    const myKey = this.requireMyIdentityKey('sendUnsolicitedSettlement requires the wallet to provide an identity key')
+
+    const thread: Thread = {
+      threadId,
+      counterparty: to,
+      myRole: 'taker',
+      theirRole: 'maker',
+      createdAt,
+      updatedAt: createdAt,
+      processedMessageIds: [],
+      protocolLog: [],
+      identity: {
+        certsSent: [],
+        certsReceived: [],
+        requestSent: false,
+        responseSent: false,
+        acknowledgmentSent: false,
+        acknowledgmentReceived: false
+      },
+      flags: {
+        hasIdentified: false,
+        hasInvoiced: false,
+        hasPaid: false,
+        hasReceipted: false,
+        error: false
+      }
+    }
+
+    this.threads.push(thread)
+
+    if (this.shouldRequestIdentity(thread, 'beforeSettlement')) {
+      await this.ensureIdentityExchange(thread, hostOverride)
+    }
+
+    const buildResult = await module.buildSettlement(
+      { threadId, option: args.option, note: args.note },
+      this.moduleContext()
+    )
+
+    if (buildResult.action === 'terminate') {
+      await this.sendTermination(thread, to, buildResult.termination.message, buildResult.termination.details, buildResult.termination.code)
+      await this.persistState()
+      return threadId
+    }
+
+    const settlement: Settlement = {
+      kind: 'settlement',
+      threadId,
+      moduleId: module.id,
+      optionId: args.optionId ?? module.id,
+      sender: myKey,
+      createdAt: this.now(),
+      artifact: buildResult.artifact,
+      note: args.note
+    }
+
+    const env = this.makeEnvelope('settlement', threadId, settlement)
+    const mid = await this.sendEnvelope(to, env, hostOverride)
+    thread.protocolLog.push({ direction: 'out', envelope: env, transportMessageId: mid })
+    thread.settlement = settlement
+    thread.flags.hasPaid = true
+    thread.updatedAt = this.now()
+    await this.persistState()
+
+    return threadId
   }
 
   /**
@@ -583,7 +734,11 @@ export class RemittanceManager {
       protocolLog: [],
       identity: {
         certsSent: [],
-        certsReceived: []
+        certsReceived: [],
+        requestSent: false,
+        responseSent: false,
+        acknowledgmentSent: false,
+        acknowledgmentReceived: false
       },
       flags: {
         hasIdentified: false,
@@ -602,19 +757,76 @@ export class RemittanceManager {
     thread.protocolLog.push({ direction: 'in', envelope: env, transportMessageId: msg.messageId })
 
     switch (env.kind) {
-      case 'identity.hello': { // !!! FIXME !!! (identity state machine needs implementing across all flows, and all appropriate envelope kinds handled, in accordance with runtime options)
-        const payload = env.payload as IdentityHelloPayload
-        thread.identity = thread.identity ?? {}
-        thread.identity.theirs = payload.identity
-
-        if (!thread.identity.mine && this.cfg.identityProvider?.getMyIdentityInfo) {
-          thread.identity.mine = await this.cfg.identityProvider.getMyIdentityInfo(thread.counterparty, thread.threadId)
+      case 'identityVerificationRequest': {
+        const payload = env.payload as IdentityVerificationRequest
+        if (typeof payload !== 'object') {
+          throw new Error('Identity verification request payload missing data')
         }
 
-        if (this.cfg.identityProvider?.assessIdentityInfoSufficiency) {
-          await this.cfg.identityProvider.assessIdentityInfoSufficiency(thread.counterparty, payload.identity, thread.threadId)
+        if (!this.cfg.identityLayer) {
+          await this.sendTermination(thread, msg.sender, 'Identity verification requested but no identity layer is configured')
+          return
         }
 
+        const response = await this.cfg.identityLayer.respondToRequest(
+          { counterparty: msg.sender, threadId: thread.threadId, request: payload },
+          this.moduleContext()
+        )
+
+        if (response.action === 'terminate') {
+          await this.sendTermination(thread, msg.sender, response.termination.message, response.termination.details, response.termination.code)
+          return
+        }
+
+        const responseEnv = this.makeEnvelope('identityVerificationResponse', thread.threadId, response.response)
+        const mid = await this.sendEnvelope(msg.sender, responseEnv)
+        thread.protocolLog.push({ direction: 'out', envelope: responseEnv, transportMessageId: mid })
+        thread.identity.certsSent = response.response.certificates
+        thread.identity.responseSent = true
+        return
+      }
+
+      case 'identityVerificationResponse': {
+        const payload = env.payload as IdentityVerificationResponse
+        if (typeof payload !== 'object') {
+          throw new Error('Identity verification response payload missing data')
+        }
+
+        if (!this.cfg.identityLayer) {
+          await this.sendTermination(thread, msg.sender, 'Identity verification response received but no identity layer is configured')
+          return
+        }
+
+        thread.identity.certsReceived = payload.certificates
+        const decision = await this.cfg.identityLayer.assessReceivedCertificateSufficiency(
+          msg.sender,
+          payload,
+          thread.threadId
+        )
+
+        if ('message' in decision) {
+          await this.sendTermination(thread, msg.sender, decision.message, decision.details, decision.code)
+          return
+        }
+
+        if (decision.kind === 'identityVerificationAcknowledgment') {
+          const ackEnv = this.makeEnvelope('identityVerificationAcknowledgment', thread.threadId, decision)
+          const mid = await this.sendEnvelope(msg.sender, ackEnv)
+          thread.protocolLog.push({ direction: 'out', envelope: ackEnv, transportMessageId: mid })
+          thread.identity.acknowledgmentSent = true
+          thread.flags.hasIdentified = true
+          return
+        }
+        throw new Error('Unknown identity verification decision')
+      }
+
+      case 'identityVerificationAcknowledgment': {
+        const payload = env.payload as IdentityVerificationAcknowledgment
+        if (typeof payload !== 'object') {
+          throw new Error('Identity verification acknowledgment payload missing data')
+        }
+
+        thread.identity.acknowledgmentReceived = true
         thread.flags.hasIdentified = true
         return
       }
@@ -636,6 +848,11 @@ export class RemittanceManager {
           throw new Error('Settlement payload missing settlement data')
         }
 
+        if (this.shouldRequireIdentityBeforeSettlement(thread) && !thread.flags.hasIdentified) {
+          await this.sendTermination(thread, msg.sender, 'Identity verification is required before settlement')
+          return
+        }
+
         // Persist settlement immediately (even if we later reject); it is part of the audit trail.
         thread.settlement = settlement
         thread.flags.hasPaid = true
@@ -646,9 +863,14 @@ export class RemittanceManager {
           return
         }
 
+        if (!thread.invoice && !module.allowUnsolicitedSettlements) {
+          await this.maybeSendTermination(thread, settlement, msg.sender, 'Unsolicited settlement not supported')
+          return
+        }
+
         const result = await module.acceptSettlement({
           threadId: thread.threadId,
-          invoice: thread.invoice!,
+          invoice: thread.invoice,
           settlement: settlement.artifact,
           sender: msg.sender
         }, this.moduleContext()).catch(async (e) => {
@@ -683,14 +905,13 @@ export class RemittanceManager {
         } else if (result.action === 'terminate') {
           await this.maybeSendTermination(thread, settlement, msg.sender, result.termination.message, result.termination.details)
         } else {
-          throw new Error(`Unknown settlement acceptance action: ${result.action}`)
+          throw new Error('Unknown settlement acceptance action')
         }
 
         return
       }
       case 'receipt': {
-        const payload = env.payload as ReceiptPayload
-        const receipt = payload.receipt
+        const receipt = env.payload as Receipt
 
         thread.receipt = receipt
         thread.flags.hasReceipted = true
@@ -708,8 +929,18 @@ export class RemittanceManager {
 
       case 'termination': {
         const payload = env.payload as Termination
+        thread.termination = payload
         thread.lastError = { message: payload.message, at: this.now() }
         thread.flags.error = true
+        if (thread.settlement) {
+          const module = this.moduleRegistry.get(thread.settlement.moduleId)
+          if (module?.processTermination) {
+            await module.processTermination(
+              { threadId: thread.threadId, invoice: thread.invoice, settlement: thread.settlement, termination: payload, sender: msg.sender },
+              this.moduleContext()
+            )
+          }
+        }
         return
       }
 
@@ -729,11 +960,88 @@ export class RemittanceManager {
     const mid = await this.sendEnvelope(payer, env)
     thread.protocolLog.push({ direction: 'out', envelope: env, transportMessageId: mid })
 
+    thread.termination = t
     thread.lastError = {
       message: `Sent termination: ${message}`,
       at: this.now()
     }
     thread.flags.error = true
+  }
+
+  private async sendTermination (
+    thread: Thread,
+    recipient: PubKeyHex,
+    message: string,
+    details?: unknown,
+    code = 'error'
+  ): Promise<void> {
+    const t: Termination = { code, message, details }
+    const env = this.makeEnvelope('termination', thread.threadId, t)
+    const mid = await this.sendEnvelope(recipient, env)
+    thread.protocolLog.push({ direction: 'out', envelope: env, transportMessageId: mid })
+    thread.termination = t
+    thread.lastError = { message: `Sent termination: ${message}`, at: this.now() }
+    thread.flags.error = true
+  }
+
+  private shouldRequestIdentity (thread: Thread, phase: 'beforeInvoicing' | 'beforeSettlement'): boolean {
+    const { makerRequestIdentity = 'never', takerRequestIdentity = 'never' } = this.runtime.identityOptions ?? {}
+    const requiresIdentity = thread.myRole === 'maker' ? makerRequestIdentity === phase : takerRequestIdentity === phase
+    if (!requiresIdentity) return false
+    if (!this.cfg.identityLayer) {
+      throw new Error('Identity layer is required by runtime options but is not configured')
+    }
+    return true
+  }
+
+  private shouldRequireIdentityBeforeSettlement (thread: Thread): boolean {
+    if (thread.myRole !== 'maker') return false
+    return (this.runtime.identityOptions?.makerRequestIdentity ?? 'never') === 'beforeSettlement'
+  }
+
+  private async ensureIdentityExchange (thread: Thread, hostOverride?: string): Promise<void> {
+    if (!this.cfg.identityLayer) return
+    if (thread.flags.hasIdentified) return
+
+    if (!thread.identity.requestSent) {
+      const request = await this.cfg.identityLayer.determineCertificatesToRequest(
+        { counterparty: thread.counterparty, threadId: thread.threadId },
+        this.moduleContext()
+      )
+      const env = this.makeEnvelope('identityVerificationRequest', thread.threadId, request)
+      const mid = await this.sendEnvelope(thread.counterparty, env, hostOverride)
+      thread.protocolLog.push({ direction: 'out', envelope: env, transportMessageId: mid })
+      thread.identity.requestSent = true
+      thread.updatedAt = this.now()
+      await this.persistState()
+    }
+
+    await this.waitForIdentityAcknowledgment(thread.threadId, {
+      timeoutMs: this.runtime.identityTimeoutMs,
+      pollIntervalMs: this.runtime.identityPollIntervalMs
+    })
+  }
+
+  private async waitForIdentityAcknowledgment (
+    threadId: ThreadId,
+    opts: { timeoutMs?: number; pollIntervalMs?: number } = {}
+  ): Promise<void> {
+    const timeoutMs = opts.timeoutMs ?? 30_000
+    const pollIntervalMs = opts.pollIntervalMs ?? 500
+
+    const start = this.now()
+    while (this.now() - start < timeoutMs) {
+      const t = this.getThreadOrThrow(threadId)
+      if (t.flags.hasIdentified) return
+      if (t.termination) {
+        throw new Error(`Identity verification terminated: ${t.termination.message}`)
+      }
+
+      await this.syncThreads()
+      await sleep(pollIntervalMs)
+    }
+
+    throw new Error('Timed out waiting for identity acknowledgment')
   }
 
   private async safeAck (messageIds: string[]): Promise<void> {
