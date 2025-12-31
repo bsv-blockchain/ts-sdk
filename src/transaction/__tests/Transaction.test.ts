@@ -1384,27 +1384,39 @@ describe('Transaction', () => {
     // Mock implementation of WalletInterface for testing
     class MockWallet implements Partial<WalletInterface> {
       public lastCreateActionArgs: CreateActionArgs | null = null
-      
-      async createAction (args: CreateActionArgs, originator?: string): Promise<CreateActionResult> {
+      public lastSignActionArgs: any = null
+      public signActionCalled: boolean = false
+
+      async createAction(args: CreateActionArgs, originator?: string): Promise<CreateActionResult> {
         // Store the args for verification
         this.lastCreateActionArgs = args
-        
+
         // Create a simple transaction from the action args
         const tx = new Transaction(args.version || 1)
-        
+
         // Add inputs if provided
         if (args.inputs) {
           for (const input of args.inputs) {
             // Parse outpoint string format "txid.vout"
             const [txid, voutStr] = input.outpoint.split('.')
+
+            // Check if this is using the signAction flow (has unlockingScriptLength)
+            const hasTemplate = input.unlockingScriptLength != null
+
+            // For signAction flow, we need placeholder scripts to serialize the transaction
+            // These will be replaced by the actual scripts in signAction
+            const unlockingScript = hasTemplate
+              ? Script.fromASM('OP_0') // Placeholder for template inputs
+              : (input.unlockingScript ? Script.fromHex(input.unlockingScript) : Script.fromASM('OP_1'))
+
             tx.addInput({
               sourceTXID: txid,
               sourceOutputIndex: parseInt(voutStr),
-              unlockingScript: Script.fromASM('OP_1') // Simple unlocking script for testing
+              unlockingScript
             })
           }
         }
-        
+
         // Add outputs if provided
         if (args.outputs) {
           for (const output of args.outputs) {
@@ -1414,8 +1426,42 @@ describe('Transaction', () => {
             })
           }
         }
-        
+
+        // Check if this should return signableTransaction
+        if (args.options?.signAndProcess === false) {
+          return {
+            signableTransaction: {
+              tx: tx.toBEEF(),
+              reference: 'test-reference-123'
+            }
+          }
+        }
+
         // Return the transaction as Atomic BEEF in CreateActionResult format
+        return {
+          tx: tx.toAtomicBEEF(),
+          txid: tx.id('hex')
+        }
+      }
+
+      async signAction(args: any, originator?: string): Promise<CreateActionResult> {
+        this.signActionCalled = true
+        this.lastSignActionArgs = args
+
+        // Get the reference to find the original transaction
+        // For testing, we'll create a new transaction with the provided unlocking scripts
+        const tx = new Transaction(1)
+
+        // Add inputs with the provided unlocking scripts from spends
+        for (const [index, spend] of Object.entries(args.spends)) {
+          tx.addInput({
+            sourceTXID: '00'.repeat(32),
+            sourceOutputIndex: parseInt(index),
+            unlockingScript: Script.fromHex((spend as any).unlockingScript)
+          })
+        }
+
+        // Return atomic BEEF
         return {
           tx: tx.toAtomicBEEF(),
           txid: tx.id('hex')
@@ -1506,11 +1552,11 @@ describe('Transaction', () => {
       expect(mockWallet.lastCreateActionArgs!.inputs).toHaveLength(2)
       expect(mockWallet.lastCreateActionArgs!.outputs).toHaveLength(1)
       expect(mockWallet.lastCreateActionArgs!.labels).toEqual(['test-label-1', 'test-label-2'])
-      
+
       // Verify that the transaction structure was updated
       expect(tx.inputs).toHaveLength(2)
       expect(tx.outputs).toHaveLength(1)
-      
+
       // Verify that original metadata labels are preserved
       expect(tx.metadata).toHaveProperty('labels')
       expect(tx.metadata.labels).toContain('test-label-1')
@@ -1534,10 +1580,10 @@ describe('Transaction', () => {
         }],
         0
       )
-      
+
       // Create a mock wallet
       const mockWallet = new MockWallet()
-      
+
       // Expect completeWithWallet to throw an error
       await expect(tx.completeWithWallet(mockWallet))
         .rejects
@@ -1579,14 +1625,241 @@ describe('Transaction', () => {
         }],
         0
       )
-      
+
       // Create a mock wallet
       const mockWallet = new MockWallet()
-      
+
       // Expect completeWithWallet to throw an error
       await expect(tx.completeWithWallet(mockWallet))
         .rejects
         .toThrow('All inputs must have an unlockingScript when using completeWithWallet')
+    })
+
+    it('should use signAction flow when inputs have unlockingScriptTemplate', async () => {
+      // Create a private key and address for testing
+      const privateKey = new PrivateKey(1)
+      const publicKey = new Curve().g.mul(privateKey)
+      const publicKeyHash = hash160(publicKey.encode(true)) as number[]
+      const p2pkh = new P2PKH()
+
+      // Create a source transaction
+      const sourceTx = new Transaction(
+        1,
+        [],
+        [{
+          lockingScript: p2pkh.lock(publicKeyHash),
+          satoshis: 10000
+        }],
+        0
+      )
+
+      // Create a mock unlocking script template
+      const mockTemplate = {
+        sign: async (tx: Transaction, inputIndex: number): Promise<UnlockingScript> => {
+          // Return a simple unlocking script
+          return Script.fromASM('OP_1 OP_2')
+        },
+        estimateLength: async (tx: Transaction, inputIndex: number): Promise<number> => {
+          return 73 // Standard P2PKH unlocking script length estimate
+        }
+      }
+
+      // Create a transaction with a template
+      const tx = new Transaction(
+        1,
+        [
+          {
+            sourceTransaction: sourceTx,
+            sourceOutputIndex: 0,
+            sequence: 0xffffffff,
+            unlockingScriptTemplate: mockTemplate
+          }
+        ],
+        [{
+          satoshis: 9000,
+          lockingScript: p2pkh.lock(publicKeyHash)
+        }],
+        0
+      )
+
+      // Create a mock wallet
+      const mockWallet = new MockWallet()
+
+      // Complete the transaction with the wallet
+      await tx.completeWithWallet(mockWallet, 'Test with template')
+
+      // Verify that signAction was called
+      expect(mockWallet.signActionCalled).toBe(true)
+      expect(mockWallet.lastSignActionArgs).not.toBeNull()
+      expect(mockWallet.lastSignActionArgs.reference).toBe('test-reference-123')
+      expect(mockWallet.lastSignActionArgs.spends).toHaveProperty('0')
+      expect(mockWallet.lastSignActionArgs.spends[0].unlockingScript).toBe(Script.fromASM('OP_1 OP_2').toHex())
+
+      // Verify that createAction was called with signAndProcess: false
+      expect(mockWallet.lastCreateActionArgs).not.toBeNull()
+      expect(mockWallet.lastCreateActionArgs!.options?.signAndProcess).toBe(false)
+      expect(mockWallet.lastCreateActionArgs!.inputs).toHaveLength(1)
+      const firstInput = mockWallet.lastCreateActionArgs!.inputs![0]
+      expect(firstInput).toBeDefined()
+      expect(firstInput.unlockingScriptLength).toBe(73)
+    })
+
+    it('should handle mixed inputs with both templates and scripts', async () => {
+      // Create a private key and address for testing
+      const privateKey = new PrivateKey(1)
+      const publicKey = new Curve().g.mul(privateKey)
+      const publicKeyHash = hash160(publicKey.encode(true)) as number[]
+      const p2pkh = new P2PKH()
+
+      // Create source transactions
+      const sourceTx1 = new Transaction(
+        1,
+        [],
+        [{
+          lockingScript: p2pkh.lock(publicKeyHash),
+          satoshis: 10000
+        }],
+        0
+      )
+
+      const sourceTx2 = new Transaction(
+        1,
+        [],
+        [{
+          lockingScript: p2pkh.lock(publicKeyHash),
+          satoshis: 5000
+        }],
+        0
+      )
+
+      // Create a mock template
+      const mockTemplate = {
+        sign: async (tx: Transaction, inputIndex: number): Promise<UnlockingScript> => {
+          return Script.fromASM('OP_1 OP_2')
+        },
+        estimateLength: async (tx: Transaction, inputIndex: number): Promise<number> => {
+          return 73
+        }
+      }
+
+      // Create a transaction with mixed inputs
+      const tx = new Transaction(
+        1,
+        [
+          {
+            sourceTransaction: sourceTx1,
+            sourceOutputIndex: 0,
+            sequence: 0xffffffff,
+            unlockingScriptTemplate: mockTemplate // First input uses template
+          },
+          {
+            sourceTransaction: sourceTx2,
+            sourceOutputIndex: 0,
+            sequence: 0xffffffff,
+            unlockingScript: Script.fromASM('OP_3 OP_4') // Second input has script already
+          }
+        ],
+        [{
+          satoshis: 14000,
+          lockingScript: p2pkh.lock(publicKeyHash)
+        }],
+        0
+      )
+
+      // Create a mock wallet
+      const mockWallet = new MockWallet()
+
+      // Complete the transaction with the wallet
+      await tx.completeWithWallet(mockWallet, 'Test with mixed inputs')
+
+      // Verify that signAction was called (because at least one template exists)
+      expect(mockWallet.signActionCalled).toBe(true)
+
+      // Verify spends includes both inputs
+      expect(mockWallet.lastSignActionArgs.spends).toHaveProperty('0')
+      expect(mockWallet.lastSignActionArgs.spends).toHaveProperty('1')
+
+      // First input should have template-generated script
+      expect(mockWallet.lastSignActionArgs.spends[0].unlockingScript).toBe(Script.fromASM('OP_1 OP_2').toHex())
+
+      // Second input should have pre-existing script
+      expect(mockWallet.lastSignActionArgs.spends[1].unlockingScript).toBe(Script.fromASM('OP_3 OP_4').toHex())
+
+      // Verify createAction args
+      const firstInputArg = mockWallet.lastCreateActionArgs!.inputs![0]
+      const secondInputArg = mockWallet.lastCreateActionArgs!.inputs![1]
+      expect(firstInputArg).toBeDefined()
+      expect(secondInputArg).toBeDefined()
+      expect(firstInputArg.unlockingScriptLength).toBe(73)
+      expect(secondInputArg.unlockingScript).toBe(Script.fromASM('OP_3 OP_4').toHex())
+    })
+
+    it('should throw error when template input has neither script nor template', async () => {
+      const privateKey = new PrivateKey(1)
+      const publicKey = new Curve().g.mul(privateKey)
+      const publicKeyHash = hash160(publicKey.encode(true)) as number[]
+      const p2pkh = new P2PKH()
+
+      const sourceTx1 = new Transaction(
+        1,
+        [],
+        [{
+          lockingScript: p2pkh.lock(publicKeyHash),
+          satoshis: 10000
+        }],
+        0
+      )
+
+      const sourceTx2 = new Transaction(
+        1,
+        [],
+        [{
+          lockingScript: p2pkh.lock(publicKeyHash),
+          satoshis: 5000
+        }],
+        0
+      )
+
+      // Mock template for first input
+      const mockTemplate = {
+        sign: async (tx: Transaction, inputIndex: number): Promise<UnlockingScript> => {
+          return Script.fromASM('OP_1 OP_2')
+        },
+        estimateLength: async (tx: Transaction, inputIndex: number): Promise<number> => {
+          return 73
+        }
+      }
+
+      // Create transaction where second input has neither script nor template
+      const tx = new Transaction(
+        1,
+        [
+          {
+            sourceTransaction: sourceTx1,
+            sourceOutputIndex: 0,
+            sequence: 0xffffffff,
+            unlockingScriptTemplate: mockTemplate
+          },
+          {
+            sourceTransaction: sourceTx2,
+            sourceOutputIndex: 0,
+            sequence: 0xffffffff
+            // No unlockingScript or unlockingScriptTemplate
+          }
+        ],
+        [{
+          satoshis: 14000,
+          lockingScript: p2pkh.lock(publicKeyHash)
+        }],
+        0
+      )
+
+      const mockWallet = new MockWallet()
+
+      // Should throw error about missing script/template on input 1
+      await expect(tx.completeWithWallet(mockWallet))
+        .rejects
+        .toThrow('Input 1 must have either an unlockingScript or unlockingScriptTemplate')
     })
   })
 
