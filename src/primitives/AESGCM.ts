@@ -323,21 +323,24 @@ export const rightShift = function (block: Bytes): Bytes {
 export const multiply = function (block0: Bytes, block1: Bytes): Bytes {
   const v = block1.slice()
   const z = createZeroBlock(16)
+
   for (let i = 0; i < 16; i++) {
+    const b = block0[i]
     for (let j = 7; j >= 0; j--) {
-      if ((block0[i] & (1 << j)) !== 0) {
-        for (let k = 0; k < 16; k++) {
-          z[k] ^= v[k]
-        }
+      // mask = 0xff if bit is set, 0x00 otherwise
+      const bit = (b >> j) & 1
+      const mask = -bit & 0xff
+      // z ^= v & mask
+      for (let k = 0; k < 16; k++) {
+        z[k] ^= v[k] & mask
       }
+      // compute reduction mask
       const lsb = v[15] & 1
-      for (let k = 15; k >= 0; k--) {
-        v[k] = (v[k] >>> 1) | ((k > 0 ? v[k - 1] : 0) << 7)
-      }
-      if (lsb !== 0) {
-        for (let k = 0; k < 16; k++) {
-          v[k] ^= R[k]
-        }
+      const rmask = -lsb & 0xff
+      rightShift(v)
+      // v ^= R & rmask
+      for (let k = 0; k < 16; k++) {
+        v[k] ^= R[k] & rmask
       }
     }
   }
