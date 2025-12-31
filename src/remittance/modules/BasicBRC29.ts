@@ -44,7 +44,7 @@ export interface Brc29SettlementArtifact {
     derivationPrefix: string
     derivationSuffix: string
   }
-  transaction: unknown
+  transaction: number[]
   amountSatoshis: number
   outputIndex?: number
 }
@@ -177,10 +177,19 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
       return terminate('brc29.invoice_required', 'BRC-29 settlement requires an invoice.')
     }
 
-    const amountSatoshis = args.option.amountSatoshis
-    if (!Number.isFinite(amountSatoshis) || amountSatoshis <= 0) {
-      return terminate('brc29.invalid_amount', 'BRC-29 settlement requires a positive satoshi amount.')
+    let option: Brc29OptionTerms
+    try {
+      option = ensureValidOption(args.option)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      return terminate('brc29.invalid_option', message)
     }
+
+    const invoiceAmount = parseSatoshisFromInvoiceTotal(invoice)
+    if (option.amountSatoshis !== invoiceAmount) {
+      return terminate('brc29.amount_mismatch', 'BRC-29 settlement amount does not match invoice total.')
+    }
+    const amountSatoshis = option.amountSatoshis
 
     const origin = originator as OriginatorDomainNameStringUnder250Bytes | undefined
 
@@ -190,7 +199,7 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
       const derivationSuffix = await this.nonceProvider.createNonce(wallet, 'self', origin)
 
       // Derive payee public key.
-      const protocolID = args.option.protocolID ?? this.protocolID
+      const protocolID = option.protocolID ?? this.protocolID
       const keyID = `${derivationPrefix} ${derivationSuffix}`
 
       const { publicKey } = await wallet.getPublicKey(
@@ -213,8 +222,8 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
 
       const action = await wallet.createAction(
         {
-          description: args.option.description ?? this.description,
-          labels: args.option.labels ?? this.labels,
+          description: option.description ?? this.description,
+          labels: option.labels ?? this.labels,
           outputs: [
             {
               satoshis: amountSatoshis,
@@ -240,14 +249,17 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
       if (tx == null) {
         return terminate('brc29.missing_tx', 'wallet.createAction did not return a transaction.')
       }
+      if (!isAtomicBeef(tx)) {
+        return terminate('brc29.invalid_tx', 'wallet.createAction returned an invalid transaction payload.')
+      }
 
       return {
         action: 'settle',
         artifact: {
           customInstructions: { derivationPrefix, derivationSuffix },
           transaction: tx,
-          amountSatoshis,
-          outputIndex: args.option.outputIndex ?? 0
+          amountSatoshis: option.amountSatoshis,
+          outputIndex: option.outputIndex ?? 0
         }
       }
     } catch (error) {
@@ -264,15 +276,16 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
     const origin = originator as OriginatorDomainNameStringUnder250Bytes | undefined
 
     try {
-      const outputIndex = args.settlement.outputIndex ?? 0
+      const settlement = ensureValidSettlement(args.settlement)
+      const outputIndex = settlement.outputIndex ?? 0
       const internalizeResult = await wallet.internalizeAction(
         {
-          tx: args.settlement.transaction as unknown as number[],
+          tx: settlement.transaction,
           outputs: [
             {
               paymentRemittance: {
-                derivationPrefix: args.settlement.customInstructions.derivationPrefix,
-                derivationSuffix: args.settlement.customInstructions.derivationSuffix,
+                derivationPrefix: settlement.customInstructions.derivationPrefix,
+                derivationSuffix: settlement.customInstructions.derivationSuffix,
                 senderIdentityKey: args.sender
               },
               outputIndex,
@@ -298,20 +311,21 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
   ): Promise<void> {
     const refundToken = args.receiptData.refund?.token
     if (refundToken == null) return
+    const refund = ensureValidSettlement(refundToken)
 
     const { wallet, originator } = ctx
     const origin = originator as OriginatorDomainNameStringUnder250Bytes | undefined
     await wallet.internalizeAction(
       {
-        tx: refundToken.transaction as unknown as number[],
+        tx: refund.transaction,
         outputs: [
           {
             paymentRemittance: {
-              derivationPrefix: refundToken.customInstructions.derivationPrefix,
-              derivationSuffix: refundToken.customInstructions.derivationSuffix,
+              derivationPrefix: refund.customInstructions.derivationPrefix,
+              derivationSuffix: refund.customInstructions.derivationSuffix,
               senderIdentityKey: args.sender
             },
-            outputIndex: refundToken.outputIndex ?? 0,
+            outputIndex: refund.outputIndex ?? 0,
             protocol: this.internalizeProtocol
           }
         ],
@@ -334,7 +348,15 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
   ): Promise<Brc29ReceiptData> {
     const reason = args.reason ?? 'Payment rejected'
 
-    const amount = args.settlement.amountSatoshis
+    let settlement: Brc29SettlementArtifact
+    try {
+      settlement = ensureValidSettlement(args.settlement)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      return { rejectedReason: `${reason} (invalid settlement: ${message})` }
+    }
+
+    const amount = settlement.amountSatoshis
     const fee = this.refundFeeSatoshis
     const refund = amount - fee
 
@@ -347,7 +369,7 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
       {
         threadId: args.threadId,
         invoice: args.invoice,
-        settlement: args.settlement,
+        settlement,
         sender: args.sender
       },
       ctx
@@ -427,4 +449,71 @@ function parseSatoshisFromInvoiceTotal (invoice: Invoice): number {
     throw new Error('BRC-29 module requires invoice.total.value to be an integer satoshi string')
   }
   return n
+}
+
+function ensureValidOption (option: Brc29OptionTerms): Brc29OptionTerms {
+  if (option == null || typeof option !== 'object') {
+    throw new Error('BRC-29 option terms are required')
+  }
+  const amountSatoshis = (option as Brc29OptionTerms).amountSatoshis
+  if (!Number.isInteger(amountSatoshis) || amountSatoshis <= 0) {
+    throw new Error('BRC-29 option amount must be a positive integer')
+  }
+  const outputIndex = (option as Brc29OptionTerms).outputIndex
+  if (outputIndex != null && (!Number.isInteger(outputIndex) || outputIndex < 0)) {
+    throw new Error('BRC-29 option outputIndex must be a non-negative integer')
+  }
+  const protocolID = (option as Brc29OptionTerms).protocolID
+  if (protocolID != null) {
+    if (!Array.isArray(protocolID) || protocolID.length !== 2) {
+      throw new Error('BRC-29 option protocolID must be a tuple [number, string]')
+    }
+    const [protocolNumber, protocolString] = protocolID
+    if (!Number.isInteger(protocolNumber) || protocolNumber < 0 || !isNonEmptyString(protocolString)) {
+      throw new Error('BRC-29 option protocolID must be a tuple [number, string]')
+    }
+  }
+  const labels = (option as Brc29OptionTerms).labels
+  if (labels != null && (!Array.isArray(labels) || labels.some((label) => !isNonEmptyString(label)))) {
+    throw new Error('BRC-29 option labels must be a list of non-empty strings')
+  }
+  const description = (option as Brc29OptionTerms).description
+  if (description != null && !isNonEmptyString(description)) {
+    throw new Error('BRC-29 option description must be a non-empty string')
+  }
+  return option
+}
+
+function ensureValidSettlement (settlement: Brc29SettlementArtifact): Brc29SettlementArtifact {
+  if (settlement == null || typeof settlement !== 'object') {
+    throw new Error('BRC-29 settlement artifact is required')
+  }
+  const instructions = settlement.customInstructions
+  if (instructions == null || typeof instructions !== 'object') {
+    throw new Error('BRC-29 settlement requires customInstructions')
+  }
+  if (!isNonEmptyString(instructions.derivationPrefix) || !isNonEmptyString(instructions.derivationSuffix)) {
+    throw new Error('BRC-29 settlement derivation values are required')
+  }
+  const amountSatoshis = settlement.amountSatoshis
+  if (!Number.isInteger(amountSatoshis) || amountSatoshis <= 0) {
+    throw new Error('BRC-29 settlement amount must be a positive integer')
+  }
+  const outputIndex = settlement.outputIndex
+  if (outputIndex != null && (!Number.isInteger(outputIndex) || outputIndex < 0)) {
+    throw new Error('BRC-29 settlement outputIndex must be a non-negative integer')
+  }
+  if (!isAtomicBeef(settlement.transaction)) {
+    throw new Error('BRC-29 settlement transaction must be a non-empty byte array')
+  }
+  return settlement
+}
+
+function isAtomicBeef (tx: unknown): tx is number[] {
+  if (!Array.isArray(tx) || tx.length === 0) return false
+  return tx.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255)
+}
+
+function isNonEmptyString (value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
 }

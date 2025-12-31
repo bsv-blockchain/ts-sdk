@@ -182,14 +182,14 @@ describe('RemittanceManager base flows', () => {
       new TestComms('taker-key', bus)
     )
 
-    const threadId = await taker.sendUnsolicitedSettlement('maker-key', { moduleId: module.id, option: { note: 'hello' } })
+    const threadHandle = await taker.sendUnsolicitedSettlement('maker-key', { moduleId: module.id, option: { note: 'hello' } })
     await maker.syncThreads()
     await taker.syncThreads()
 
-    const makerThread = maker.getThreadOrThrow(threadId)
+    const makerThread = maker.getThreadOrThrow(threadHandle.threadId)
     expect(makerThread.invoice).toBeUndefined()
     expect(makerThread.settlement).toBeDefined()
-    expect(taker.getThreadOrThrow(threadId).settlement).toBeDefined()
+    expect(taker.getThreadOrThrow(threadHandle.threadId).settlement).toBeDefined()
   })
 
   it('waits for identity verification before invoicing when required', async () => {
@@ -332,5 +332,162 @@ describe('RemittanceManager base flows', () => {
     const messages = bus.list('maker-key', 'remittance_inbox')
     expect(messages).toHaveLength(1)
     expect(parseEnvelope(messages[0]).kind).toBe('termination')
+  })
+
+  it('records state transitions and emits events', async () => {
+    const bus = new MessageBus()
+    const module: RemittanceModule<{}, {}, {}> = {
+      id: 'event-module',
+      name: 'Event Module',
+      allowUnsolicitedSettlements: false,
+      createOption: async () => ({}),
+      buildSettlement: async () => ({ action: 'settle', artifact: {} }),
+      acceptSettlement: async () => ({ action: 'accept', receiptData: {} })
+    }
+
+    const events: string[] = []
+    const maker = new RemittanceManager(
+      {
+        remittanceModules: [module],
+        events: {
+          onThreadCreated: () => events.push('threadCreated'),
+          onStateChanged: (event) => events.push(`state:${event.next}`),
+          onInvoiceSent: () => events.push('invoiceSent')
+        },
+        threadIdFactory: makeThreadIdFactory()
+      },
+      makeWallet('maker-key'),
+      new TestComms('maker-key', bus)
+    )
+
+    const handle = await maker.sendInvoice('taker-key', makeInvoiceInput())
+    const thread = maker.getThreadOrThrow(handle.threadId)
+    expect(thread.stateLog.length).toBeGreaterThan(0)
+    expect(thread.state).toBe('invoiced')
+    expect(events).toContain('threadCreated')
+    expect(events).toContain('state:invoiced')
+    expect(events).toContain('invoiceSent')
+  })
+
+  it('allows waiting for thread state transitions via handles', async () => {
+    const bus = new MessageBus()
+    const module: RemittanceModule<{}, {}, {}> = {
+      id: 'wait-module',
+      name: 'Wait Module',
+      allowUnsolicitedSettlements: false,
+      createOption: async () => ({}),
+      buildSettlement: async () => ({ action: 'settle', artifact: {} }),
+      acceptSettlement: async () => ({ action: 'accept', receiptData: {} })
+    }
+
+    const maker = new RemittanceManager(
+      { remittanceModules: [module], threadIdFactory: makeThreadIdFactory() },
+      makeWallet('maker-key'),
+      new TestComms('maker-key', bus)
+    )
+
+    const handle = await maker.sendInvoice('taker-key', makeInvoiceInput())
+    const awaited = await handle.waitForState('invoiced', { timeoutMs: 50, pollIntervalMs: 5 })
+    expect(awaited.threadId).toBe(handle.threadId)
+  })
+
+  it('marks a thread as errored on invalid state transition', async () => {
+    const bus = new MessageBus()
+    const module: RemittanceModule<{}, {}, {}> = {
+      id: 'error-module',
+      name: 'Error Module',
+      allowUnsolicitedSettlements: false,
+      createOption: async () => ({}),
+      buildSettlement: async () => ({ action: 'settle', artifact: {} }),
+      acceptSettlement: async () => ({ action: 'accept', receiptData: {} })
+    }
+
+    const maker = new RemittanceManager(
+      { remittanceModules: [module], threadIdFactory: makeThreadIdFactory() },
+      makeWallet('maker-key'),
+      new TestComms('maker-key', bus)
+    )
+
+    const receiptEnv: RemittanceEnvelope = {
+      v: 1,
+      id: 'env-1' as ThreadId,
+      kind: 'receipt',
+      threadId: 'thread-1' as ThreadId,
+      createdAt: 1,
+      payload: {
+        kind: 'receipt',
+        threadId: 'thread-1',
+        moduleId: 'error-module',
+        optionId: 'error-module',
+        payee: 'maker-key',
+        payer: 'taker-key',
+        createdAt: 1,
+        receiptData: {}
+      }
+    }
+    bus.send('taker-key', 'maker-key', 'remittance_inbox', JSON.stringify(receiptEnv))
+    await maker.syncThreads()
+
+    const thread = maker.getThreadOrThrow('thread-1' as ThreadId)
+    expect(thread.state).toBe('errored')
+    expect(thread.flags.error).toBe(true)
+  })
+
+  it('processes live messages when CommsLayer supports streaming', async () => {
+    const module: RemittanceModule<{}, {}, {}> = {
+      id: 'live-module',
+      name: 'Live Module',
+      allowUnsolicitedSettlements: false,
+      createOption: async () => ({}),
+      buildSettlement: async () => ({ action: 'settle', artifact: {} }),
+      acceptSettlement: async () => ({ action: 'accept', receiptData: {} })
+    }
+
+    const invoiceEnv: RemittanceEnvelope = {
+      v: 1,
+      id: 'env-live',
+      kind: 'invoice',
+      threadId: 'thread-live',
+      createdAt: 1,
+      payload: {
+        kind: 'invoice',
+        threadId: 'thread-live',
+        payee: 'maker-key',
+        payer: 'taker-key',
+        lineItems: [],
+        total: { value: '1000', unit: { namespace: 'bsv', code: 'sat', decimals: 0 } },
+        invoiceNumber: 'INV-LIVE',
+        createdAt: 1,
+        options: {}
+      }
+    }
+
+    const acknowledgeMessage = jest.fn(async () => undefined)
+    const comms: CommsLayer = {
+      sendMessage: async () => 'noop',
+      listMessages: async () => [],
+      acknowledgeMessage,
+      listenForLiveMessages: async ({ onMessage }) => {
+        await onMessage({
+          messageId: 'live-1',
+          sender: 'maker-key',
+          recipient: 'taker-key',
+          messageBox: 'remittance_inbox',
+          body: JSON.stringify(invoiceEnv)
+        })
+      }
+    }
+
+    const taker = new RemittanceManager(
+      { remittanceModules: [module], threadIdFactory: makeThreadIdFactory() },
+      makeWallet('taker-key'),
+      comms
+    )
+
+    await taker.startListening()
+    expect(acknowledgeMessage).toHaveBeenCalledWith({ messageIds: ['live-1'] })
+    const thread = taker.getThreadOrThrow('thread-live' as ThreadId)
+    expect(thread.invoice).toBeDefined()
+    expect(thread.state).toBe('invoiced')
   })
 })

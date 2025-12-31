@@ -13,6 +13,49 @@ export type ThreadId = Base64String
 export type RemittanceOptionId = Base64String
 export type UnixMillis = number
 
+/**
+ * Remittance thread state machine.
+ *
+ * States:
+ * - new: thread exists but no identity/invoice/settlement activity yet.
+ * - identityRequested: identity request sent or received.
+ * - identityResponded: identity response sent or received.
+ * - identityAcknowledged: identity response acknowledged (required before proceeding).
+ * - invoiced: invoice sent or received.
+ * - settled: settlement sent or received.
+ * - receipted: receipt issued or received.
+ * - terminated: thread terminated with a reason.
+ * - errored: unexpected error occurred while processing the thread.
+ */
+export type RemittanceThreadState =
+  | 'new'
+  | 'identityRequested'
+  | 'identityResponded'
+  | 'identityAcknowledged'
+  | 'invoiced'
+  | 'settled'
+  | 'receipted'
+  | 'terminated'
+  | 'errored'
+
+/**
+ * Allowed remittance state transitions.
+ *
+ * This is the canonical state machine for remittance threads.
+ * Use it to validate transitions and to build audits/visualizations.
+ */
+export const REMITTANCE_STATE_TRANSITIONS: Record<RemittanceThreadState, RemittanceThreadState[]> = {
+  new: ['identityRequested', 'invoiced', 'settled', 'terminated', 'errored'],
+  identityRequested: ['identityResponded', 'identityAcknowledged', 'invoiced', 'settled', 'terminated', 'errored'],
+  identityResponded: ['identityAcknowledged', 'invoiced', 'settled', 'terminated', 'errored'],
+  identityAcknowledged: ['invoiced', 'settled', 'terminated', 'errored'],
+  invoiced: ['identityRequested', 'identityResponded', 'identityAcknowledged', 'settled', 'terminated', 'errored'],
+  settled: ['receipted', 'terminated', 'errored'],
+  receipted: ['terminated', 'errored'],
+  terminated: ['errored'],
+  errored: []
+}
+
 export interface Unit {
   /** Namespace for disambiguation, e.g. 'bsv', 'iso4217', 'token'. */
   namespace: string

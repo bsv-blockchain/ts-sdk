@@ -48,6 +48,7 @@ Finally, you can deep dive into the details of the interface and types in the re
 
 ## Reference Material
 
+- [Remittance Getting Started](./remittance-getting-started.md)
 - [Wallet](./reference/wallet.md)
 - [Primitives](./reference/primitives.md)
 - [Script](./reference/script.md)

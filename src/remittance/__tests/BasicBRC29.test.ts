@@ -106,6 +106,22 @@ describe('Brc29RemittanceModule', () => {
     expect(result.action).toBe('terminate')
   })
 
+  it('terminates settlement creation when option data is invalid', async () => {
+    const wallet = {
+      getPublicKey: jest.fn(async () => ({ publicKey: '02deadbeef' })),
+      createAction: jest.fn(async () => ({ tx: [1, 2, 3] }))
+    } as unknown as WalletInterface
+
+    const module = new Brc29RemittanceModule()
+    const invoice = makeInvoice()
+    const option = { amountSatoshis: -5, outputIndex: -1 }
+    const result = await module.buildSettlement({ threadId: 'thread-1', invoice, option }, makeContext(wallet))
+    expect(result.action).toBe('terminate')
+    if (result.action === 'terminate') {
+      expect(result.termination.code).toBe('brc29.invalid_option')
+    }
+  })
+
   it('terminates settlement creation when wallet output is missing', async () => {
     const wallet = {
       getPublicKey: jest.fn(async () => ({ publicKey: '02deadbeef' })),
@@ -128,6 +144,22 @@ describe('Brc29RemittanceModule', () => {
     expect(result.action).toBe('terminate')
     if (result.action === 'terminate') {
       expect(result.termination.code).toBe('brc29.missing_tx')
+    }
+  })
+
+  it('terminates settlement creation when the invoice amount mismatches', async () => {
+    const wallet = {
+      getPublicKey: jest.fn(async () => ({ publicKey: '02deadbeef' })),
+      createAction: jest.fn(async () => ({ tx: [1, 2, 3] }))
+    } as unknown as WalletInterface
+
+    const module = new Brc29RemittanceModule()
+    const invoice = makeInvoice({ total: { value: '900', unit: { namespace: 'bsv', code: 'sat', decimals: 0 } } })
+    const option = { amountSatoshis: 1000 }
+    const result = await module.buildSettlement({ threadId: 'thread-1', invoice, option }, makeContext(wallet))
+    expect(result.action).toBe('terminate')
+    if (result.action === 'terminate') {
+      expect(result.termination.code).toBe('brc29.amount_mismatch')
     }
   })
 
@@ -196,6 +228,27 @@ describe('Brc29RemittanceModule', () => {
     }
   })
 
+  it('terminates when settlement data is malformed', async () => {
+    const wallet = {
+      internalizeAction: jest.fn(async () => ({ ok: true }))
+    } as unknown as WalletInterface
+
+    const module = new Brc29RemittanceModule()
+    const settlement = {
+      customInstructions: { derivationPrefix: '', derivationSuffix: '' },
+      transaction: [],
+      amountSatoshis: 1000
+    }
+    const result = await module.acceptSettlement(
+      { threadId: 'thread-1', settlement, sender: 'payer-key' },
+      makeContext(wallet)
+    )
+    expect(result.action).toBe('terminate')
+    if (result.action === 'terminate') {
+      expect(result.termination.code).toBe('brc29.internalize_failed')
+    }
+  })
+
   it('internalizes refunds embedded in receipt data', async () => {
     const wallet = {
       internalizeAction: jest.fn(async () => ({ ok: true }))
@@ -222,5 +275,26 @@ describe('Brc29RemittanceModule', () => {
     )
 
     expect(wallet.internalizeAction).toHaveBeenCalled()
+  })
+
+  it('rejects with a reason when refund settlement data is invalid', async () => {
+    const wallet = {
+      internalizeAction: jest.fn(async () => ({ ok: true }))
+    } as unknown as WalletInterface
+
+    const module = new Brc29RemittanceModule()
+    const receiptData = await module.rejectSettlement(
+      {
+        threadId: 'thread-1',
+        settlement: {
+          customInstructions: { derivationPrefix: '', derivationSuffix: '' },
+          transaction: [],
+          amountSatoshis: 1000
+        },
+        sender: 'payer-key'
+      },
+      makeContext(wallet)
+    )
+    expect(receiptData.rejectedReason).toContain('invalid settlement')
   })
 })

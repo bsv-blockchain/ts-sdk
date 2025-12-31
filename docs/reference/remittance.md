@@ -7,15 +7,15 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 | | | |
 | --- | --- | --- |
 | [Amount](#interface-amount) | [IdentityVerificationResponse](#interface-identityverificationresponse) | [RemittanceEnvelope](#interface-remittanceenvelope) |
-| [Brc29OptionTerms](#interface-brc29optionterms) | [InstrumentBase](#interface-instrumentbase) | [RemittanceManagerConfig](#interface-remittancemanagerconfig) |
-| [Brc29ReceiptData](#interface-brc29receiptdata) | [Invoice](#interface-invoice) | [RemittanceManagerRuntimeOptions](#interface-remittancemanagerruntimeoptions) |
-| [Brc29RemittanceModuleConfig](#interface-brc29remittancemoduleconfig) | [LineItem](#interface-lineitem) | [RemittanceManagerState](#interface-remittancemanagerstate) |
-| [Brc29SettlementArtifact](#interface-brc29settlementartifact) | [LockingScriptProvider](#interface-lockingscriptprovider) | [RemittanceModule](#interface-remittancemodule) |
-| [CommsLayer](#interface-commslayer) | [LoggerLike](#interface-loggerlike) | [Settlement](#interface-settlement) |
-| [ComposeInvoiceInput](#interface-composeinvoiceinput) | [ModuleContext](#interface-modulecontext) | [Termination](#interface-termination) |
-| [IdentityLayer](#interface-identitylayer) | [NonceProvider](#interface-nonceprovider) | [Thread](#interface-thread) |
-| [IdentityVerificationAcknowledgment](#interface-identityverificationacknowledgment) | [PeerMessage](#interface-peermessage) | [Unit](#interface-unit) |
-| [IdentityVerificationRequest](#interface-identityverificationrequest) | [Receipt](#interface-receipt) |  |
+| [Brc29OptionTerms](#interface-brc29optionterms) | [InstrumentBase](#interface-instrumentbase) | [RemittanceEventHandlers](#interface-remittanceeventhandlers) |
+| [Brc29ReceiptData](#interface-brc29receiptdata) | [Invoice](#interface-invoice) | [RemittanceManagerConfig](#interface-remittancemanagerconfig) |
+| [Brc29RemittanceModuleConfig](#interface-brc29remittancemoduleconfig) | [LineItem](#interface-lineitem) | [RemittanceManagerRuntimeOptions](#interface-remittancemanagerruntimeoptions) |
+| [Brc29SettlementArtifact](#interface-brc29settlementartifact) | [LockingScriptProvider](#interface-lockingscriptprovider) | [RemittanceManagerState](#interface-remittancemanagerstate) |
+| [CommsLayer](#interface-commslayer) | [LoggerLike](#interface-loggerlike) | [RemittanceModule](#interface-remittancemodule) |
+| [ComposeInvoiceInput](#interface-composeinvoiceinput) | [ModuleContext](#interface-modulecontext) | [Settlement](#interface-settlement) |
+| [IdentityLayer](#interface-identitylayer) | [NonceProvider](#interface-nonceprovider) | [Termination](#interface-termination) |
+| [IdentityVerificationAcknowledgment](#interface-identityverificationacknowledgment) | [PeerMessage](#interface-peermessage) | [Thread](#interface-thread) |
+| [IdentityVerificationRequest](#interface-identityverificationrequest) | [Receipt](#interface-receipt) | [Unit](#interface-unit) |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -243,7 +243,7 @@ export interface Brc29SettlementArtifact {
         derivationPrefix: string;
         derivationSuffix: string;
     };
-    transaction: unknown;
+    transaction: number[];
     amountSatoshis: number;
     outputIndex?: number;
 }
@@ -816,6 +816,66 @@ v: 1
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
+### Interface: RemittanceEventHandlers
+
+```ts
+export interface RemittanceEventHandlers {
+    onThreadCreated?: (event: Extract<RemittanceEvent, {
+        type: "threadCreated";
+    }>) => void;
+    onStateChanged?: (event: Extract<RemittanceEvent, {
+        type: "stateChanged";
+    }>) => void;
+    onEnvelopeSent?: (event: Extract<RemittanceEvent, {
+        type: "envelopeSent";
+    }>) => void;
+    onEnvelopeReceived?: (event: Extract<RemittanceEvent, {
+        type: "envelopeReceived";
+    }>) => void;
+    onIdentityRequested?: (event: Extract<RemittanceEvent, {
+        type: "identityRequested";
+    }>) => void;
+    onIdentityResponded?: (event: Extract<RemittanceEvent, {
+        type: "identityResponded";
+    }>) => void;
+    onIdentityAcknowledged?: (event: Extract<RemittanceEvent, {
+        type: "identityAcknowledged";
+    }>) => void;
+    onInvoiceSent?: (event: Extract<RemittanceEvent, {
+        type: "invoiceSent";
+    }>) => void;
+    onInvoiceReceived?: (event: Extract<RemittanceEvent, {
+        type: "invoiceReceived";
+    }>) => void;
+    onSettlementSent?: (event: Extract<RemittanceEvent, {
+        type: "settlementSent";
+    }>) => void;
+    onSettlementReceived?: (event: Extract<RemittanceEvent, {
+        type: "settlementReceived";
+    }>) => void;
+    onReceiptSent?: (event: Extract<RemittanceEvent, {
+        type: "receiptSent";
+    }>) => void;
+    onReceiptReceived?: (event: Extract<RemittanceEvent, {
+        type: "receiptReceived";
+    }>) => void;
+    onTerminationSent?: (event: Extract<RemittanceEvent, {
+        type: "terminationSent";
+    }>) => void;
+    onTerminationReceived?: (event: Extract<RemittanceEvent, {
+        type: "terminationReceived";
+    }>) => void;
+    onError?: (event: Extract<RemittanceEvent, {
+        type: "error";
+    }>) => void;
+}
+```
+
+See also: [RemittanceEvent](./remittance.md#type-remittanceevent)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Interface: RemittanceManagerConfig
 
 ```ts
@@ -826,6 +886,8 @@ export interface RemittanceManagerConfig {
     options?: Partial<RemittanceManagerRuntimeOptions>;
     remittanceModules: Array<RemittanceModule<any, any, any>>;
     identityLayer?: IdentityLayer;
+    onEvent?: (event: RemittanceEvent) => void;
+    events?: RemittanceEventHandlers;
     stateSaver?: (state: RemittanceManagerState) => Promise<void> | void;
     stateLoader?: () => Promise<RemittanceManagerState | undefined> | RemittanceManagerState | undefined;
     now?: () => UnixMillis;
@@ -833,7 +895,16 @@ export interface RemittanceManagerConfig {
 }
 ```
 
-See also: [IdentityLayer](./remittance.md#interface-identitylayer), [LoggerLike](./remittance.md#interface-loggerlike), [OriginatorDomainNameStringUnder250Bytes](./wallet.md#type-originatordomainnamestringunder250bytes), [RemittanceManagerRuntimeOptions](./remittance.md#interface-remittancemanagerruntimeoptions), [RemittanceManagerState](./remittance.md#interface-remittancemanagerstate), [RemittanceModule](./remittance.md#interface-remittancemodule), [ThreadId](./remittance.md#type-threadid), [UnixMillis](./remittance.md#type-unixmillis)
+See also: [IdentityLayer](./remittance.md#interface-identitylayer), [LoggerLike](./remittance.md#interface-loggerlike), [OriginatorDomainNameStringUnder250Bytes](./wallet.md#type-originatordomainnamestringunder250bytes), [RemittanceEvent](./remittance.md#type-remittanceevent), [RemittanceEventHandlers](./remittance.md#interface-remittanceeventhandlers), [RemittanceManagerRuntimeOptions](./remittance.md#interface-remittancemanagerruntimeoptions), [RemittanceManagerState](./remittance.md#interface-remittancemanagerstate), [RemittanceModule](./remittance.md#interface-remittancemodule), [ThreadId](./remittance.md#type-threadid), [UnixMillis](./remittance.md#type-unixmillis)
+
+#### Property events
+
+Optional event callbacks keyed by process.
+
+```ts
+events?: RemittanceEventHandlers
+```
+See also: [RemittanceEventHandlers](./remittance.md#interface-remittanceeventhandlers)
 
 #### Property identityLayer
 
@@ -871,6 +942,15 @@ Injectable clock for tests.
 now?: () => UnixMillis
 ```
 See also: [UnixMillis](./remittance.md#type-unixmillis)
+
+#### Property onEvent
+
+Optional event callback for remittance lifecycle events.
+
+```ts
+onEvent?: (event: RemittanceEvent) => void
+```
+See also: [RemittanceEvent](./remittance.md#type-remittanceevent)
 
 #### Property options
 
@@ -1286,6 +1366,13 @@ export interface Thread {
     theirRole: "maker" | "taker";
     createdAt: UnixMillis;
     updatedAt: UnixMillis;
+    state: RemittanceThreadState;
+    stateLog: Array<{
+        at: UnixMillis;
+        from: RemittanceThreadState;
+        to: RemittanceThreadState;
+        reason?: string;
+    }>;
     processedMessageIds: string[];
     protocolLog: Array<{
         direction: "in" | "out";
@@ -1318,7 +1405,7 @@ export interface Thread {
 }
 ```
 
-See also: [IdentityVerificationResponse](./remittance.md#interface-identityverificationresponse), [Invoice](./remittance.md#interface-invoice), [PubKeyHex](./wallet.md#type-pubkeyhex), [Receipt](./remittance.md#interface-receipt), [RemittanceEnvelope](./remittance.md#interface-remittanceenvelope), [Settlement](./remittance.md#interface-settlement), [Termination](./remittance.md#interface-termination), [ThreadId](./remittance.md#type-threadid), [UnixMillis](./remittance.md#type-unixmillis)
+See also: [IdentityVerificationResponse](./remittance.md#interface-identityverificationresponse), [Invoice](./remittance.md#interface-invoice), [PubKeyHex](./wallet.md#type-pubkeyhex), [Receipt](./remittance.md#interface-receipt), [RemittanceEnvelope](./remittance.md#interface-remittanceenvelope), [RemittanceThreadState](./remittance.md#type-remittancethreadstate), [Settlement](./remittance.md#interface-settlement), [Termination](./remittance.md#interface-termination), [ThreadId](./remittance.md#type-threadid), [UnixMillis](./remittance.md#type-unixmillis)
 
 #### Property processedMessageIds
 
@@ -1340,6 +1427,20 @@ protocolLog: Array<{
 }>
 ```
 See also: [RemittanceEnvelope](./remittance.md#interface-remittanceenvelope)
+
+#### Property stateLog
+
+State transition log for audit purposes.
+
+```ts
+stateLog: Array<{
+    at: UnixMillis;
+    from: RemittanceThreadState;
+    to: RemittanceThreadState;
+    reason?: string;
+}>
+```
+See also: [RemittanceThreadState](./remittance.md#type-remittancethreadstate), [UnixMillis](./remittance.md#type-unixmillis)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -1388,6 +1489,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 | [Brc29RemittanceModule](#class-brc29remittancemodule) |
 | [InvoiceHandle](#class-invoicehandle) |
 | [RemittanceManager](#class-remittancemanager) |
+| [ThreadHandle](#class-threadhandle) |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -1458,22 +1560,14 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ---
 ### Class: InvoiceHandle
 
-A lightweight wrapper around a thread's invoice, with convenience methods.
-
 ```ts
-export class InvoiceHandle {
-    constructor(private readonly manager: RemittanceManager, public readonly threadId: ThreadId) 
-    get thread(): Thread 
+export class InvoiceHandle extends ThreadHandle {
     get invoice(): Invoice 
     async pay(optionId?: string): Promise<Receipt | Termination | undefined> 
-    async waitForReceipt(opts?: {
-        timeoutMs?: number;
-        pollIntervalMs?: number;
-    }): Promise<Receipt | Termination> 
 }
 ```
 
-See also: [Invoice](./remittance.md#interface-invoice), [Receipt](./remittance.md#interface-receipt), [RemittanceManager](./remittance.md#class-remittancemanager), [Termination](./remittance.md#interface-termination), [Thread](./remittance.md#interface-thread), [ThreadId](./remittance.md#type-threadid)
+See also: [Invoice](./remittance.md#interface-invoice), [Receipt](./remittance.md#interface-receipt), [Termination](./remittance.md#interface-termination), [ThreadHandle](./remittance.md#class-threadhandle)
 
 #### Method pay
 
@@ -1481,18 +1575,6 @@ Pays the invoice using the selected remittance option.
 
 ```ts
 async pay(optionId?: string): Promise<Receipt | Termination | undefined> 
-```
-See also: [Receipt](./remittance.md#interface-receipt), [Termination](./remittance.md#interface-termination)
-
-#### Method waitForReceipt
-
-Waits for a receipt for this invoice's thread.
-
-```ts
-async waitForReceipt(opts?: {
-    timeoutMs?: number;
-    pollIntervalMs?: number;
-}): Promise<Receipt | Termination> 
 ```
 See also: [Receipt](./remittance.md#interface-receipt), [Termination](./remittance.md#interface-termination)
 
@@ -1531,11 +1613,13 @@ export class RemittanceManager {
     threads: Thread[];
     constructor(cfg: RemittanceManagerConfig, wallet: WalletInterface, commsLayer: CommsLayer, threads: Thread[] = []) 
     async init(): Promise<void> 
+    onEvent(listener: (event: RemittanceEvent) => void): () => void 
     preselectPaymentOption(optionId: string): void 
     saveState(): RemittanceManagerState 
     loadState(state: RemittanceManagerState): void 
     async persistState(): Promise<void> 
     async syncThreads(hostOverride?: string): Promise<void> 
+    async startListening(hostOverride?: string): Promise<void> 
     async sendInvoice(to: PubKeyHex, input: ComposeInvoiceInput, hostOverride?: string): Promise<InvoiceHandle> 
     async sendInvoiceForThread(threadId: ThreadId, input: ComposeInvoiceInput, hostOverride?: string): Promise<InvoiceHandle> 
     findInvoicesPayable(counterparty?: PubKeyHex): InvoiceHandle[] 
@@ -1545,18 +1629,31 @@ export class RemittanceManager {
         timeoutMs?: number;
         pollIntervalMs?: number;
     } = {}): Promise<Receipt | Termination> 
+    async waitForState(threadId: ThreadId, state: RemittanceThreadState, opts: {
+        timeoutMs?: number;
+        pollIntervalMs?: number;
+    } = {}): Promise<Thread> 
+    async waitForIdentity(threadId: ThreadId, opts?: {
+        timeoutMs?: number;
+        pollIntervalMs?: number;
+    }): Promise<Thread> 
+    async waitForSettlement(threadId: ThreadId, opts: {
+        timeoutMs?: number;
+        pollIntervalMs?: number;
+    } = {}): Promise<Settlement | Termination> 
     async sendUnsolicitedSettlement(to: PubKeyHex, args: {
         moduleId: RemittanceOptionId;
         option: unknown;
         optionId?: RemittanceOptionId;
         note?: string;
-    }, hostOverride?: string): Promise<ThreadId> 
+    }, hostOverride?: string): Promise<ThreadHandle> 
     getThread(threadId: ThreadId): Thread | undefined 
+    getThreadHandle(threadId: ThreadId): ThreadHandle 
     getThreadOrThrow(threadId: ThreadId): Thread 
 }
 ```
 
-See also: [CommsLayer](./remittance.md#interface-commslayer), [ComposeInvoiceInput](./remittance.md#interface-composeinvoiceinput), [InvoiceHandle](./remittance.md#class-invoicehandle), [PubKeyHex](./wallet.md#type-pubkeyhex), [Receipt](./remittance.md#interface-receipt), [RemittanceManagerConfig](./remittance.md#interface-remittancemanagerconfig), [RemittanceManagerState](./remittance.md#interface-remittancemanagerstate), [RemittanceOptionId](./remittance.md#type-remittanceoptionid), [Termination](./remittance.md#interface-termination), [Thread](./remittance.md#interface-thread), [ThreadId](./remittance.md#type-threadid), [WalletInterface](./wallet.md#interface-walletinterface)
+See also: [CommsLayer](./remittance.md#interface-commslayer), [ComposeInvoiceInput](./remittance.md#interface-composeinvoiceinput), [InvoiceHandle](./remittance.md#class-invoicehandle), [PubKeyHex](./wallet.md#type-pubkeyhex), [Receipt](./remittance.md#interface-receipt), [RemittanceEvent](./remittance.md#type-remittanceevent), [RemittanceManagerConfig](./remittance.md#interface-remittancemanagerconfig), [RemittanceManagerState](./remittance.md#interface-remittancemanagerstate), [RemittanceOptionId](./remittance.md#type-remittanceoptionid), [RemittanceThreadState](./remittance.md#type-remittancethreadstate), [Settlement](./remittance.md#interface-settlement), [Termination](./remittance.md#interface-termination), [Thread](./remittance.md#interface-thread), [ThreadHandle](./remittance.md#class-threadhandle), [ThreadId](./remittance.md#type-threadid), [WalletInterface](./wallet.md#interface-walletinterface)
 
 #### Property threads
 
@@ -1594,6 +1691,15 @@ getThread(threadId: ThreadId): Thread | undefined
 ```
 See also: [Thread](./remittance.md#interface-thread), [ThreadId](./remittance.md#type-threadid)
 
+#### Method getThreadHandle
+
+Returns a thread handle by id, or throws if the thread does not exist.
+
+```ts
+getThreadHandle(threadId: ThreadId): ThreadHandle 
+```
+See also: [ThreadHandle](./remittance.md#class-threadhandle), [ThreadId](./remittance.md#type-threadid)
+
 #### Method getThreadOrThrow
 
 Returns a thread by id or throws.
@@ -1623,6 +1729,15 @@ Loads state from an object previously produced by saveState().
 loadState(state: RemittanceManagerState): void 
 ```
 See also: [RemittanceManagerState](./remittance.md#interface-remittancemanagerstate)
+
+#### Method onEvent
+
+Registers a remittance event listener.
+
+```ts
+onEvent(listener: (event: RemittanceEvent) => void): () => void 
+```
+See also: [RemittanceEvent](./remittance.md#type-remittanceevent)
 
 #### Method pay
 
@@ -1690,9 +1805,17 @@ async sendUnsolicitedSettlement(to: PubKeyHex, args: {
     option: unknown;
     optionId?: RemittanceOptionId;
     note?: string;
-}, hostOverride?: string): Promise<ThreadId> 
+}, hostOverride?: string): Promise<ThreadHandle> 
 ```
-See also: [PubKeyHex](./wallet.md#type-pubkeyhex), [RemittanceOptionId](./remittance.md#type-remittanceoptionid), [ThreadId](./remittance.md#type-threadid)
+See also: [PubKeyHex](./wallet.md#type-pubkeyhex), [RemittanceOptionId](./remittance.md#type-remittanceoptionid), [ThreadHandle](./remittance.md#class-threadhandle)
+
+#### Method startListening
+
+Starts listening for live messages (if the CommsLayer supports it).
+
+```ts
+async startListening(hostOverride?: string): Promise<void> 
+```
 
 #### Method syncThreads
 
@@ -1704,6 +1827,18 @@ Messages are acknowledged after they are successfully applied to local state.
 ```ts
 async syncThreads(hostOverride?: string): Promise<void> 
 ```
+
+#### Method waitForIdentity
+
+Waits for identity exchange to complete for a thread.
+
+```ts
+async waitForIdentity(threadId: ThreadId, opts?: {
+    timeoutMs?: number;
+    pollIntervalMs?: number;
+}): Promise<Thread> 
+```
+See also: [Thread](./remittance.md#interface-thread), [ThreadId](./remittance.md#type-threadid)
 
 #### Method waitForReceipt
 
@@ -1719,6 +1854,62 @@ async waitForReceipt(threadId: ThreadId, opts: {
 ```
 See also: [Receipt](./remittance.md#interface-receipt), [Termination](./remittance.md#interface-termination), [ThreadId](./remittance.md#type-threadid)
 
+#### Method waitForSettlement
+
+Waits for a settlement to arrive for a thread.
+
+```ts
+async waitForSettlement(threadId: ThreadId, opts: {
+    timeoutMs?: number;
+    pollIntervalMs?: number;
+} = {}): Promise<Settlement | Termination> 
+```
+See also: [Settlement](./remittance.md#interface-settlement), [Termination](./remittance.md#interface-termination), [ThreadId](./remittance.md#type-threadid)
+
+#### Method waitForState
+
+Waits for a thread to reach a specific state.
+
+```ts
+async waitForState(threadId: ThreadId, state: RemittanceThreadState, opts: {
+    timeoutMs?: number;
+    pollIntervalMs?: number;
+} = {}): Promise<Thread> 
+```
+See also: [RemittanceThreadState](./remittance.md#type-remittancethreadstate), [Thread](./remittance.md#interface-thread), [ThreadId](./remittance.md#type-threadid)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Class: ThreadHandle
+
+A lightweight wrapper around a thread's invoice, with convenience methods.
+
+```ts
+export class ThreadHandle {
+    constructor(protected readonly manager: RemittanceManager, public readonly threadId: ThreadId) 
+    get thread(): Thread 
+    async waitForState(state: RemittanceThreadState, opts?: {
+        timeoutMs?: number;
+        pollIntervalMs?: number;
+    }): Promise<Thread> 
+    async waitForIdentity(opts?: {
+        timeoutMs?: number;
+        pollIntervalMs?: number;
+    }): Promise<Thread> 
+    async waitForSettlement(opts?: {
+        timeoutMs?: number;
+        pollIntervalMs?: number;
+    }): Promise<Settlement | Termination> 
+    async waitForReceipt(opts?: {
+        timeoutMs?: number;
+        pollIntervalMs?: number;
+    }): Promise<Receipt | Termination> 
+}
+```
+
+See also: [Receipt](./remittance.md#interface-receipt), [RemittanceManager](./remittance.md#class-remittancemanager), [RemittanceThreadState](./remittance.md#type-remittancethreadstate), [Settlement](./remittance.md#interface-settlement), [Termination](./remittance.md#interface-termination), [Thread](./remittance.md#interface-thread), [ThreadId](./remittance.md#type-threadid)
+
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
@@ -1728,8 +1919,10 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | |
 | --- |
+| [RemittanceEvent](#type-remittanceevent) |
 | [RemittanceKind](#type-remittancekind) |
 | [RemittanceOptionId](#type-remittanceoptionid) |
+| [RemittanceThreadState](#type-remittancethreadstate) |
 | [ThreadId](#type-threadid) |
 | [UnixMillis](#type-unixmillis) |
 
@@ -1737,6 +1930,88 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ---
 
+### Type: RemittanceEvent
+
+```ts
+export type RemittanceEvent = {
+    type: "threadCreated";
+    threadId: ThreadId;
+    thread: Thread;
+} | {
+    type: "stateChanged";
+    threadId: ThreadId;
+    previous: RemittanceThreadState;
+    next: RemittanceThreadState;
+    reason?: string;
+} | {
+    type: "envelopeSent";
+    threadId: ThreadId;
+    envelope: RemittanceEnvelope;
+    transportMessageId: string;
+} | {
+    type: "envelopeReceived";
+    threadId: ThreadId;
+    envelope: RemittanceEnvelope;
+    transportMessageId: string;
+} | {
+    type: "identityRequested";
+    threadId: ThreadId;
+    direction: "in" | "out";
+    request: IdentityVerificationRequest;
+} | {
+    type: "identityResponded";
+    threadId: ThreadId;
+    direction: "in" | "out";
+    response: IdentityVerificationResponse;
+} | {
+    type: "identityAcknowledged";
+    threadId: ThreadId;
+    direction: "in" | "out";
+    acknowledgment: IdentityVerificationAcknowledgment;
+} | {
+    type: "invoiceSent";
+    threadId: ThreadId;
+    invoice: Invoice;
+} | {
+    type: "invoiceReceived";
+    threadId: ThreadId;
+    invoice: Invoice;
+} | {
+    type: "settlementSent";
+    threadId: ThreadId;
+    settlement: Settlement;
+} | {
+    type: "settlementReceived";
+    threadId: ThreadId;
+    settlement: Settlement;
+} | {
+    type: "receiptSent";
+    threadId: ThreadId;
+    receipt: Receipt;
+} | {
+    type: "receiptReceived";
+    threadId: ThreadId;
+    receipt: Receipt;
+} | {
+    type: "terminationSent";
+    threadId: ThreadId;
+    termination: Termination;
+} | {
+    type: "terminationReceived";
+    threadId: ThreadId;
+    termination: Termination;
+} | {
+    type: "error";
+    threadId: ThreadId;
+    error: string;
+}
+```
+
+See also: [IdentityVerificationAcknowledgment](./remittance.md#interface-identityverificationacknowledgment), [IdentityVerificationRequest](./remittance.md#interface-identityverificationrequest), [IdentityVerificationResponse](./remittance.md#interface-identityverificationresponse), [Invoice](./remittance.md#interface-invoice), [Receipt](./remittance.md#interface-receipt), [RemittanceEnvelope](./remittance.md#interface-remittanceenvelope), [RemittanceThreadState](./remittance.md#type-remittancethreadstate), [Settlement](./remittance.md#interface-settlement), [Termination](./remittance.md#interface-termination), [Thread](./remittance.md#interface-thread), [ThreadId](./remittance.md#type-threadid)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Type: RemittanceKind
 
 Protocol envelope kinds.
@@ -1756,6 +2031,28 @@ export type RemittanceOptionId = Base64String
 ```
 
 See also: [Base64String](./wallet.md#type-base64string)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Type: RemittanceThreadState
+
+Remittance thread state machine.
+
+States:
+- new: thread exists but no identity/invoice/settlement activity yet.
+- identityRequested: identity request sent or received.
+- identityResponded: identity response sent or received.
+- identityAcknowledged: identity response acknowledged (required before proceeding).
+- invoiced: invoice sent or received.
+- settled: settlement sent or received.
+- receipted: receipt issued or received.
+- terminated: thread terminated with a reason.
+- errored: unexpected error occurred while processing the thread.
+
+```ts
+export type RemittanceThreadState = "new" | "identityRequested" | "identityResponded" | "identityAcknowledged" | "invoiced" | "settled" | "receipted" | "terminated" | "errored"
+```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -1796,6 +2093,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 | [DEFAULT_REMITTANCE_MESSAGEBOX](#variable-default_remittance_messagebox) |
 | [DefaultLockingScriptProvider](#variable-defaultlockingscriptprovider) |
 | [DefaultNonceProvider](#variable-defaultnonceprovider) |
+| [REMITTANCE_STATE_TRANSITIONS](#variable-remittance_state_transitions) |
 | [SAT_UNIT](#variable-sat_unit) |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -1839,6 +2137,27 @@ DefaultNonceProvider: NonceProvider = {
 ```
 
 See also: [NonceProvider](./remittance.md#interface-nonceprovider), [OriginatorDomainNameStringUnder250Bytes](./wallet.md#type-originatordomainnamestringunder250bytes), [createNonce](./auth.md#function-createnonce)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: REMITTANCE_STATE_TRANSITIONS
+
+```ts
+REMITTANCE_STATE_TRANSITIONS: Record<RemittanceThreadState, RemittanceThreadState[]> = {
+    new: ["identityRequested", "invoiced", "settled", "terminated", "errored"],
+    identityRequested: ["identityResponded", "identityAcknowledged", "invoiced", "settled", "terminated", "errored"],
+    identityResponded: ["identityAcknowledged", "invoiced", "settled", "terminated", "errored"],
+    identityAcknowledged: ["invoiced", "settled", "terminated", "errored"],
+    invoiced: ["identityRequested", "identityResponded", "identityAcknowledged", "settled", "terminated", "errored"],
+    settled: ["receipted", "terminated", "errored"],
+    receipted: ["terminated", "errored"],
+    terminated: ["errored"],
+    errored: []
+}
+```
+
+See also: [RemittanceThreadState](./remittance.md#type-remittancethreadstate)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 

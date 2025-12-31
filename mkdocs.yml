@@ -50,6 +50,8 @@ nav:
   - Home: index.md
   - WalletClient QuickStart: https://fast.brc.dev
   - Swagger BRC-100 Interface: swagger/index.html
+  - Guides:
+    - Remittance Getting Started: remittance-getting-started.md
   - Reference:
     - Wallet: reference/wallet.md
     - Primitives: reference/primitives.md
