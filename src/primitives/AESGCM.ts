@@ -1,5 +1,6 @@
 // @ts-nocheck
 
+<<<<<<< HEAD
 // NOTE:
 // Table-based AES is intentionally retained for performance.
 // JavaScript runtimes (JIT, GC, speculative execution) cannot provide
@@ -12,6 +13,8 @@
 // Applications requiring strict side-channel resistance SHOULD use
 // platform-native crypto APIs (e.g. WebCrypto) or audited native libraries.
 
+=======
+>>>>>>> master
 /**
  * SECURITY DISCLAIMER – AES-GCM IMPLEMENTATION
  *
@@ -27,6 +30,10 @@
  * For high-assurance cryptographic use cases, prefer platform-provided
  * WebCrypto APIs or well-audited constant-time libraries.
  */
+<<<<<<< HEAD
+=======
+
+>>>>>>> master
 const SBox = new Uint8Array([
   0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
   0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
@@ -303,12 +310,33 @@ export const rightShift = function (block: Bytes): Bytes {
   return block
 }
 
+/**
+ * SECURITY NOTE – TIMING SIDE-CHANNEL MITIGATION
+ *
+ * This GHASH multiplication implementation avoids data-dependent conditional
+ * branches by using mask-based operations instead. This reduces timing
+ * side-channel leakage compared to a naive implementation that branches on
+ * secret bits.
+ *
+ * IMPORTANT: JavaScript and TypedArray operations do NOT provide constant-time
+ * execution guarantees. While this implementation mitigates obvious control-
+ * flow timing leaks, it must not be considered constant-time in a strict
+ * cryptographic sense and is not suitable for hostile shared-CPU or
+ * multi-tenant environments.
+ *
+ * Applications requiring strict constant-time AES-GCM SHOULD use a dedicated,
+ * audited cryptographic library (e.g. noble-ciphers, WebCrypto, or BearSSL
+ * bindings).
+ */
 export const multiply = function (block0: Bytes, block1: Bytes): Bytes {
   const v = block1.slice()
   const z = createZeroBlock(16)
 
   for (let i = 0; i < 16; i++) {
+    const b = block0[i]
+
     for (let j = 7; j >= 0; j--) {
+<<<<<<< HEAD
       if ((block0[i] & (1 << j)) !== 0) {
         for (let k = 0; k < 16; k++) {
           z[k] ^= v[k]
@@ -324,6 +352,26 @@ export const multiply = function (block0: Bytes, block1: Bytes): Bytes {
         for (let k = 0; k < 16; k++) {
           v[k] ^= R[k]
         }
+=======
+      // mask = 0xff if bit is set, 0x00 otherwise
+      const bit = (b >> j) & 1
+      const mask = -bit & 0xff
+
+      // z ^= v & mask
+      for (let k = 0; k < 16; k++) {
+        z[k] ^= v[k] & mask
+      }
+
+      // compute reduction mask
+      const lsb = v[15] & 1
+      const rmask = -lsb & 0xff
+
+      rightShift(v)
+
+      // v ^= R & rmask
+      for (let k = 0; k < 16; k++) {
+        v[k] ^= R[k] & rmask
+>>>>>>> master
       }
     }
   }
