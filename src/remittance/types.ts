@@ -1,5 +1,4 @@
-import { Base64String, WalletInterface } from '@bsv/sdk'
-import { HexString, OutpointString } from 'mod.js'
+import { HexString, OutpointString, PubKeyHex, Base64String, WalletInterface } from '../wallet/index.js'
 
 /**
  * Types for core Remittance protocol.
@@ -10,9 +9,8 @@ import { HexString, OutpointString } from 'mod.js'
  * - Module-oriented (remittance option payloads are opaque to the core)
  */
 
-export type IdentityKey = string
-export type ThreadId = string
-export type RemittanceOptionId = string
+export type ThreadId = Base64String
+export type RemittanceOptionId = Base64String
 export type UnixMillis = number
 
 export interface Unit {
@@ -51,12 +49,12 @@ export interface LineItem {
  */
 export interface InstrumentBase {
   threadId: ThreadId
-  payee: IdentityKey
-  payer: IdentityKey
+  payee: PubKeyHex
+  payer: PubKeyHex
   note?: string
   lineItems: LineItem[]
   total: Amount
-  invoiceNumber?: string
+  invoiceNumber: string
   createdAt: UnixMillis
   arbitrary?: Record<string, unknown>
 }
@@ -76,7 +74,7 @@ export interface Invoice extends InstrumentBase {
   options: Record<RemittanceOptionId, unknown>
 }
 
-/** 
+/**
  * An identity certificate request.
  *
  * Contains a list of requested certificate types, fields from each, plus acceptable certifiers.
@@ -89,7 +87,7 @@ export interface IdentityVerificationRequest {
     /** Map of certificate types to requested fields from each. */
     types: Record<string, string[]>
     /** List of acceptable certifier identity keys. */
-    certifiers: IdentityKey[]
+    certifiers: PubKeyHex[]
   }
 }
 
@@ -106,9 +104,9 @@ export interface IdentityVerificationResponse {
     /** Certificate type, e.g. base64 Type ID corresponding to 'personalId', 'businessId', etc. */
     type: Base64String
     /** Certifier identity key. */
-    certifier: IdentityKey
+    certifier: PubKeyHex
     /** Subject identity key. */
-    subject: IdentityKey
+    subject: PubKeyHex
     /** The certificate's encrypted fields that have been signed. */
     fields: Record<string, Base64String>
     /** Signature over the cert. */
@@ -143,7 +141,7 @@ export interface Settlement {
   threadId: ThreadId
   moduleId: RemittanceOptionId
   optionId: RemittanceOptionId
-  sender: IdentityKey
+  sender: PubKeyHex
   createdAt: UnixMillis
   artifact: unknown
   note?: string
@@ -161,8 +159,8 @@ export interface Receipt {
   threadId: ThreadId
   moduleId: RemittanceOptionId
   optionId: RemittanceOptionId
-  payee: IdentityKey
-  payer: IdentityKey
+  payee: PubKeyHex
+  payer: PubKeyHex
   createdAt: UnixMillis
   accepted: boolean
   receiptData: unknown
@@ -188,8 +186,8 @@ export interface Termination {
  */
 export interface PeerMessage {
   messageId: string
-  sender: IdentityKey
-  recipient: IdentityKey
+  sender: PubKeyHex
+  recipient: PubKeyHex
   messageBox: string
   body: string
 }

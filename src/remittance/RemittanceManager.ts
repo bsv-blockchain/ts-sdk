@@ -1,26 +1,34 @@
 import type {
-  IdentityKey,
   Invoice,
-  PeerMessage,
-  Receipt,
+  IdentityVerificationResponse,
   Settlement,
+  Receipt,
+  Termination,
+  RemittanceEnvelope,
+  PeerMessage,
   ThreadId,
   UnixMillis,
   LoggerLike,
-  ModuleContext
+  ModuleContext,
+  RemittanceKind
 } from './types.js'
 import type { CommsLayer } from './CommsLayer.js'
+import type { IdentityLayer } from './IdentityLayer.js'
 import type { RemittanceModule } from './RemittanceModule.js'
-import { OriginatorDomainNameStringUnder250Bytes, WalletInterface } from '../wallet/Wallet.interfaces.js'
+import { OriginatorDomainNameStringUnder250Bytes, PubKeyHex, WalletInterface } from '../wallet/Wallet.interfaces.js'
 import { toBase64 } from '../primitives/utils.js'
 import Random from '../primitives/Random.js'
-import { VerifiableCertificate } from 'mod.js'
 
 export const DEFAULT_REMITTANCE_MESSAGEBOX = 'remittance_inbox'
 
 export interface RemittanceManagerRuntimeOptions {
-  /** If true, exchange identity messages at the start of a thread. */
-  exchangeIdentityInfo: boolean
+  /** Identity verification options. */
+  identityOptions?: {
+    /** At what point should a maker request identity verification? */
+    makerRequestIdentity?: 'never' | 'beforeInvoicing' | 'beforeSettlement'
+    /** At what point should a taker request identity verification? */
+    takerRequestIdentity?: 'never' | 'beforeInvoicing' | 'beforeSettlement'
+  }
   /** If true, payees are expected to send receipts. */
   receiptProvided: boolean
   /** If true, manager auto-sends receipts as soon as a settlement is processed. */
@@ -48,7 +56,7 @@ export interface RemittanceManagerConfig {
 
   /** Optional identity layer for exchanging certificates before transacting. */
   identityLayer?: IdentityLayer
-    /** Optional invoice publisher for onchain invoice references. */
+
   /** Persist manager state (threads). */
   stateSaver?: (state: RemittanceManagerState) => Promise<void> | void
   /** Load manager state (threads). */
@@ -62,7 +70,7 @@ export interface RemittanceManagerConfig {
 
 export interface Thread {
   threadId: ThreadId
-  counterparty: IdentityKey
+  counterparty: PubKeyHex
   myRole: 'maker' | 'taker'
   theirRole: 'maker' | 'taker'
   createdAt: UnixMillis
@@ -75,12 +83,12 @@ export interface Thread {
   protocolLog: Array<{
     direction: 'in' | 'out'
     envelope: RemittanceEnvelope
-    transportMessageId?: string
+    transportMessageId: string
   }>
 
   identity: {
-    certsSent: VerifiableCertificate[]
-    certsReceived: VerifiableCertificate[]
+    certsSent: IdentityVerificationResponse['certificates']
+    certsReceived: IdentityVerificationResponse['certificates']
   }
 
   invoice?: Invoice
@@ -105,8 +113,6 @@ export interface RemittanceManagerState {
 }
 
 export interface ComposeInvoiceInput {
-  /** Counterparty who will pay the invoice. */
-  payer: IdentityKey
   /** Human note/memo. */
   note?: string
   /** Line items. */
@@ -121,17 +127,24 @@ export interface ComposeInvoiceInput {
  * RemittanceManager.
  *
  * Responsibilities:
- * - thread lifecycle and persistence
- * - invoice creation and transmission
- * - settlement routing to the appropriate module
- * - receipt routing to the appropriate module
- * - optional identity certificate exchange
- *
+ * - message transport via CommsLayer
+ * - thread lifecycle and persistence (via stateSaver/stateLoader)
+ * - invoice creation and transmission (when invoices are used)
+ * - settlement and settlement routing to the appropriate module
+ * - receipt issuance and receipt routing to the appropriate module
+ * - identity and identity certificate exchange (when identity layer is used)
+ * 
  * Non-responsibilities (left to modules):
- * - transaction structure
- * - UTXO “offer” formats, token logic, BRC-98/99 specifics
- * - validation rules for partial tx templates
- * - on-chain broadcasting strategy
+ * - transaction structure (whether UTXO “offer” formats, token logic, BRC-98/99 specifics, etc.)
+ * - validation rules for settlement (e.g. partial tx templates, UTXO validity, etc.)
+ * - on-chain broadcasting strategy or non-chain settlement specifics (like legacy payment protocols)
+ * - Providing option terms for invoices
+ * - Building settlement artifacts
+ * - Accepting/rejecting settlements
+ * - Deciding which identity certificates to request
+ * - Deciding about sufficiency of identity certificates
+ * - Preparing/processing specific receipt formats
+ * - Internal business logic like order fulfillment, refunds, etc.
  */
 export class RemittanceManager {
   readonly wallet: WalletInterface
@@ -152,7 +165,7 @@ export class RemittanceManager {
   threads: Thread[]
 
   /** Cached identity key if wallet provides it. */
-  private myIdentityKey?: IdentityKey
+  private myIdentityKey?: PubKeyHex
 
   constructor(cfg: RemittanceManagerConfig, wallet: WalletInterface, commsLayer: CommsLayer, threads: Thread[] = []) {
     this.cfg = cfg
@@ -166,7 +179,10 @@ export class RemittanceManager {
     this.moduleRegistry = new Map(cfg.remittanceModules.map((m) => [m.id, m]))
 
     this.runtime = {
-      exchangeIdentityInfo: cfg.options?.exchangeIdentityInfo ?? false,
+      identityOptions: cfg.options?.identityOptions ?? {
+        makerRequestIdentity: 'never',
+        takerRequestIdentity: 'never'
+      },
       receiptProvided: cfg.options?.receiptProvided ?? true,
       autoIssueReceipt: cfg.options?.autoIssueReceipt ?? true,
       invoiceExpirySeconds: cfg.options?.invoiceExpirySeconds ?? 3600
@@ -180,7 +196,7 @@ export class RemittanceManager {
    *
    * Safe to call multiple times.
    */
-  async init(): Promise<void> {
+  async init (): Promise<void> {
     if (!this.cfg.stateLoader) return
 
     const loaded = await this.cfg.stateLoader()
@@ -216,7 +232,7 @@ export class RemittanceManager {
   /**
    * Loads state from an object previously produced by saveState().
    */
-  loadState(state: RemittanceManagerState): void {
+  loadState (state: RemittanceManagerState): void {
     if (state.v !== 1) throw new Error(`Unsupported RemittanceManagerState version: ${state.v}`)
     this.threads = state.threads ?? []
     this.defaultPaymentOptionId = state.defaultPaymentOptionId
@@ -225,7 +241,7 @@ export class RemittanceManager {
   /**
    * Persists current state via cfg.stateSaver (if provided).
    */
-  async persistState(): Promise<void> {
+  async persistState (): Promise<void> {
     if (!this.cfg.stateSaver) return
     await this.cfg.stateSaver(this.saveState())
   }
@@ -236,7 +252,7 @@ export class RemittanceManager {
    * Processing is idempotent using transport messageIds tracked per thread.
    * Messages are acknowledged after they are successfully applied to local state.
    */
-  async syncThreads(hostOverride?: string): Promise<void> {
+  async syncThreads (hostOverride?: string): Promise<void> {
     await this.refreshMyIdentityKey()
 
     const msgs = await this.comms.listMessages({ messageBox: this.messageBox, host: hostOverride })
@@ -274,17 +290,12 @@ export class RemittanceManager {
    *
    * Returns a handle you can use to wait for payment/receipt.
    */
-  async sendInvoice(to: IdentityKey, input: ComposeInvoiceInput, hostOverride?: string): Promise<InvoiceHandle> {
+  async sendInvoice (to: PubKeyHex, input: ComposeInvoiceInput, hostOverride?: string): Promise<InvoiceHandle> {
     await this.refreshMyIdentityKey()
-
-    if (this.runtime.invoiceFormat === 'none') {
-      throw new Error("invoiceFormat 'none' does not support sendInvoice(); use unsolicited settlement flows instead")
-    }
-
     const threadId = this.threadIdFactory()
     const createdAt = this.now()
 
-    const myKey = this.requireMyIdentityKey('sendInvoice requires the comms layer to provide an identity key')
+    const myKey = this.requireMyIdentityKey('sendInvoice requires the wallet to provide an identity key')
 
     const thread: Thread = {
       threadId,
@@ -295,8 +306,12 @@ export class RemittanceManager {
       updatedAt: createdAt,
       processedMessageIds: [],
       protocolLog: [],
+      identity: {
+        certsSent: [],
+        certsReceived: []
+      },
       flags: {
-        hasIdentified: !this.runtime.exchangeIdentityInfo,
+        hasIdentified: false,
         hasInvoiced: false,
         hasPaid: false,
         hasReceipted: false,
@@ -307,8 +322,8 @@ export class RemittanceManager {
     this.threads.push(thread)
 
     // Optional identity hello exchange.
-    if (this.runtime.exchangeIdentityInfo) {
-      await this.ensureIdentityExchange(thread, hostOverride)
+    if (this.runtime.exchangeIdentityInfo) { // !!! FIXME !!!
+      await this.ensureIdentityExchange(thread, hostOverride) // !!! FIXME !!!
     }
 
     const invoice = await this.composeInvoice(threadId, myKey, to, input)
@@ -317,6 +332,7 @@ export class RemittanceManager {
 
     // Generate option terms for each configured module.
     for (const mod of this.moduleRegistry.values()) {
+      if (typeof mod.createOption !== 'function') continue
       const option = await mod.createOption({ threadId, invoice }, this.moduleContext())
       invoice.options[mod.id] = option
     }
@@ -335,7 +351,7 @@ export class RemittanceManager {
   /**
    * Returns invoice handles that this manager can pay (we are the taker/payer).
    */
-  findInvoicesPayable(counterparty?: IdentityKey): InvoiceHandle[] {
+  findInvoicesPayable (counterparty?: PubKeyHex): InvoiceHandle[] {
     return this.threads
       .filter((t) => t.myRole === 'taker' && t.invoice && !t.settlement && !t.flags.error)
       .filter((t) => (counterparty ? t.counterparty === counterparty : true))
@@ -345,7 +361,7 @@ export class RemittanceManager {
   /**
    * Returns invoice handles that we issued and are waiting to receive settlement for.
    */
-  findReceivableInvoices(counterparty?: IdentityKey): InvoiceHandle[] {
+  findReceivableInvoices(counterparty?: PubKeyHex): InvoiceHandle[] {
     return this.threads
       .filter((t) => t.myRole === 'maker' && t.invoice && !t.settlement && !t.flags.error)
       .filter((t) => (counterparty ? t.counterparty === counterparty : true))
@@ -466,7 +482,7 @@ export class RemittanceManager {
   /**
    * Sends a note message within a thread.
    */
-  async sendNote(threadId: ThreadId, to: IdentityKey, text: string, metadata?: Record<string, unknown>): Promise<void> {
+  async sendNote(threadId: ThreadId, to: PubKeyHex, text: string, metadata?: Record<string, unknown>): Promise<void> {
     const env = this.makeEnvelope('note', threadId, { text, metadata } satisfies NotePayload)
     await this.sendEnvelope(to, env)
     const thread = this.getThread(threadId)
@@ -516,7 +532,7 @@ export class RemittanceManager {
 
   private makeEnvelope<K extends RemittanceKind, P>(kind: K, threadId: ThreadId, payload: P): RemittanceEnvelope<K, P> {
     return {
-      v: 2,
+      v: 1,
       id: this.threadIdFactory(),
       kind,
       threadId,
@@ -525,30 +541,32 @@ export class RemittanceManager {
     }
   }
 
-  private async sendEnvelope(recipient: IdentityKey, env: RemittanceEnvelope, hostOverride?: string): Promise<void> {
+  private async sendEnvelope (recipient: PubKeyHex, env: RemittanceEnvelope, hostOverride?: string): Promise<void> {
     const body = JSON.stringify(env)
 
     // Prefer live if available.
-    if (this.comms.sendLiveMessage) {
+    if (typeof this.comms.sendLiveMessage === 'function') {
       try {
         await this.comms.sendLiveMessage({ recipient, messageBox: this.messageBox, body }, hostOverride)
         return
       } catch (e) {
-        this.cfg.logger?.warn?.('[RemittanceManager] sendLiveMessage failed, falling back to HTTP', e)
+        this.cfg.logger?.warn?.('[RemittanceManager] sendLiveMessage failed, falling back to non-live', e)
       }
     }
 
     await this.comms.sendMessage({ recipient, messageBox: this.messageBox, body }, hostOverride)
   }
 
-  private getOrCreateThreadFromInboundEnvelope(env: RemittanceEnvelope, msg: PeerMessage): Thread {
+  private getOrCreateThreadFromInboundEnvelope (env: RemittanceEnvelope, msg: PeerMessage): Thread {
     const existing = this.getThread(env.threadId)
-    if (existing) return existing
+    if (typeof existing === 'object') return existing
 
     // If we didn't create the thread, infer roles from the first message kind:
+    // - Receiving identity verification request/response/acknowledgment -> we are either maker or taker depending on config
     // - Receiving an invoice -> we are taker (payer)
     // - Receiving a settlement -> we are maker (payee)
     // - Receiving a receipt -> we are taker
+    // - Receiving a termination -> assume we are taker
     const createdAt = this.now()
 
     const inferredMyRole: Thread['myRole'] = env.kind === 'invoice' ? 'taker' : env.kind === 'settlement' ? 'maker' : 'taker'
@@ -563,8 +581,12 @@ export class RemittanceManager {
       updatedAt: createdAt,
       processedMessageIds: [],
       protocolLog: [],
+      identity: {
+        certsSent: [],
+        certsReceived: []
+      },
       flags: {
-        hasIdentified: !this.runtime.exchangeIdentityInfo,
+        hasIdentified: false,
         hasInvoiced: false,
         hasPaid: false,
         hasReceipted: false,
@@ -724,7 +746,7 @@ export class RemittanceManager {
     }
   }
 
-  private async maybeSendErrorReceipt(thread: Thread, settlement: Settlement, payer: IdentityKey, message: string): Promise<void> {
+  private async maybeSendErrorReceipt(thread: Thread, settlement: Settlement, payer: PubKeyHex, message: string): Promise<void> {
     if (!this.runtime.receiptProvided) return
 
     const myKey = this.requireMyIdentityKey('maybeSendErrorReceipt requires identity key')
@@ -766,13 +788,13 @@ export class RemittanceManager {
     thread.flags.hasIdentified = true
   }
 
-  private async decideOnIncomingSettlement(thread: Thread, settlement: Settlement, sender: IdentityKey): Promise<'accept' | 'reject'> {
+  private async decideOnIncomingSettlement(thread: Thread, settlement: Settlement, sender: PubKeyHex): Promise<'accept' | 'reject'> {
     const fn = this.cfg.decisionProvider?.decideOnIncomingSettlement
     if (!fn) return 'accept'
     return await fn({ thread, settlement, sender })
   }
 
-  private async rejectionReason(thread: Thread, settlement: Settlement, sender: IdentityKey): Promise<string | undefined> {
+  private async rejectionReason(thread: Thread, settlement: Settlement, sender: PubKeyHex): Promise<string | undefined> {
     const fn = this.cfg.decisionProvider?.rejectionReason
     if (!fn) return undefined
     return await fn({ thread, settlement, sender })
@@ -802,7 +824,7 @@ export class RemittanceManager {
     }
   }
 
-  private requireMyIdentityKey(errMsg: string): IdentityKey {
+  private requireMyIdentityKey(errMsg: string): PubKeyHex {
     if (!this.myIdentityKey) {
       throw new Error(errMsg)
     }
@@ -811,8 +833,8 @@ export class RemittanceManager {
 
   private async composeInvoice(
     threadId: ThreadId,
-    payee: IdentityKey,
-    payer: IdentityKey,
+    payee: PubKeyHex,
+    payer: PubKeyHex,
     input: ComposeInvoiceInput
   ): Promise<Invoice> {
     const createdAt = this.now()
@@ -840,38 +862,38 @@ export class RemittanceManager {
  * A lightweight wrapper around a thread's invoice, with convenience methods.
  */
 export class InvoiceHandle {
-  constructor(private readonly manager: RemittanceManager, public readonly threadId: ThreadId) {}
+  constructor (private readonly manager: RemittanceManager, public readonly threadId: ThreadId) {}
 
-  get thread(): Thread {
+  get thread (): Thread {
     return this.manager.getThreadOrThrow(this.threadId)
   }
 
-  get invoice(): Invoice {
+  get invoice (): Invoice {
     const inv = this.thread.invoice
-    if (!inv) throw new Error('Thread has no invoice')
+    if (typeof inv !== 'object') throw new Error('Thread has no invoice')
     return inv
   }
 
   /**
    * Pays the invoice using the selected remittance option.
    */
-  async pay(optionId?: string): Promise<Receipt | undefined> {
-    return this.manager.pay(this.threadId, optionId)
+  async pay (optionId?: string): Promise<Receipt | Termination> {
+    return await this.manager.pay(this.threadId, optionId)
   }
 
   /**
    * Waits for a receipt for this invoice's thread.
    */
-  async waitForReceipt(opts?: { timeoutMs?: number; pollIntervalMs?: number }): Promise<Receipt> {
-    return this.manager.waitForReceipt(this.threadId, opts)
+  async waitForReceipt (opts?: { timeoutMs?: number; pollIntervalMs?: number }): Promise<Receipt | Termination> {
+    return await this.manager.waitForReceipt(this.threadId, opts)
   }
 }
 
-function safeParseEnvelope(body: string): RemittanceEnvelope | undefined {
+function safeParseEnvelope (body: string): RemittanceEnvelope | undefined {
   try {
     const parsed = JSON.parse(body)
-    if (!parsed || typeof parsed !== 'object') return undefined
-    if (parsed.v !== 2) return undefined
+    if (typeof parsed !== 'object') return undefined
+    if (parsed.v !== 1) return undefined
     if (typeof parsed.kind !== 'string') return undefined
     if (typeof parsed.threadId !== 'string') return undefined
     if (typeof parsed.id !== 'string') return undefined
@@ -881,10 +903,10 @@ function safeParseEnvelope(body: string): RemittanceEnvelope | undefined {
   }
 }
 
-function defaultThreadIdFactory(): ThreadId {
+function defaultThreadIdFactory (): ThreadId {
   return toBase64(Random(32))
 }
 
-async function sleep(ms: number): Promise<void> {
+async function sleep (ms: number): Promise<void> {
   return await new Promise((resolve) => setTimeout(resolve, ms))
 }

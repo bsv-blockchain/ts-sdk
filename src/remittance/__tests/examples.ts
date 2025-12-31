@@ -1,3 +1,13 @@
+import type {
+  RemittanceEnvelope,
+  Invoice,
+  IdentityVerificationRequest,
+  IdentityVerificationResponse,
+  Settlement,
+  Receipt,
+  SAT_UNIT
+} from '../types.js'
+
 /** Example invoice envelope. */
 const exampleInvoice: RemittanceEnvelope<'invoice', Invoice> = {
   v: 1,
@@ -12,7 +22,7 @@ const exampleInvoice: RemittanceEnvelope<'invoice', Invoice> = {
     payer: 'identity-key-2',
     lineItems: [
       { description: 'Test item', amount: { value: '100', unit: SAT_UNIT } },
-      { description: 'Another item', amount: { value: '50', unit: SAT_UNIT } }
+      { description: 'Another item', quantity: '3', amount: { value: '50', unit: SAT_UNIT } }
     ],
     note: 'This is a test invoice',
     total: { value: '150', unit: { namespace: 'bsv', code: 'sat', decimals: 0 } },
