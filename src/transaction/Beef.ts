@@ -120,7 +120,7 @@ export class Beef {
     return this.rawBytesCache
   }
 
-  private getBeefForAtomic(txid: string): { beef: Beef, writer: Writer } {
+  private getBeefForAtomic (txid: string): { beef: Beef, writer: Writer } {
     if (this.needsSort) {
       this.sortTxs()
     }
@@ -141,7 +141,7 @@ export class Beef {
     writer.writeUInt32LE(ATOMIC_BEEF)
     writer.writeReverse(toArray(txid, 'hex'))
 
-    return { beef, writer}
+    return { beef, writer }
   }
 
   /**
@@ -420,7 +420,7 @@ export class Beef {
   }
 
   mergeBeef (beef: Beef | number[] | Uint8Array): void {
-    const b: Beef = (beef instanceof Beef) ? beef : Beef.fromBinary(beef);
+    const b: Beef = (beef instanceof Beef) ? beef : Beef.fromBinary(beef)
 
     for (const bump of b.bumps) {
       this.mergeBump(bump)
@@ -635,9 +635,9 @@ export class Beef {
     const { beef, writer } = this.getBeefForAtomic(txid)
     const beefUint8 = beef.getSerializedBytes()
     const prefix = writer.toUint8Array()
-    const atomic = new Uint8Array(prefix.length + beefUint8.length);
-    atomic.set(prefix, 0);
-    atomic.set(beefUint8, prefix.length);
+    const atomic = new Uint8Array(prefix.length + beefUint8.length)
+    atomic.set(prefix, 0)
+    atomic.set(beefUint8, prefix.length)
     return atomic
   }
 
