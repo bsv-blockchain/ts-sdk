@@ -32,7 +32,7 @@ function truncateToN (
   if (delta > 0) {
     msg.iushrn(delta)
   }
-  if (truncOnly === null && msg.cmp(curve.n) >= 0) {
+  if (truncOnly !== true && msg.cmp(curve.n) >= 0) {
     return msg.sub(curve.n)
   } else {
     return msg
@@ -74,6 +74,14 @@ export const sign = (
   forceLowS: boolean = false,
   customK?: BigNumber | ((iter: number) => BigNumber)
 ): Signature => {
+  const nBitLength = curve.n.bitLength()
+  if (msg.bitLength() > nBitLength) {
+    throw new Error(
+      `ECDSA message is too large: expected <= ${nBitLength} bits. ` +
+      `Callers must hash messages before signing.`
+    )
+  }
+
   msg = truncateToN(msg)
   const msgBig = bnToBigInt(msg)
   const keyBig = bnToBigInt(key)
@@ -164,6 +172,12 @@ export const sign = (
  * const isVerified = verify(msg, sig, key)
  */
 export const verify = (msg: BigNumber, sig: Signature, key: Point): boolean => {
+  const nBitLength = curve.n.bitLength()
+  if (msg.bitLength() > nBitLength) {
+    // could be throw or return false; returning false is typical for verify
+    return false
+  }
+
 // Convert inputs to BigInt
   const hash = bnToBigInt(msg)
   if ((key.x == null) || (key.y == null)) {
