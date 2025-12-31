@@ -1861,6 +1861,80 @@ describe('Transaction', () => {
         .rejects
         .toThrow('Input 1 must have either an unlockingScript or unlockingScriptTemplate')
     })
+
+    it('should pass options to createAction for standard flow', async () => {
+      // Create a simple transaction
+      const sourceTx = new Transaction(1, [], [{ lockingScript: testP2PKHScript, satoshis: 10000 }], 0)
+      const tx = new Transaction(
+        1,
+        [{
+          sourceTransaction: sourceTx,
+          sourceOutputIndex: 0,
+          sequence: 0xffffffff,
+          unlockingScript: Script.fromASM('OP_0 OP_0')
+        }],
+        [{ satoshis: 9000, lockingScript: testP2PKHScript }],
+        0
+      )
+
+      const mockWallet = new MockWallet()
+      const options = {
+        noSend: true,
+        acceptDelayedBroadcast: false,
+        returnTXIDOnly: true
+      }
+
+      await tx.completeWithWallet(mockWallet, 'Test with options', undefined, options)
+
+      // Verify options were passed to createAction
+      expect(mockWallet.lastCreateActionArgs?.options).toEqual(options)
+    })
+
+    it('should pass options to both createAction and signAction for template flow', async () => {
+      // Create transaction with template
+      const sourceTx = new Transaction(1, [], [{ lockingScript: testP2PKHScript, satoshis: 10000 }], 0)
+      const tx = new Transaction(
+        1,
+        [{
+          sourceTransaction: sourceTx,
+          sourceOutputIndex: 0,
+          sequence: 0xffffffff,
+          unlockingScriptTemplate: {
+            sign: async (tx, inputIndex) => Script.fromASM('OP_0 OP_0'),
+            estimateLength: async (tx, inputIndex) => 100
+          }
+        }],
+        [{ satoshis: 9000, lockingScript: testP2PKHScript }],
+        0
+      )
+
+      const mockWallet = new MockWallet()
+      const options = {
+        noSend: true,
+        acceptDelayedBroadcast: false,
+        returnTXIDOnly: true,
+        trustSelf: 'known' as any,
+        randomizeOutputs: false
+      }
+
+      await tx.completeWithWallet(mockWallet, 'Test template with options', undefined, options)
+
+      // Verify signAndProcess: false was set for createAction (required for template flow)
+      expect(mockWallet.lastCreateActionArgs?.options?.signAndProcess).toBe(false)
+
+      // Verify other options were passed to createAction
+      expect(mockWallet.lastCreateActionArgs?.options?.trustSelf).toBe('known')
+      expect(mockWallet.lastCreateActionArgs?.options?.randomizeOutputs).toBe(false)
+
+      // Verify signAction was called and received the applicable options
+      expect(mockWallet.signActionCalled).toBe(true)
+      expect(mockWallet.lastSignActionArgs?.options).toEqual({
+        acceptDelayedBroadcast: false,
+        returnTXIDOnly: true,
+        noSend: true,
+        sendWith: undefined
+      })
+    })
   })
 
   describe('preventResourceExhaustionSmall', () => {
