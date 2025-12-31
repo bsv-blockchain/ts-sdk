@@ -248,7 +248,7 @@ export class RemittanceManager {
    * Loads state from an object previously produced by saveState().
    */
   loadState (state: RemittanceManagerState): void {
-    if (state.v !== 1) throw new Error(`Unsupported RemittanceManagerState version: ${state.v}`)
+    if (state.v !== 1) throw new Error('Unsupported RemittanceManagerState version')
     this.threads = state.threads ?? []
     this.defaultPaymentOptionId = state.defaultPaymentOptionId
   }
@@ -410,9 +410,10 @@ export class RemittanceManager {
    * Returns invoice handles that this manager can pay (we are the taker/payer).
    */
   findInvoicesPayable (counterparty?: PubKeyHex): InvoiceHandle[] {
+    const hasCounterparty = typeof counterparty === 'string' && counterparty.length > 0
     return this.threads
       .filter((t) => t.myRole === 'taker' && (t.invoice != null) && (t.settlement == null) && !t.flags.error)
-      .filter((t) => (counterparty ? t.counterparty === counterparty : true))
+      .filter((t) => (hasCounterparty ? t.counterparty === counterparty : true))
       .map((t) => new InvoiceHandle(this, t.threadId))
   }
 
@@ -420,9 +421,10 @@ export class RemittanceManager {
    * Returns invoice handles that we issued and are waiting to receive settlement for.
    */
   findReceivableInvoices (counterparty?: PubKeyHex): InvoiceHandle[] {
+    const hasCounterparty = typeof counterparty === 'string' && counterparty.length > 0
     return this.threads
       .filter((t) => t.myRole === 'maker' && (t.invoice != null) && (t.settlement == null) && !t.flags.error)
-      .filter((t) => (counterparty ? t.counterparty === counterparty : true))
+      .filter((t) => (hasCounterparty ? t.counterparty === counterparty : true))
       .map((t) => new InvoiceHandle(this, t.threadId))
   }
 
@@ -445,12 +447,13 @@ export class RemittanceManager {
     }
 
     // Check expiry.
-    if (thread.invoice.expiresAt && this.now() > thread.invoice.expiresAt) {
+    const expiresAt = thread.invoice.expiresAt
+    if (typeof expiresAt === 'number' && this.now() > expiresAt) {
       throw new Error('Invoice is expired')
     }
 
     const chosenOptionId = optionId ?? this.defaultPaymentOptionId ?? Object.keys(thread.invoice.options)[0]
-    if (!chosenOptionId) {
+    if (chosenOptionId == null || chosenOptionId === '') {
       throw new Error('No remittance options available on invoice')
     }
 
@@ -874,7 +877,8 @@ export class RemittanceManager {
           settlement: settlement.artifact,
           sender: msg.sender
         }, this.moduleContext()).catch(async (e) => {
-          await this.maybeSendTermination(thread, settlement, msg.sender, `Settlement processing failed: ${e?.message ?? e}`)
+          const errMsg = e instanceof Error ? e.message : String(e)
+          await this.maybeSendTermination(thread, settlement, msg.sender, `Settlement processing failed: ${errMsg}`)
           throw e // re-throw to stop further processing
         })
 
@@ -916,7 +920,7 @@ export class RemittanceManager {
         thread.flags.hasReceipted = true
 
         const module = this.moduleRegistry.get(receipt.moduleId)
-        if (module != null) {
+        if (module?.processReceipt != null) {
           await module.processReceipt(
             { threadId: thread.threadId, invoice: thread.invoice, receiptData: receipt.receiptData, sender: msg.sender },
             this.moduleContext()
@@ -943,8 +947,10 @@ export class RemittanceManager {
         return
       }
 
-      default:
-        throw new Error(`Unknown envelope kind: ${(env as any).kind}`)
+      default: {
+        const kind = (env as { kind?: unknown }).kind
+        throw new Error(`Unknown envelope kind: ${String(kind)}`)
+      }
     }
   }
 
@@ -1092,7 +1098,7 @@ export class RemittanceManager {
       note: input.note,
       lineItems: input.lineItems,
       total: input.total,
-      invoiceNumber: input.invoiceNumber,
+      invoiceNumber: input.invoiceNumber ?? threadId,
       createdAt,
       expiresAt,
       arbitrary: input.arbitrary,
@@ -1120,7 +1126,7 @@ export class InvoiceHandle {
   /**
    * Pays the invoice using the selected remittance option.
    */
-  async pay (optionId?: string): Promise<Receipt | Termination> {
+  async pay (optionId?: string): Promise<Receipt | Termination | undefined> {
     return await this.manager.pay(this.threadId, optionId)
   }
 

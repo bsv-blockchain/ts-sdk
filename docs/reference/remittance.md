@@ -1162,7 +1162,7 @@ export class InvoiceHandle {
     constructor(private readonly manager: RemittanceManager, public readonly threadId: ThreadId) 
     get thread(): Thread 
     get invoice(): Invoice 
-    async pay(optionId?: string): Promise<Receipt | Termination> 
+    async pay(optionId?: string): Promise<Receipt | Termination | undefined> 
     async waitForReceipt(opts?: {
         timeoutMs?: number;
         pollIntervalMs?: number;
@@ -1177,7 +1177,7 @@ See also: [Invoice](./remittance.md#interface-invoice), [Receipt](./remittance.m
 Pays the invoice using the selected remittance option.
 
 ```ts
-async pay(optionId?: string): Promise<Receipt | Termination> 
+async pay(optionId?: string): Promise<Receipt | Termination | undefined> 
 ```
 See also: [Receipt](./remittance.md#interface-receipt), [Termination](./remittance.md#interface-termination)
 
