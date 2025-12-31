@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.31 - 2025-12-29](#1931---2025-12-29)
 - [1.9.30 - 2025-12-18](#1930---2025-12-18)
 - [1.9.29 - 2025-12-12](#1929---2025-12-12)
 - [1.9.28 - 2025-12-11](#1928---2025-12-11)
@@ -200,6 +201,14 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [1.9.31] - 2025-12-29
+
+### Security
+- Documented the use of table-based AES and AES-GCM implementations and their associated cache-timing considerations as part of a TOB-5 security review.
+- Clarified that applications requiring strict side-channel resistance should use platform-native cryptography APIs or vetted constant-time libraries.
 
 ---
 
