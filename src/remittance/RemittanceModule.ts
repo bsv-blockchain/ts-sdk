@@ -1,5 +1,5 @@
 import { PubKeyHex } from '../wallet/index.js'
-import { Invoice, ModuleContext, RemittanceOptionId, ThreadId } from './types.js'
+import { Invoice, ModuleContext, RemittanceOptionId, ThreadId, Termination, Settlement } from './types.js'
 
 /**
  * A remittance module implements a specific settlement system.
@@ -11,15 +11,21 @@ import { Invoice, ModuleContext, RemittanceOptionId, ThreadId } from './types.js
 export interface RemittanceModule<
   TOptionTerms = unknown,
   TSettlementArtifact = unknown,
-  TReceiptData = unknown,
-  TTermination = unknown
+  TReceiptData = unknown
 > {
   /** Unique id used as the invoice.options key and as settlement.moduleId. */
   id: RemittanceOptionId
   /** Human-readable name for UIs. */
   name: string
 
-  /** Whether this module allows unsolicited settlements (i.e. settlement without an invoice). */
+  /**
+   * Whether this module allows unsolicited settlements (i.e. settlement without an invoice).
+   *
+   * If true, the payer can build a settlement without an invoice being provided by the payee.
+   * In this case, the option terms provided to `buildSettlement` may be used in lieu of an invoice.
+   *
+   * If false, an invoice must always be provided to `buildSettlement`. 
+   */
   allowUnsolicitedSettlements: boolean
 
   /**
@@ -49,7 +55,7 @@ export interface RemittanceModule<
   buildSettlement: (
     args: { threadId: ThreadId; invoice?: Invoice; option: TOptionTerms; note?: string },
     ctx: ModuleContext
-  ) => Promise<TSettlementArtifact | TTermination>
+  ) => Promise<{ action: 'settle'; artifact: TSettlementArtifact } | { action: 'terminate'; termination: Termination }>
 
   /**
    * Accepts a settlement artifact on the payee side.
@@ -62,15 +68,25 @@ export interface RemittanceModule<
   acceptSettlement: (
     args: { threadId: ThreadId; invoice?: Invoice; settlement: TSettlementArtifact; sender: PubKeyHex },
     ctx: ModuleContext
-  ) => Promise<TReceiptData | TTermination>
+  ) => Promise<{ action: 'accept'; receiptData?: TReceiptData } | { action: 'terminate'; termination: Termination }>
 
   /**
    * Processes a receipt on the payer side.
    *
    * This is where a module can automatically internalize a refund, mark a local order fulfilled, receive goods and services, etc.
    */
-  processReceipt: (
+  processReceipt?: (
     args: { threadId: ThreadId; invoice?: Invoice; receiptData: TReceiptData; sender: PubKeyHex },
+    ctx: ModuleContext
+  ) => Promise<void>
+
+  /**
+   * Processes a termination on either side.
+   *
+   * This is where a module can clean up any internal state, reverse provisional actions, take refunds, etc.
+   */
+  processTermination?: (
+    args: { threadId: ThreadId; invoice?: Invoice; settlement?: Settlement; termination: Termination; sender: PubKeyHex },
     ctx: ModuleContext
   ) => Promise<void>
 }
