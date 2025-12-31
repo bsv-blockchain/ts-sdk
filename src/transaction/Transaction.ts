@@ -243,7 +243,7 @@ export default class Transaction {
     return { inputs, outputs }
   }
 
-  static fromReader (br: Reader): Transaction {
+  static fromReader (br: Reader | ReaderUint8Array): Transaction {
     const version = br.readUInt32LE()
     const inputsLength = br.readVarIntNum()
     const inputs: TransactionInput[] = []

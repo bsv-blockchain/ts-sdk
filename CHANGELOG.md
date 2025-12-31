@@ -203,6 +203,37 @@ All notable changes to this project will be documented in this file. The format 
 
 ---
 
+## [2.0.1] - 2025-12-31
+
+Merge of BeefUint8Array branch: This is a non-breaking expansion of the API to support migration to Uint8Array
+
+### Changed
+- Migrate ReaderUint8Array from wallet-toolbox to ts-sdk Utils to support Uint8Array binary format in Beef and Transaction.
+- Utils toHex now handles Uint8Array input
+- Beef mergeRawTx, mergeBeef now handle Uint8Array input
+- Beef fromBinary now accepts Uint8Array
+- Beef fromReader now accepts ReaderUint8Array
+- BeefTx constructor now accepts Uint8Array
+- BeefTx fromReader now accepts ReaderUint8Array
+- MerklePath fromReader now accepts ReaderUint8Array
+- Transaction fromReader now accepts ReaderUint8Array
+- Beef.test.ts now tests toUint8ArrayAtomic result bytes are equal to toBinaryAtomic
+
+### Added
+- Beef toUint8ArrayAtomic (like toBinaryAtomic but result is Uint8Array)
+
+---
+
+## [2.0.0] - 2025-12-30
+
+### Changed
+- UTF8 encoding and decoding is now TextEncoder and TextDecoder based, and therefore standard. Previously we had a custom implementation which did thinks slightly differently, which caused issues when connecting client sand servers which use different languages. May cause a difference in HMAC calculation and therefore major version number is appropriate.
+
+### Fixed
+- The session nonce was not being used correctly in the initial response message. Specifically the base64 string nonces were being concatenated as strings prior to decode, which sometimes lead to only reading the first of the two values because of a terminating "=" character in the first nonce. Reported by Freddie in https://github.com/bsv-blockchain/ts-sdk/security/advisories/GHSA-vjpq-xx5g-qvmm
+
+---
+
 ## [1.9.30] - 2025-12-18
 
 ### Added

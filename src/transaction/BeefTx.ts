@@ -2,6 +2,7 @@ import { hash256 } from '../primitives/Hash.js'
 import { Reader, Writer, toHex, toArray } from '../primitives/utils.js'
 import Transaction from './Transaction.js'
 import { BEEF_V2, TX_DATA_FORMAT } from './Beef.js'
+import { ReaderUint8Array } from '../primitives/ReaderUint8Array.js'
 
 /**
  * A single bitcoin transaction associated with a `Beef` validity proof set.
@@ -77,13 +78,15 @@ export default class BeefTx {
    * @param tx If string, must be a valid txid. If `number[]` must be a valid serialized transaction.
    * @param bumpIndex If transaction already has a proof in the beef to which it will be added.
    */
-  constructor (tx: Transaction | number[] | string, bumpIndex?: number) {
+  constructor (tx: Transaction | number[] | string | Uint8Array, bumpIndex?: number) {
     if (typeof tx === 'string') {
       this._txid = tx
     } else if (Array.isArray(tx)) {
       this._rawTx = tx
-    } else {
+    } else if (tx instanceof Transaction) {
       this._tx = tx
+    } else {
+      this._rawTx = Array.from(tx)
     }
     this.bumpIndex = bumpIndex
     this.updateInputTxids()
@@ -166,7 +169,7 @@ export default class BeefTx {
     }
   }
 
-  static fromReader (br: Reader, version: number): BeefTx {
+  static fromReader (br: Reader | ReaderUint8Array, version: number): BeefTx {
     let data: Transaction | number[] | string | undefined
     let bumpIndex: number | undefined
     let beefTx: BeefTx | undefined

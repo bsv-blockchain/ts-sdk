@@ -525,7 +525,10 @@ export class Peer {
 
     // Create signature
     const { signature } = await this.wallet.createSignature({
-      data: Peer.base64ToBytes(message.initialNonce + sessionNonce),
+      data: [
+        ...Peer.base64ToBytes(message.initialNonce),
+        ...Peer.base64ToBytes(sessionNonce)
+      ],
       protocolID: [2, 'auth message signature'],
       keyID: `${message.initialNonce} ${sessionNonce}`,
       counterparty: message.identityKey
