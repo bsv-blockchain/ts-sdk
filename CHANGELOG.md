@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
-- [1.9.31 - 2025-12-30](#1931---2025-12-30)
+- [2.0.0 - 2026-01-01](#200---2026-01-01)
 - [1.9.30 - 2025-12-18](#1930---2025-12-18)
 - [1.9.29 - 2025-12-12](#1929---2025-12-12)
 - [1.9.28 - 2025-12-11](#1928---2025-12-11)
@@ -202,12 +202,16 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Security
 
----
-
-## [1.9.31] - 2025-12-30
+## [2.0.0] - 2026-01-01
 
 ### Added
 - Implemented new `Transaction.completeWithWallet()` method that provides complete BRC-100 wallet integration for transaction funding, signing, and broadcasting.
+
+### Changed
+- UTF8 encoding and decoding is now TextEncoder and TextDecoder based, and therefore standard. Previously we had a custom implementation which did thinks slightly differently, which caused issues when connecting client sand servers which use different languages. May cause a difference in HMAC calculation and therefore major version number is appropriate.
+
+### Fixed
+- The session nonce was not being used correctly in the initial response message. Specifically the base64 string nonces were being concatenated as strings prior to decode, which sometimes lead to only reading the first of the two values because of a terminating "=" character in the first nonce. Reported by Freddie in https://github.com/bsv-blockchain/ts-sdk/security/advisories/GHSA-vjpq-xx5g-qvmm
 
 ---
 
