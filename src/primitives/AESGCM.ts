@@ -11,6 +11,22 @@
 //
 // Applications requiring strict side-channel resistance SHOULD use
 // platform-native crypto APIs (e.g. WebCrypto) or audited native libraries.
+
+/**
+ * SECURITY DISCLAIMER – AES-GCM IMPLEMENTATION
+ *
+ * This module provides a self-contained AES-GCM implementation intended for
+ * functional correctness and portability with minimal dependencies.
+ *
+ * While efforts are made to reduce timing side-channel leakage (e.g. avoiding
+ * secret-dependent branches in GHASH), JavaScript does not guarantee
+ * constant-time execution. As such, this implementation should not be used in
+ * environments where attackers can reliably measure fine-grained execution
+ * timing (e.g. shared hosts, co-resident VMs, or untrusted browser contexts).
+ *
+ * For high-assurance cryptographic use cases, prefer platform-provided
+ * WebCrypto APIs or well-audited constant-time libraries.
+ */
 const SBox = new Uint8Array([
   0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
   0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
