@@ -14,6 +14,25 @@ const VERSION = '42421033'
  *
  * @returns The encrypted message
  */
+/**
+ * SECURITY NOTE – NON-AUTHENTICATED KEY EXCHANGE
+ *
+ * This encrypted message protocol does NOT implement a formally authenticated
+ * key exchange (AKE). Session keys are deterministically derived from long-term
+ * identity keys and a sender-chosen invoice value.
+ *
+ * As a result, this protocol does NOT provide:
+ *  - Forward secrecy
+ *  - Replay protection
+ *  - Explicit authentication of peer identity
+ *
+ * This scheme SHOULD NOT be used for high-value, long-lived, or sensitive
+ * communications. It is intended for lightweight messaging where both parties
+ * already possess each other's long-term public keys and accept these risks.
+ *
+ * Future versions may introduce a protocol upgrade based on a standard AKE
+ * (e.g. X3DH, Noise, or SIGMA).
+ */
 export const encrypt = (
   message: number[],
   sender: PrivateKey,
