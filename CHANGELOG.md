@@ -187,7 +187,7 @@ All notable changes to this project will be documented in this file. The format 
 - [1.0.0 - 2024-02-10](#100---2024-02-10)
     - Open Source launch
 - [Template for New Releases](#template-for-new-releases)
-
+ 
 ## [Unreleased]
 
 ### Added
