@@ -325,7 +325,6 @@ export const multiply = function (block0: Bytes, block1: Bytes): Bytes {
   const z = createZeroBlock(16)
 
   for (let i = 0; i < 16; i++) {
-    const b = block0[i]
 
     for (let j = 7; j >= 0; j--) {
       if ((block0[i] & (1 << j)) !== 0) {
