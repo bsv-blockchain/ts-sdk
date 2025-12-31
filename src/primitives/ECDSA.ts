@@ -94,9 +94,7 @@ export const sign = (
   const nBitLength = curve.n.bitLength()
   if (msg.bitLength() > nBitLength) {
     throw new Error(
-      'ECDSA message is too large: expected <= ' +
-      nBitLength +
-      ' bits. Callers must hash messages before signing.'
+      `ECDSA message is too large: expected <= ${nBitLength} bits. Callers must hash messages before signing.`
     )
   }
 
