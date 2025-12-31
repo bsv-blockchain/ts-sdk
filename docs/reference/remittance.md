@@ -4,20 +4,18 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ## Interfaces
 
-| | |
-| --- | --- |
-| [Amount](#interface-amount) | [PeerMessage](#interface-peermessage) |
-| [CommsLayer](#interface-commslayer) | [Receipt](#interface-receipt) |
-| [ComposeInvoiceInput](#interface-composeinvoiceinput) | [RemittanceEnvelope](#interface-remittanceenvelope) |
-| [IdentityLayer](#interface-identitylayer) | [RemittanceManagerConfig](#interface-remittancemanagerconfig) |
-| [IdentityVerificationAcknowledgment](#interface-identityverificationacknowledgment) | [RemittanceManagerRuntimeOptions](#interface-remittancemanagerruntimeoptions) |
-| [IdentityVerificationRequest](#interface-identityverificationrequest) | [RemittanceManagerState](#interface-remittancemanagerstate) |
-| [IdentityVerificationResponse](#interface-identityverificationresponse) | [RemittanceModule](#interface-remittancemodule) |
-| [InstrumentBase](#interface-instrumentbase) | [Settlement](#interface-settlement) |
-| [Invoice](#interface-invoice) | [Termination](#interface-termination) |
-| [LineItem](#interface-lineitem) | [Thread](#interface-thread) |
-| [LoggerLike](#interface-loggerlike) | [Unit](#interface-unit) |
-| [ModuleContext](#interface-modulecontext) |  |
+| | | |
+| --- | --- | --- |
+| [Amount](#interface-amount) | [IdentityVerificationRequest](#interface-identityverificationrequest) | [Receipt](#interface-receipt) |
+| [BasicBrc29FactoryConfig](#interface-basicbrc29factoryconfig) | [IdentityVerificationResponse](#interface-identityverificationresponse) | [RemittanceEnvelope](#interface-remittanceenvelope) |
+| [Brc29OptionTerms](#interface-brc29optionterms) | [InstrumentBase](#interface-instrumentbase) | [RemittanceManagerConfig](#interface-remittancemanagerconfig) |
+| [Brc29ReceiptData](#interface-brc29receiptdata) | [Invoice](#interface-invoice) | [RemittanceManagerRuntimeOptions](#interface-remittancemanagerruntimeoptions) |
+| [Brc29RemittanceModuleConfig](#interface-brc29remittancemoduleconfig) | [LineItem](#interface-lineitem) | [RemittanceManagerState](#interface-remittancemanagerstate) |
+| [Brc29SettlementArtifact](#interface-brc29settlementartifact) | [LockingScriptProvider](#interface-lockingscriptprovider) | [RemittanceModule](#interface-remittancemodule) |
+| [CommsLayer](#interface-commslayer) | [LoggerLike](#interface-loggerlike) | [Settlement](#interface-settlement) |
+| [ComposeInvoiceInput](#interface-composeinvoiceinput) | [ModuleContext](#interface-modulecontext) | [Termination](#interface-termination) |
+| [IdentityLayer](#interface-identitylayer) | [NonceProvider](#interface-nonceprovider) | [Thread](#interface-thread) |
+| [IdentityVerificationAcknowledgment](#interface-identityverificationacknowledgment) | [PeerMessage](#interface-peermessage) | [Unit](#interface-unit) |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -40,6 +38,237 @@ Decimal string. Avoid floats at the protocol layer.
 
 ```ts
 value: string
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Interface: BasicBrc29FactoryConfig
+
+```ts
+export interface BasicBrc29FactoryConfig extends Brc29RemittanceModuleConfig {
+    comms: CommsLayer;
+}
+```
+
+See also: [Brc29RemittanceModuleConfig](./remittance.md#interface-brc29remittancemoduleconfig), [CommsLayer](./remittance.md#interface-commslayer)
+
+#### Property comms
+
+Comms layer for the module factory. (Not used by BasicBRC29, probably should be removed.)
+
+```ts
+comms: CommsLayer
+```
+See also: [CommsLayer](./remittance.md#interface-commslayer)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Interface: Brc29OptionTerms
+
+BRC-29-like payment option terms.
+
+This module intentionally keeps option terms minimal:
+- Amount is taken from the invoice total (and validated as satoshis)
+- The payer derives the payee's per-payment public key using wallet.getPublicKey with a stable protocolID
+
+```ts
+export interface Brc29OptionTerms {
+    amountSatoshis: number;
+    outputIndex?: number;
+    protocolID?: WalletProtocol;
+    labels?: string[];
+    description?: string;
+}
+```
+
+See also: [WalletProtocol](./wallet.md#type-walletprotocol)
+
+#### Property amountSatoshis
+
+Payment amount in satoshis.
+
+```ts
+amountSatoshis: number
+```
+
+#### Property description
+
+Optional description for createAction.
+
+```ts
+description?: string
+```
+
+#### Property labels
+
+Optional labels for createAction.
+
+```ts
+labels?: string[]
+```
+
+#### Property outputIndex
+
+Which output index to internalize, default 0.
+
+```ts
+outputIndex?: number
+```
+
+#### Property protocolID
+
+Optionally override the protocolID used in getPublicKey.
+
+```ts
+protocolID?: WalletProtocol
+```
+See also: [WalletProtocol](./wallet.md#type-walletprotocol)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Interface: Brc29ReceiptData
+
+Receipt data for BRC-29 settlements.
+
+```ts
+export interface Brc29ReceiptData {
+    internalizeResult?: unknown;
+    rejectedReason?: string;
+    refund?: {
+        token: Brc29SettlementArtifact;
+        feeSatoshis: number;
+    };
+}
+```
+
+See also: [Brc29SettlementArtifact](./remittance.md#interface-brc29settlementartifact)
+
+#### Property internalizeResult
+
+Result returned from wallet.internalizeAction, if accepted.
+
+```ts
+internalizeResult?: unknown
+```
+
+#### Property refund
+
+If rejected with refund, contains the refund payment token.
+
+```ts
+refund?: {
+    token: Brc29SettlementArtifact;
+    feeSatoshis: number;
+}
+```
+See also: [Brc29SettlementArtifact](./remittance.md#interface-brc29settlementartifact)
+
+#### Property rejectedReason
+
+Human-readable rejection reason, if rejected.
+
+```ts
+rejectedReason?: string
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Interface: Brc29RemittanceModuleConfig
+
+```ts
+export interface Brc29RemittanceModuleConfig {
+    protocolID?: WalletProtocol;
+    labels?: string[];
+    description?: string;
+    outputDescription?: string;
+    refundFeeSatoshis?: number;
+    minRefundSatoshis?: number;
+    internalizeProtocol?: "wallet payment" | "basket insertion";
+    nonceProvider?: NonceProvider;
+    lockingScriptProvider?: LockingScriptProvider;
+}
+```
+
+See also: [LockingScriptProvider](./remittance.md#interface-lockingscriptprovider), [NonceProvider](./remittance.md#interface-nonceprovider), [WalletProtocol](./wallet.md#type-walletprotocol)
+
+#### Property description
+
+Description applied to created actions.
+
+```ts
+description?: string
+```
+
+#### Property internalizeProtocol
+
+How wallet internalizes the payment.
+
+```ts
+internalizeProtocol?: "wallet payment" | "basket insertion"
+```
+
+#### Property labels
+
+Labels applied to created actions.
+
+```ts
+labels?: string[]
+```
+
+#### Property minRefundSatoshis
+
+Minimum refund to issue. If refund would be smaller, module will reject without refund.
+
+```ts
+minRefundSatoshis?: number
+```
+
+#### Property outputDescription
+
+Output description for created actions.
+
+```ts
+outputDescription?: string
+```
+
+#### Property protocolID
+
+Default protocolID to use with wallet.getPublicKey.
+
+```ts
+protocolID?: WalletProtocol
+```
+See also: [WalletProtocol](./wallet.md#type-walletprotocol)
+
+#### Property refundFeeSatoshis
+
+Fee charged on refunds, in satoshis.
+
+```ts
+refundFeeSatoshis?: number
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Interface: Brc29SettlementArtifact
+
+Settlement artifact carried in the settlement message.
+
+```ts
+export interface Brc29SettlementArtifact {
+    customInstructions: {
+        derivationPrefix: string;
+        derivationSuffix: string;
+    };
+    transaction: unknown;
+    amountSatoshis: number;
+    outputIndex?: number;
+}
 ```
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -450,6 +679,25 @@ quantity?: string
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
+### Interface: LockingScriptProvider
+
+```ts
+export interface LockingScriptProvider {
+    pubKeyToP2PKHLockingScript: (publicKey: string) => Promise<string> | string;
+}
+```
+
+#### Property pubKeyToP2PKHLockingScript
+
+Converts a public key string to a P2PKH locking script hex.
+
+```ts
+pubKeyToP2PKHLockingScript: (publicKey: string) => Promise<string> | string
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Interface: LoggerLike
 
 Simple logger interface.
@@ -487,6 +735,19 @@ Optional originator domain forwarded to wallet methods.
 ```ts
 originator?: unknown
 ```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Interface: NonceProvider
+
+```ts
+export interface NonceProvider {
+    createNonce: (wallet: WalletInterface, scope: WalletCounterparty, originator?: unknown) => Promise<string>;
+}
+```
+
+See also: [WalletCounterparty](./wallet.md#type-walletcounterparty), [WalletInterface](./wallet.md#interface-walletinterface), [createNonce](./auth.md#function-createnonce)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -1146,6 +1407,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | |
 | --- |
+| [Brc29RemittanceModule](#class-brc29remittancemodule) |
 | [InvoiceHandle](#class-invoicehandle) |
 | [RemittanceManager](#class-remittancemanager) |
 
@@ -1153,6 +1415,71 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ---
 
+### Class: Brc29RemittanceModule
+
+BRC-29-based remittance module.
+
+This is the PeerPay v1 flow rewritten as a RemittanceModule:
+- payer creates a payment action to a derived P2PKH output
+- payer sends { tx, derivationPrefix, derivationSuffix } as settlement artifact
+- payee internalizes the tx output using wallet.internalizeAction
+- optional rejection can include a refund token embedded in the termination details
+
+```ts
+export class Brc29RemittanceModule implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29ReceiptData> {
+    readonly id: RemittanceOptionId = "brc29.p2pkh";
+    readonly name = "BSV (BRC-29 derived P2PKH)";
+    readonly allowUnsolicitedSettlements = false;
+    constructor(cfg: Brc29RemittanceModuleConfig = {}) 
+    async createOption(args: {
+        threadId: string;
+        invoice: Invoice;
+    }, _ctx: ModuleContext): Promise<Brc29OptionTerms> 
+    async buildSettlement(args: {
+        threadId: string;
+        invoice?: Invoice;
+        option: Brc29OptionTerms;
+        note?: string;
+    }, ctx: ModuleContext): Promise<{
+        action: "settle";
+        artifact: Brc29SettlementArtifact;
+    } | {
+        action: "terminate";
+        termination: Termination;
+    }> 
+    async acceptSettlement(args: {
+        threadId: string;
+        invoice?: Invoice;
+        settlement: Brc29SettlementArtifact;
+        sender: PubKeyHex;
+    }, ctx: ModuleContext): Promise<{
+        action: "accept";
+        receiptData?: Brc29ReceiptData;
+    } | {
+        action: "terminate";
+        termination: Termination;
+    }> 
+    async processReceipt(args: {
+        threadId: string;
+        invoice?: Invoice;
+        receiptData: Brc29ReceiptData;
+        sender: PubKeyHex;
+    }, ctx: ModuleContext): Promise<void> 
+    async rejectSettlement(args: {
+        threadId: string;
+        invoice?: Invoice;
+        settlement: Brc29SettlementArtifact;
+        sender: PubKeyHex;
+        reason?: string;
+    }, ctx: ModuleContext): Promise<Brc29ReceiptData> 
+}
+```
+
+See also: [Brc29OptionTerms](./remittance.md#interface-brc29optionterms), [Brc29ReceiptData](./remittance.md#interface-brc29receiptdata), [Brc29RemittanceModuleConfig](./remittance.md#interface-brc29remittancemoduleconfig), [Brc29SettlementArtifact](./remittance.md#interface-brc29settlementartifact), [Invoice](./remittance.md#interface-invoice), [ModuleContext](./remittance.md#interface-modulecontext), [PubKeyHex](./wallet.md#type-pubkeyhex), [RemittanceModule](./remittance.md#interface-remittancemodule), [RemittanceOptionId](./remittance.md#type-remittanceoptionid), [Termination](./remittance.md#interface-termination)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Class: InvoiceHandle
 
 A lightweight wrapper around a thread's invoice, with convenience methods.
@@ -1421,6 +1748,19 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ---
 ## Functions
 
+### Function: createBasicBrc29Module
+
+Creates a Basic BRC-29 remittance module instance.
+
+```ts
+export function createBasicBrc29Module(cfg: BasicBrc29FactoryConfig): Brc29RemittanceModule 
+```
+
+See also: [BasicBrc29FactoryConfig](./remittance.md#interface-basicbrc29factoryconfig), [Brc29RemittanceModule](./remittance.md#class-brc29remittancemodule)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ## Types
 
 | |
@@ -1491,6 +1831,8 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 | |
 | --- |
 | [DEFAULT_REMITTANCE_MESSAGEBOX](#variable-default_remittance_messagebox) |
+| [DefaultLockingScriptProvider](#variable-defaultlockingscriptprovider) |
+| [DefaultNonceProvider](#variable-defaultnonceprovider) |
 | [SAT_UNIT](#variable-sat_unit) |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
@@ -1502,6 +1844,38 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ```ts
 DEFAULT_REMITTANCE_MESSAGEBOX = "remittance_inbox"
 ```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: DefaultLockingScriptProvider
+
+```ts
+DefaultLockingScriptProvider: LockingScriptProvider = {
+    async pubKeyToP2PKHLockingScript(publicKey: string) {
+        const address = PublicKey.fromString(publicKey).toAddress();
+        return new P2PKH().lock(address).toHex();
+    }
+}
+```
+
+See also: [LockingScriptProvider](./remittance.md#interface-lockingscriptprovider), [P2PKH](./script.md#class-p2pkh), [PublicKey](./primitives.md#class-publickey), [toHex](./primitives.md#variable-tohex)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: DefaultNonceProvider
+
+```ts
+DefaultNonceProvider: NonceProvider = {
+    async createNonce(wallet, scope, originator) {
+        const origin = originator as OriginatorDomainNameStringUnder250Bytes | undefined;
+        return await createNonce(wallet, scope, origin);
+    }
+}
+```
+
+See also: [NonceProvider](./remittance.md#interface-nonceprovider), [OriginatorDomainNameStringUnder250Bytes](./wallet.md#type-originatordomainnamestringunder250bytes), [createNonce](./auth.md#function-createnonce)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
