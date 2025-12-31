@@ -1,4 +1,4 @@
-import type {
+import {
   RemittanceEnvelope,
   Invoice,
   IdentityVerificationRequest,
@@ -110,7 +110,6 @@ const exampleReceipt: RemittanceEnvelope<'receipt', Receipt> = {
     payee: 'identity-key-1',
     payer: 'identity-key-2',
     createdAt: Date.now(),
-    accepted: true,
     receiptData: { txid: 'txid-abc' }
   }
 }

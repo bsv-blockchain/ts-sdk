@@ -150,9 +150,9 @@ export interface Settlement {
 /**
  * Receipt issued by the payee (or service provider).
  *
- * The manager treats "accepted" as a top-level boolean; module-specific details go in receiptData.
- *
  * A receipt could be a PDF, a photo/oroof-of-delivery, a copy of the payment transaction, etc.
+*
+ * A receipt should NOT be issued when a settlement is rejected/failed. Use a Termination instead.
  */
 export interface Receipt {
   kind: 'receipt'
@@ -162,7 +162,6 @@ export interface Receipt {
   payee: PubKeyHex
   payer: PubKeyHex
   createdAt: UnixMillis
-  accepted: boolean
   receiptData: unknown
 }
 
@@ -174,7 +173,7 @@ export interface Termination {
   code: string
   /** Human-readable message. */
   message: string
-  /** Optional module-specific details. */
+  /** Optional module-specific details or refund information. */
   details?: unknown
 }
 

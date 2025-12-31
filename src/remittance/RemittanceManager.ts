@@ -569,7 +569,47 @@ export class RemittanceManager {
     // - Receiving a termination -> assume we are taker
     const createdAt = this.now()
 
-    const inferredMyRole: Thread['myRole'] = env.kind === 'invoice' ? 'taker' : env.kind === 'settlement' ? 'maker' : 'taker'
+    const inferredMyRole: Thread['myRole'] = (() => {
+      if (env.kind === 'invoice') return 'taker'
+      if (env.kind === 'settlement') return 'maker'
+      if (env.kind === 'receipt') return 'taker'
+      if (env.kind === 'termination') return 'taker'
+
+      if (
+        env.kind === 'identityVerificationRequest' ||
+        env.kind === 'identityVerificationResponse' ||
+        env.kind === 'identityVerificationAcknowledgment'
+      ) {
+        const makerRequest = this.runtime.identityOptions?.makerRequestIdentity ?? 'never'
+        const takerRequest = this.runtime.identityOptions?.takerRequestIdentity ?? 'never'
+        const makerRequests = makerRequest !== 'never'
+        const takerRequests = takerRequest !== 'never'
+
+        let requesterRole: Thread['myRole'] | undefined
+        if (makerRequests && !takerRequests) {
+          requesterRole = 'maker'
+        } else if (takerRequests && !makerRequests) {
+          requesterRole = 'taker'
+        } else if (makerRequests && takerRequests && makerRequest !== takerRequest) {
+          requesterRole =
+            makerRequest === 'beforeInvoicing' && takerRequest === 'beforeSettlement'
+              ? 'maker'
+              : makerRequest === 'beforeSettlement' && takerRequest === 'beforeInvoicing'
+                ? 'taker'
+                : undefined
+        }
+
+        if (typeof requesterRole !== 'string') return 'taker'
+
+        if (env.kind === 'identityVerificationResponse') {
+          return requesterRole
+        }
+
+        return requesterRole === 'maker' ? 'taker' : 'maker'
+      }
+
+      return 'taker'
+    })()
     const inferredTheirRole: Thread['theirRole'] = inferredMyRole === 'maker' ? 'taker' : 'maker'
 
     const t: Thread = {
@@ -598,11 +638,11 @@ export class RemittanceManager {
     return t
   }
 
-  private async applyInboundEnvelope(thread: Thread, env: RemittanceEnvelope, msg: PeerMessage): Promise<void> {
+  private async applyInboundEnvelope (thread: Thread, env: RemittanceEnvelope, msg: PeerMessage): Promise<void> {
     thread.protocolLog.push({ direction: 'in', envelope: env, transportMessageId: msg.messageId })
 
     switch (env.kind) {
-      case 'identity.hello': {
+      case 'identity.hello': { // !!! FIXME !!!
         const payload = env.payload as IdentityHelloPayload
         thread.identity = thread.identity ?? {}
         thread.identity.theirs = payload.identity
@@ -620,27 +660,9 @@ export class RemittanceManager {
       }
 
       case 'invoice': {
-        const payload = env.payload as InvoicePayload
-
-        let invoice: Invoice | undefined = payload.invoice
-
-        if (!invoice && payload.invoiceRef?.type === 'onchain') {
-          const fetcher = this.cfg.invoicePublisher?.fetchInvoice
-          if (!fetcher) {
-            throw new Error('Received onchain invoiceRef but no invoicePublisher.fetchInvoice configured')
-          }
-          invoice = await fetcher(payload.invoiceRef)
-        }
-
-        if (!invoice) {
-          throw new Error('Invoice payload missing invoice and invoiceRef')
-        }
-
-        if (payload.invoiceHash) {
-          const actualHash = hashObjectBase64(invoice)
-          if (actualHash !== payload.invoiceHash) {
-            throw new Error('Invoice hash mismatch')
-          }
+        const invoice = env.payload as Invoice
+        if (typeof invoice !== 'object') {
+          throw new Error('Invoice payload missing invoice data')
         }
 
         thread.invoice = invoice
@@ -649,16 +671,18 @@ export class RemittanceManager {
       }
 
       case 'settlement': {
-        const payload = env.payload as SettlementPayload
-        const settlement = payload.settlement
+        const settlement = env.payload as Settlement
+        if (typeof settlement !== 'object') {
+          throw new Error('Settlement payload missing settlement data')
+        }
 
         // Persist settlement immediately (even if we later reject); it is part of the audit trail.
         thread.settlement = settlement
         thread.flags.hasPaid = true
 
         const module = this.moduleRegistry.get(settlement.moduleId)
-        if (!module) {
-          await this.maybeSendErrorReceipt(thread, settlement, msg.sender, `Unsupported module: ${settlement.moduleId}`)
+        if (typeof module !== 'object') {
+          await this.maybeSendTermination(thread, settlement, msg.sender, `Unsupported module: ${settlement.moduleId}`)
           return
         }
 
@@ -746,7 +770,7 @@ export class RemittanceManager {
     }
   }
 
-  private async maybeSendErrorReceipt(thread: Thread, settlement: Settlement, payer: PubKeyHex, message: string): Promise<void> {
+  private async maybeSendTermination(thread: Thread, settlement: Settlement, payer: PubKeyHex, message: string): Promise<void> {
     if (!this.runtime.receiptProvided) return
 
     const myKey = this.requireMyIdentityKey('maybeSendErrorReceipt requires identity key')
