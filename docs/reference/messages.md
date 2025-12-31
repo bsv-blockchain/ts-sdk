@@ -2,30 +2,6 @@
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Variables](#variables)
 
-## Security Considerations for Encrypted Messages
-
-The encrypted message protocol implemented in this SDK derives per-message
-encryption keys deterministically from the parties’ long-term keys and a
-caller-supplied invoice number (BRC-42 style derivation).
-
-This construction does **not** provide the guarantees of a standard
-authenticated key exchange (AKE). In particular:
-
-- **No forward secrecy**: Compromise of a long-term private key compromises
-  all past and future messages derived from it.
-- **No replay protection**: Messages encrypted under the same invoice number
-  and key pair can be replayed.
-- **Potential identity misbinding**: Public keys alone do not guarantee peer
-  identity without additional authentication or identity verification.
-
-This protocol is intended for lightweight, deterministic messaging between
-parties that already trust each other’s long-term public keys. It SHOULD NOT
-be used for high-security or high-value communications without additional
-protocol-layer protections.
-
-Applications requiring strong authentication, replay protection, or forward
-secrecy should use a formally analyzed protocol such as X3DH, Noise, or SIGMA.
-
 ## Interfaces
 
 ## Classes

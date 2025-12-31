@@ -2509,6 +2509,32 @@ Returns
 
 #### Method deriveChild
 
+SECURITY NOTE – DETERMINISTIC CHILD KEY DERIVATION
+
+This method derives child private keys deterministically from the caller’s
+long-term private key, the counterparty’s public key, and a caller-supplied
+invoice number using HMAC over an ECDH shared secret (BRC-42 style derivation).
+
+This construction does NOT implement a formally authenticated key exchange
+(AKE) and does NOT provide the following security properties:
+
+ - Forward secrecy: Compromise of a long-term private key compromises all
+   past and future child keys derived from it.
+ - Replay protection: Child keys are deterministic for a given invoice
+   number and key pair; previously observed messages can be replayed.
+ - Explicit authentication / identity binding: Possession of a public key
+   alone does not guarantee the intended peer identity, enabling potential
+   identity misbinding attacks if higher-level identity verification is absent.
+
+This derivation is intended for lightweight, deterministic key hierarchies
+where both parties already possess and trust each other’s long-term public
+keys. It SHOULD NOT be used as a drop-in replacement for a standard
+authenticated key exchange (e.g. X3DH, Noise, or SIGMA) in high-security or
+high-value contexts.
+
+Any future protocol providing forward secrecy, replay protection, or strong
+peer authentication will require a versioned, breaking change.
+
 Derives a child key with BRC-42.
 
 ```ts
@@ -5924,16 +5950,18 @@ multiply = function (block0: Bytes, block1: Bytes): Bytes {
     const v = block1.slice();
     const z = createZeroBlock(16);
     for (let i = 0; i < 16; i++) {
+        const b = block0[i];
         for (let j = 7; j >= 0; j--) {
-            if ((block0[i] & (1 << j)) !== 0) {
-                xorInto(z, v);
+            const bit = (b >> j) & 1;
+            const mask = -bit & 255;
+            for (let k = 0; k < 16; k++) {
+                z[k] ^= v[k] & mask;
             }
-            if ((v[15] & 1) !== 0) {
-                rightShift(v);
-                xorInto(v, R);
-            }
-            else {
-                rightShift(v);
+            const lsb = v[15] & 1;
+            const rmask = -lsb & 255;
+            rightShift(v);
+            for (let k = 0; k < 16; k++) {
+                v[k] ^= R[k] & rmask;
             }
         }
     }

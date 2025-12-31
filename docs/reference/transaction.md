@@ -1608,11 +1608,11 @@ export default class Transaction {
     async verify(chainTracker: ChainTracker | "scripts only" = defaultChainTracker(), feeModel?: FeeModel, memoryLimit?: number): Promise<boolean> 
     toBEEF(allowPartial?: boolean): number[] 
     toAtomicBEEF(allowPartial?: boolean): number[] 
-    async completeWithWallet(wallet: WalletInterface, actionDescription?: DescriptionString5to50Bytes, originator?: string): Promise<void> 
+    async completeWithWallet(wallet: WalletInterface, actionDescription?: DescriptionString5to50Bytes, originator?: string, options?: CreateActionOptions): Promise<void> 
 }
 ```
 
-See also: [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [Broadcaster](./transaction.md#interface-broadcaster), [ChainTracker](./transaction.md#interface-chaintracker), [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [FeeModel](./transaction.md#interface-feemodel), [LivePolicy](./transaction.md#class-livepolicy), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput), [WalletInterface](./wallet.md#interface-walletinterface), [defaultBroadcaster](./transaction.md#function-defaultbroadcaster), [defaultChainTracker](./transaction.md#function-defaultchaintracker), [sign](./compat.md#variable-sign), [toHex](./primitives.md#variable-tohex), [verify](./compat.md#variable-verify)
+See also: [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [Broadcaster](./transaction.md#interface-broadcaster), [ChainTracker](./transaction.md#interface-chaintracker), [CreateActionOptions](./wallet.md#interface-createactionoptions), [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [FeeModel](./transaction.md#interface-feemodel), [LivePolicy](./transaction.md#class-livepolicy), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput), [WalletInterface](./wallet.md#interface-walletinterface), [defaultBroadcaster](./transaction.md#function-defaultbroadcaster), [defaultChainTracker](./transaction.md#function-defaultchaintracker), [sign](./compat.md#variable-sign), [toHex](./primitives.md#variable-tohex), [verify](./compat.md#variable-verify)
 
 #### Method addInput
 
@@ -1687,9 +1687,9 @@ transaction into a format that can be processed by the wallet, and then
 updates this transaction object with the result from the wallet.
 
 ```ts
-async completeWithWallet(wallet: WalletInterface, actionDescription?: DescriptionString5to50Bytes, originator?: string): Promise<void> 
+async completeWithWallet(wallet: WalletInterface, actionDescription?: DescriptionString5to50Bytes, originator?: string, options?: CreateActionOptions): Promise<void> 
 ```
-See also: [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [WalletInterface](./wallet.md#interface-walletinterface)
+See also: [CreateActionOptions](./wallet.md#interface-createactionoptions), [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [WalletInterface](./wallet.md#interface-walletinterface)
 
 Argument Details
 
@@ -1699,6 +1699,8 @@ Argument Details
   + Optional description for the action
 + **originator**
   + Optional originator domain name
++ **options**
+  + Optional settings for transaction creation (e.g., acceptDelayedBroadcast, trustSelf, noSend, etc.)
 
 #### Method fee
 
