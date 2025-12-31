@@ -2,6 +2,10 @@ import BigNumber from './BigNumber.js'
 import { hash256 } from './Hash.js'
 import { assertValidHex } from './hex.js'
 
+import { ReaderUint8Array } from './ReaderUint8Array.js'
+
+export { ReaderUint8Array }
+
 const BufferCtor =
   typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
 const CAN_USE_BUFFER =
@@ -32,7 +36,7 @@ for (let i = 0; i < 256; i++) {
     HEX_DIGITS[(i >> 4) & 0xf] + HEX_DIGITS[i & 0xf]
 }
 
-export const toHex = (msg: number[]): string => {
+export const toHex = (msg: number[] | Uint8Array): string => {
   if (CAN_USE_BUFFER) {
     return BufferCtor.from(msg).toString('hex')
   }

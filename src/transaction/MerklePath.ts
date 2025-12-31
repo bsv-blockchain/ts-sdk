@@ -2,6 +2,7 @@
 import { Reader, Writer, toHex, toArray } from '../primitives/utils.js'
 import { hash256 } from '../primitives/Hash.js'
 import ChainTracker from './ChainTracker.js'
+import { ReaderUint8Array } from '../primitives/ReaderUint8Array.js'
 
 export interface MerklePathLeaf {
   offset: number
@@ -54,7 +55,7 @@ export default class MerklePath {
   }
 
   static fromReader (
-    reader: Reader,
+    reader: Reader | ReaderUint8Array,
     legalOffsetsOnly: boolean = true
   ): MerklePath {
     const blockHeight = reader.readVarIntNum()
