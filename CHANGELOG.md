@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.9.31 - 2025-12-30](#1931---2025-12-30)
 - [1.9.30 - 2025-12-18](#1930---2025-12-18)
 - [1.9.29 - 2025-12-12](#1929---2025-12-12)
 - [1.9.28 - 2025-12-11](#1928---2025-12-11)
@@ -200,6 +201,13 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [1.9.31] - 2025-12-30
+
+### Added
+- Implemented new `Transaction.completeWithWallet()` method that provides complete BRC-100 wallet integration for transaction funding, signing, and broadcasting.
 
 ---
 
