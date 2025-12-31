@@ -6,8 +6,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | | | |
 | --- | --- | --- |
-| [Amount](#interface-amount) | [IdentityVerificationRequest](#interface-identityverificationrequest) | [Receipt](#interface-receipt) |
-| [BasicBrc29FactoryConfig](#interface-basicbrc29factoryconfig) | [IdentityVerificationResponse](#interface-identityverificationresponse) | [RemittanceEnvelope](#interface-remittanceenvelope) |
+| [Amount](#interface-amount) | [IdentityVerificationResponse](#interface-identityverificationresponse) | [RemittanceEnvelope](#interface-remittanceenvelope) |
 | [Brc29OptionTerms](#interface-brc29optionterms) | [InstrumentBase](#interface-instrumentbase) | [RemittanceManagerConfig](#interface-remittancemanagerconfig) |
 | [Brc29ReceiptData](#interface-brc29receiptdata) | [Invoice](#interface-invoice) | [RemittanceManagerRuntimeOptions](#interface-remittancemanagerruntimeoptions) |
 | [Brc29RemittanceModuleConfig](#interface-brc29remittancemoduleconfig) | [LineItem](#interface-lineitem) | [RemittanceManagerState](#interface-remittancemanagerstate) |
@@ -16,6 +15,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 | [ComposeInvoiceInput](#interface-composeinvoiceinput) | [ModuleContext](#interface-modulecontext) | [Termination](#interface-termination) |
 | [IdentityLayer](#interface-identitylayer) | [NonceProvider](#interface-nonceprovider) | [Thread](#interface-thread) |
 | [IdentityVerificationAcknowledgment](#interface-identityverificationacknowledgment) | [PeerMessage](#interface-peermessage) | [Unit](#interface-unit) |
+| [IdentityVerificationRequest](#interface-identityverificationrequest) | [Receipt](#interface-receipt) |  |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -39,28 +39,6 @@ Decimal string. Avoid floats at the protocol layer.
 ```ts
 value: string
 ```
-
-Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
-
----
-### Interface: BasicBrc29FactoryConfig
-
-```ts
-export interface BasicBrc29FactoryConfig extends Brc29RemittanceModuleConfig {
-    comms: CommsLayer;
-}
-```
-
-See also: [Brc29RemittanceModuleConfig](./remittance.md#interface-brc29remittancemoduleconfig), [CommsLayer](./remittance.md#interface-commslayer)
-
-#### Property comms
-
-Comms layer for the module factory. (Not used by BasicBRC29, probably should be removed.)
-
-```ts
-comms: CommsLayer
-```
-See also: [CommsLayer](./remittance.md#interface-commslayer)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -1418,8 +1396,6 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Class: Brc29RemittanceModule
 
 BRC-29-based remittance module.
-
-This is the PeerPay v1 flow rewritten as a RemittanceModule:
 - payer creates a payment action to a derived P2PKH output
 - payer sends { tx, derivationPrefix, derivationSuffix } as settlement artifact
 - payee internalizes the tx output using wallet.internalizeAction
@@ -1748,19 +1724,6 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ---
 ## Functions
 
-### Function: createBasicBrc29Module
-
-Creates a Basic BRC-29 remittance module instance.
-
-```ts
-export function createBasicBrc29Module(cfg: BasicBrc29FactoryConfig): Brc29RemittanceModule 
-```
-
-See also: [BasicBrc29FactoryConfig](./remittance.md#interface-basicbrc29factoryconfig), [Brc29RemittanceModule](./remittance.md#class-brc29remittancemodule)
-
-Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
-
----
 ## Types
 
 | |

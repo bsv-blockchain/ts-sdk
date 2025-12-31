@@ -5,7 +5,6 @@ import type {
 } from '../types.js'
 import type { ModuleContext } from '../types.js'
 import type { RemittanceModule } from '../RemittanceModule.js'
-import type { CommsLayer } from '../CommsLayer.js'
 import type {
   WalletInterface,
   WalletCounterparty,
@@ -121,17 +120,8 @@ export interface Brc29RemittanceModuleConfig {
   lockingScriptProvider?: LockingScriptProvider
 }
 
-export interface BasicBrc29FactoryConfig extends Brc29RemittanceModuleConfig {
-  /**
-   * Comms layer for the module factory. (Not used by BasicBRC29, probably should be removed.)
-   */
-  comms: CommsLayer
-}
-
 /**
  * BRC-29-based remittance module.
- *
- * This is the PeerPay v1 flow rewritten as a RemittanceModule:
  * - payer creates a payment action to a derived P2PKH output
  * - payer sends { tx, derivationPrefix, derivationSuffix } as settlement artifact
  * - payee internalizes the tx output using wallet.internalizeAction
@@ -154,10 +144,10 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
   private readonly lockingScriptProvider: LockingScriptProvider
 
   constructor (cfg: Brc29RemittanceModuleConfig = {}) {
-    // PeerPay v1’s protocolID default:
+    // BRC-29 Protocol.
     this.protocolID = cfg.protocolID ?? [2, '3241645161d8']
-    this.labels = cfg.labels ?? ['peerpay']
-    this.description = cfg.description ?? 'PeerPay v2 payment'
+    this.labels = cfg.labels ?? ['brc29']
+    this.description = cfg.description ?? 'BRC-29 payment'
     this.outputDescription = cfg.outputDescription ?? 'Payment for remittance invoice'
     this.refundFeeSatoshis = cfg.refundFeeSatoshis ?? 1000
     this.minRefundSatoshis = cfg.minRefundSatoshis ?? 1000
@@ -290,7 +280,7 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
             }
           ],
           labels: this.labels,
-          description: 'PeerPay v2 payment received'
+          description: 'BRC-29 payment received'
         },
         origin
       )
@@ -326,7 +316,7 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
           }
         ],
         labels: this.labels,
-        description: 'PeerPay v2 refund received'
+        description: 'BRC-29 refund received'
       },
       origin
     )
@@ -349,7 +339,7 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
     const refund = amount - fee
 
     if (refund < this.minRefundSatoshis) {
-      // Reject without refund, mirroring PeerPay v1's “too small after fee” behavior.
+      // Reject without refund, since it would be too small after fee.
       return { rejectedReason: `${reason} (amount too small to refund after fee)` }
     }
 
@@ -419,15 +409,6 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
     }
     return result.artifact
   }
-}
-
-/**
- * Creates a Basic BRC-29 remittance module instance.
- */
-export function createBasicBrc29Module (cfg: BasicBrc29FactoryConfig): Brc29RemittanceModule {
-  const { comms: _comms, ...rest } = cfg
-  void _comms
-  return new Brc29RemittanceModule(rest)
 }
 
 function terminate (code: string, message: string, details?: unknown): { action: 'terminate'; termination: Termination } {

@@ -1,16 +1,6 @@
-import type { CommsLayer } from '../CommsLayer.js'
 import type { Invoice, ModuleContext } from '../types.js'
 import type { WalletInterface } from '../../wallet/Wallet.interfaces.js'
-import {
-  Brc29RemittanceModule,
-  createBasicBrc29Module
-} from '../module-factories/BasicBRC29.js'
-
-const mockComms: CommsLayer = {
-  sendMessage: async () => 'msg-1',
-  listMessages: async () => [],
-  acknowledgeMessage: async () => {}
-}
+import { Brc29RemittanceModule } from '../modules/BasicBRC29.js'
 
 const makeInvoice = (overrides: Partial<Invoice> = {}): Invoice => ({
   kind: 'invoice',
@@ -31,19 +21,9 @@ const makeContext = (wallet: WalletInterface): ModuleContext => ({
   now: () => 123
 })
 
-describe('BasicBRC29 factory', () => {
-  it('returns a configured BRC-29 module', () => {
-    const module = createBasicBrc29Module({ comms: mockComms })
-    expect(module).toBeInstanceOf(Brc29RemittanceModule)
-    expect(module.id).toBe('brc29.p2pkh')
-    expect(module.name).toBe('BSV (BRC-29 derived P2PKH)')
-    expect(module.allowUnsolicitedSettlements).toBe(false)
-  })
-})
-
 describe('Brc29RemittanceModule', () => {
   it('creates option terms from satoshi invoice totals', async () => {
-    const module = createBasicBrc29Module({ comms: mockComms })
+    const module = new Brc29RemittanceModule()
     const invoice = makeInvoice()
     const option = await module.createOption({ threadId: 'thread-1', invoice }, makeContext({} as WalletInterface))
     expect(option.amountSatoshis).toBe(1000)
@@ -51,7 +31,7 @@ describe('Brc29RemittanceModule', () => {
   })
 
   it('rejects non-satoshi invoice totals', async () => {
-    const module = createBasicBrc29Module({ comms: mockComms })
+    const module = new Brc29RemittanceModule()
     const invoice = makeInvoice({
       total: { value: '12.50', unit: { namespace: 'iso4217', code: 'USD', decimals: 2 } }
     })
@@ -66,8 +46,7 @@ describe('Brc29RemittanceModule', () => {
       createAction: jest.fn(async () => ({ tx: [1, 2, 3] }))
     } as unknown as WalletInterface
 
-    const module = createBasicBrc29Module({
-      comms: mockComms,
+    const module = new Brc29RemittanceModule({
       protocolID: [2, 'test-protocol'],
       labels: ['label-1'],
       description: 'Test payment',
@@ -120,7 +99,7 @@ describe('Brc29RemittanceModule', () => {
       createAction: jest.fn(async () => ({ tx: [1, 2, 3] }))
     } as unknown as WalletInterface
 
-    const module = createBasicBrc29Module({ comms: mockComms })
+    const module = new Brc29RemittanceModule()
     const invoice = makeInvoice()
     const option = { amountSatoshis: 0 }
     const result = await module.buildSettlement({ threadId: 'thread-1', invoice, option }, makeContext(wallet))
@@ -133,8 +112,7 @@ describe('Brc29RemittanceModule', () => {
       createAction: jest.fn(async () => ({}))
     } as unknown as WalletInterface
 
-    const module = createBasicBrc29Module({
-      comms: mockComms,
+    const module = new Brc29RemittanceModule({
       nonceProvider: {
         createNonce: jest.fn()
           .mockResolvedValueOnce('prefix')
@@ -158,7 +136,7 @@ describe('Brc29RemittanceModule', () => {
       internalizeAction: jest.fn(async () => ({ ok: true }))
     } as unknown as WalletInterface
 
-    const module = createBasicBrc29Module({ comms: mockComms })
+    const module = new Brc29RemittanceModule()
     const settlement = {
       customInstructions: { derivationPrefix: 'p', derivationSuffix: 's' },
       transaction: [9, 9, 9],
@@ -188,8 +166,8 @@ describe('Brc29RemittanceModule', () => {
             protocol: 'wallet payment'
           }
         ],
-        labels: ['peerpay'],
-        description: 'PeerPay v2 payment received'
+        labels: ['brc29'],
+        description: 'BRC-29 payment received'
       },
       'example.com'
     )
@@ -202,7 +180,7 @@ describe('Brc29RemittanceModule', () => {
       })
     } as unknown as WalletInterface
 
-    const module = createBasicBrc29Module({ comms: mockComms })
+    const module = new Brc29RemittanceModule()
     const settlement = {
       customInstructions: { derivationPrefix: 'p', derivationSuffix: 's' },
       transaction: [9, 9, 9],
@@ -223,7 +201,7 @@ describe('Brc29RemittanceModule', () => {
       internalizeAction: jest.fn(async () => ({ ok: true }))
     } as unknown as WalletInterface
 
-    const module = createBasicBrc29Module({ comms: mockComms })
+    const module = new Brc29RemittanceModule()
     await module.processReceipt(
       {
         threadId: 'thread-1',

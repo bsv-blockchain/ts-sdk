@@ -206,7 +206,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 - Implemented new `Transaction.completeWithWallet()` method that provides complete BRC-100 wallet integration for transaction funding, signing, and broadcasting.
-- Added the remittance manager system with identity flows plus a Basic BRC-29 module factory for first-party remittance support.
+- Added the remittance manager system with identity flows plus a Basic BRC-29 module for first-party remittance support.
 
 ### Changed
 - UTF8 encoding and decoding is now TextEncoder and TextDecoder based, and therefore standard. Previously we had a custom implementation which did thinks slightly differently, which caused issues when connecting client sand servers which use different languages. May cause a difference in HMAC calculation and therefore major version number is appropriate.
