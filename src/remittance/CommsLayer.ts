@@ -8,15 +8,16 @@ import type { PeerMessage, IdentityKey } from '../types'
  */
 export interface CommsLayer {
   /**
-   * Sends a message over the store-and-forward channel.
+   * Sends a message over the store-and-forward channel. Returns the transport messageId.
    */
-  sendMessage: (args: { recipient: IdentityKey; messageBox: string; body: string }, hostOverride?: string) => Promise<void>
+  sendMessage: (args: { recipient: IdentityKey; messageBox: string; body: string }, hostOverride?: string) => Promise<string>
 
   /**
-   * Sends a message over the live channel (WebSocket). Implementations may throw.
+   * Sends a message over the live channel (e.g. WebSocket). Returns the transport messageId.
+   * Implementers may throw if live sending is not possible.
    * RemittanceManager will fall back to sendMessage where appropriate.
    */
-  sendLiveMessage?: (args: { recipient: IdentityKey; messageBox: string; body: string }, hostOverride?: string) => Promise<void>
+  sendLiveMessage?: (args: { recipient: IdentityKey; messageBox: string; body: string }, hostOverride?: string) => Promise<string>
 
   /**
    * Lists pending messages for a message box.

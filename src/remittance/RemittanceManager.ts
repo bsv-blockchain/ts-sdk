@@ -197,14 +197,14 @@ export class RemittanceManager {
    * Safe to call multiple times.
    */
   async init (): Promise<void> {
-    if (!this.cfg.stateLoader) return
+    if (typeof this.cfg.stateLoader !== 'function') return
 
     const loaded = await this.cfg.stateLoader()
-    if (!loaded) return
+    if (typeof loaded !== 'object') return
 
     this.loadState(loaded)
 
-    if (loaded.defaultPaymentOptionId) {
+    if (typeof loaded.defaultPaymentOptionId === 'string') {
       this.defaultPaymentOptionId = loaded.defaultPaymentOptionId
     }
 
@@ -373,11 +373,11 @@ export class RemittanceManager {
    *
    * If receipts are enabled (receiptProvided), this method will optionally wait for a receipt.
    */
-  async pay(threadId: ThreadId, optionId?: string, hostOverride?: string): Promise<Receipt | undefined> {
+  async pay (threadId: ThreadId, optionId?: string, hostOverride?: string): Promise<Receipt | Termination | undefined> {
     await this.refreshMyIdentityKey()
 
     const thread = this.getThreadOrThrow(threadId)
-    if (!thread.invoice) throw new Error('Thread has no invoice to pay')
+    if (!thread.invoice) throw new Error('Thread has no invoice to pay') // !!! FIXME !!! (not nececcarily an error, when allowing unsolicited settlements)
 
     if (thread.flags.error) throw new Error('Thread is in error state')
     if (thread.settlement) throw new Error('Invoice already paid (settlement exists)')
@@ -437,7 +437,7 @@ export class RemittanceManager {
     }
 
     // Wait for receipt (polling + syncThreads) up to a default timeout.
-    return this.waitForReceipt(threadId)
+    return await this.waitForReceipt(threadId)
   }
 
   /**
@@ -445,14 +445,14 @@ export class RemittanceManager {
    *
    * Uses polling via syncThreads because live listeners are optional.
    */
-  async waitForReceipt(threadId: ThreadId, opts: { timeoutMs?: number; pollIntervalMs?: number } = {}): Promise<Receipt> {
+  async waitForReceipt (threadId: ThreadId, opts: { timeoutMs?: number; pollIntervalMs?: number } = {}): Promise<Receipt> {
     const timeoutMs = opts.timeoutMs ?? 30_000
     const pollIntervalMs = opts.pollIntervalMs ?? 500
 
     const start = this.now()
     while (this.now() - start < timeoutMs) {
       const t = this.getThreadOrThrow(threadId)
-      if (t.receipt) return t.receipt
+      if (typeof t.receipt === 'object') return t.receipt
 
       await this.syncThreads()
       await sleep(pollIntervalMs)
@@ -464,7 +464,7 @@ export class RemittanceManager {
   /**
    * Returns a thread by id (if present).
    */
-  getThread(threadId: ThreadId): Thread | undefined {
+  getThread (threadId: ThreadId): Thread | undefined {
     return this.threads.find((t) => t.threadId === threadId)
   }
 
@@ -473,55 +473,17 @@ export class RemittanceManager {
    *
    * Public so helper handles (e.g. InvoiceHandle) can call it.
    */
-  getThreadOrThrow(threadId: ThreadId): Thread {
+  getThreadOrThrow (threadId: ThreadId): Thread {
     const t = this.getThread(threadId)
-    if (!t) throw new Error(`Unknown thread: ${threadId}`)
+    if (typeof t !== 'object') throw new Error(`Unknown thread: ${threadId}`)
     return t
-  }
-
-  /**
-   * Sends a note message within a thread.
-   */
-  async sendNote(threadId: ThreadId, to: PubKeyHex, text: string, metadata?: Record<string, unknown>): Promise<void> {
-    const env = this.makeEnvelope('note', threadId, { text, metadata } satisfies NotePayload)
-    await this.sendEnvelope(to, env)
-    const thread = this.getThread(threadId)
-    if (thread) {
-      thread.protocolLog.push({ direction: 'out', envelope: env })
-      thread.updatedAt = this.now()
-      await this.persistState()
-    }
   }
 
   // ----------------------------
   // Internal helpers
   // ----------------------------
 
-  private async serializeInvoicePayload(invoice: Invoice): Promise<InvoicePayload> {
-    if (this.runtime.invoiceFormat === 'offchain') {
-      return { invoice }
-    }
-
-    if (this.runtime.invoiceFormat === 'hashed') {
-      const invoiceHash = hashObjectBase64(invoice)
-      return { invoice, invoiceHash }
-    }
-
-    if (this.runtime.invoiceFormat === 'onchain') {
-      const publisher = this.cfg.invoicePublisher
-      if (!publisher) {
-        throw new Error("invoiceFormat 'onchain' requires cfg.invoicePublisher")
-      }
-      const { txid } = await publisher.publishInvoice(invoice)
-      const invoiceHash = hashObjectBase64(invoice)
-      return { invoiceRef: { type: 'onchain', txid }, invoiceHash }
-    }
-
-    // invoiceFormat === 'none'
-    throw new Error('serializeInvoicePayload unreachable')
-  }
-
-  private moduleContext(): ModuleContext {
+  private moduleContext (): ModuleContext {
     return {
       wallet: this.wallet,
       originator: this.cfg.originator,
@@ -541,20 +503,19 @@ export class RemittanceManager {
     }
   }
 
-  private async sendEnvelope (recipient: PubKeyHex, env: RemittanceEnvelope, hostOverride?: string): Promise<void> {
+  private async sendEnvelope (recipient: PubKeyHex, env: RemittanceEnvelope, hostOverride?: string): Promise<string> {
     const body = JSON.stringify(env)
 
     // Prefer live if available.
     if (typeof this.comms.sendLiveMessage === 'function') {
       try {
-        await this.comms.sendLiveMessage({ recipient, messageBox: this.messageBox, body }, hostOverride)
-        return
+        return await this.comms.sendLiveMessage({ recipient, messageBox: this.messageBox, body }, hostOverride)
       } catch (e) {
         this.cfg.logger?.warn?.('[RemittanceManager] sendLiveMessage failed, falling back to non-live', e)
       }
     }
 
-    await this.comms.sendMessage({ recipient, messageBox: this.messageBox, body }, hostOverride)
+    return await this.comms.sendMessage({ recipient, messageBox: this.messageBox, body }, hostOverride)
   }
 
   private getOrCreateThreadFromInboundEnvelope (env: RemittanceEnvelope, msg: PeerMessage): Thread {
@@ -770,61 +731,24 @@ export class RemittanceManager {
     }
   }
 
-  private async maybeSendTermination(thread: Thread, settlement: Settlement, payer: PubKeyHex, message: string): Promise<void> {
-    if (!this.runtime.receiptProvided) return
-
-    const myKey = this.requireMyIdentityKey('maybeSendErrorReceipt requires identity key')
-
-    const receipt: Receipt = {
-      kind: 'receipt',
-      threadId: thread.threadId,
-      moduleId: settlement.moduleId,
-      optionId: settlement.optionId,
-      payee: myKey,
-      payer,
-      createdAt: this.now(),
-      accepted: false,
-      receiptData: { rejectedReason: message }
+  private async maybeSendTermination (thread: Thread, settlement: Settlement, payer: PubKeyHex, message: string): Promise<void> {
+    const t: Termination = {
+      code: 'error',
+      message
     }
 
-    const env = this.makeEnvelope('receipt', thread.threadId, { receipt } satisfies ReceiptPayload)
-    await this.sendEnvelope(payer, env)
-    thread.protocolLog.push({ direction: 'out', envelope: env })
+    const env = this.makeEnvelope('termination', thread.threadId, t)
+    const mid = await this.sendEnvelope(payer, env)
+    thread.protocolLog.push({ direction: 'out', envelope: env, transportMessageId: mid })
 
-    thread.receipt = receipt
-    thread.flags.hasReceipted = true
+    thread.lastError = {
+      message: `Sent termination: ${message}`,
+      at: this.now()
+    }
+    thread.flags.error = true
   }
 
-  private async ensureIdentityExchange(thread: Thread, hostOverride?: string): Promise<void> {
-    if (thread.flags.hasIdentified) return
-
-    const identity = await this.cfg.identityProvider?.getMyIdentityInfo?.(thread.counterparty, thread.threadId)
-
-    const env = this.makeEnvelope('identity.hello', thread.threadId, { identity } satisfies IdentityHelloPayload)
-    await this.sendEnvelope(thread.counterparty, env, hostOverride)
-    thread.protocolLog.push({ direction: 'out', envelope: env })
-
-    thread.identity = thread.identity ?? {}
-    thread.identity.mine = identity
-
-    // “Identified” here means “we performed the identity send step”.
-    // Your assessIdentityInfoSufficiency hook determines if the received identity is acceptable.
-    thread.flags.hasIdentified = true
-  }
-
-  private async decideOnIncomingSettlement(thread: Thread, settlement: Settlement, sender: PubKeyHex): Promise<'accept' | 'reject'> {
-    const fn = this.cfg.decisionProvider?.decideOnIncomingSettlement
-    if (!fn) return 'accept'
-    return await fn({ thread, settlement, sender })
-  }
-
-  private async rejectionReason(thread: Thread, settlement: Settlement, sender: PubKeyHex): Promise<string | undefined> {
-    const fn = this.cfg.decisionProvider?.rejectionReason
-    if (!fn) return undefined
-    return await fn({ thread, settlement, sender })
-  }
-
-  private async safeAck(messageIds: string[]): Promise<void> {
+  private async safeAck (messageIds: string[]): Promise<void> {
     try {
       await this.comms.acknowledgeMessage({ messageIds })
     } catch (e) {
@@ -832,30 +756,30 @@ export class RemittanceManager {
     }
   }
 
-  private markThreadError(thread: Thread, e: any): void {
+  private markThreadError (thread: Thread, e: any): void {
     thread.flags.error = true
     thread.lastError = { message: String(e?.message ?? e), at: this.now() }
     this.cfg.logger?.error?.('[RemittanceManager] Thread error', thread.threadId, e)
   }
 
-  private async refreshMyIdentityKey(): Promise<void> {
-    if (this.myIdentityKey) return
-    if (!this.comms.getMyIdentityKey) return
+  private async refreshMyIdentityKey (): Promise<void> {
+    if (typeof this.myIdentityKey === 'string') return
+    if (typeof this.wallet !== 'object') return
 
-    const k = await this.comms.getMyIdentityKey()
+    const { publicKey: k } = await this.wallet.getPublicKey({ identityKey: true }, this.cfg.originator)
     if (typeof k === 'string' && k.trim() !== '') {
       this.myIdentityKey = k
     }
   }
 
-  private requireMyIdentityKey(errMsg: string): PubKeyHex {
-    if (!this.myIdentityKey) {
+  private requireMyIdentityKey (errMsg: string): PubKeyHex {
+    if (typeof this.myIdentityKey !== 'string') {
       throw new Error(errMsg)
     }
     return this.myIdentityKey
   }
 
-  private async composeInvoice(
+  private async composeInvoice (
     threadId: ThreadId,
     payee: PubKeyHex,
     payer: PubKeyHex,
