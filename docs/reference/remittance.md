@@ -54,6 +54,7 @@ This module intentionally keeps option terms minimal:
 ```ts
 export interface Brc29OptionTerms {
     amountSatoshis: number;
+    payee: PubKeyHex;
     outputIndex?: number;
     protocolID?: WalletProtocol;
     labels?: string[];
@@ -61,7 +62,7 @@ export interface Brc29OptionTerms {
 }
 ```
 
-See also: [WalletProtocol](./wallet.md#type-walletprotocol)
+See also: [PubKeyHex](./wallet.md#type-pubkeyhex), [WalletProtocol](./wallet.md#type-walletprotocol)
 
 #### Property amountSatoshis
 
@@ -94,6 +95,15 @@ Which output index to internalize, default 0.
 ```ts
 outputIndex?: number
 ```
+
+#### Property payee
+
+The recipient of the payment
+
+```ts
+payee: PubKeyHex
+```
+See also: [PubKeyHex](./wallet.md#type-pubkeyhex)
 
 #### Property protocolID
 
@@ -1507,15 +1517,10 @@ BRC-29-based remittance module.
 export class Brc29RemittanceModule implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29ReceiptData> {
     readonly id: RemittanceOptionId = "brc29.p2pkh";
     readonly name = "BSV (BRC-29 derived P2PKH)";
-    readonly allowUnsolicitedSettlements = false;
+    readonly allowUnsolicitedSettlements = true;
     constructor(cfg: Brc29RemittanceModuleConfig = {}) 
-    async createOption(args: {
-        threadId: string;
-        invoice: Invoice;
-    }, _ctx: ModuleContext): Promise<Brc29OptionTerms> 
     async buildSettlement(args: {
         threadId: string;
-        invoice?: Invoice;
         option: Brc29OptionTerms;
         note?: string;
     }, ctx: ModuleContext): Promise<{
@@ -1527,7 +1532,6 @@ export class Brc29RemittanceModule implements RemittanceModule<Brc29OptionTerms,
     }> 
     async acceptSettlement(args: {
         threadId: string;
-        invoice?: Invoice;
         settlement: Brc29SettlementArtifact;
         sender: PubKeyHex;
     }, ctx: ModuleContext): Promise<{
@@ -1537,23 +1541,10 @@ export class Brc29RemittanceModule implements RemittanceModule<Brc29OptionTerms,
         action: "terminate";
         termination: Termination;
     }> 
-    async processReceipt(args: {
-        threadId: string;
-        invoice?: Invoice;
-        receiptData: Brc29ReceiptData;
-        sender: PubKeyHex;
-    }, ctx: ModuleContext): Promise<void> 
-    async rejectSettlement(args: {
-        threadId: string;
-        invoice?: Invoice;
-        settlement: Brc29SettlementArtifact;
-        sender: PubKeyHex;
-        reason?: string;
-    }, ctx: ModuleContext): Promise<Brc29ReceiptData> 
 }
 ```
 
-See also: [Brc29OptionTerms](./remittance.md#interface-brc29optionterms), [Brc29ReceiptData](./remittance.md#interface-brc29receiptdata), [Brc29RemittanceModuleConfig](./remittance.md#interface-brc29remittancemoduleconfig), [Brc29SettlementArtifact](./remittance.md#interface-brc29settlementartifact), [Invoice](./remittance.md#interface-invoice), [ModuleContext](./remittance.md#interface-modulecontext), [PubKeyHex](./wallet.md#type-pubkeyhex), [RemittanceModule](./remittance.md#interface-remittancemodule), [RemittanceOptionId](./remittance.md#type-remittanceoptionid), [Termination](./remittance.md#interface-termination)
+See also: [Brc29OptionTerms](./remittance.md#interface-brc29optionterms), [Brc29ReceiptData](./remittance.md#interface-brc29receiptdata), [Brc29RemittanceModuleConfig](./remittance.md#interface-brc29remittancemoduleconfig), [Brc29SettlementArtifact](./remittance.md#interface-brc29settlementartifact), [ModuleContext](./remittance.md#interface-modulecontext), [PubKeyHex](./wallet.md#type-pubkeyhex), [RemittanceModule](./remittance.md#interface-remittancemodule), [RemittanceOptionId](./remittance.md#type-remittanceoptionid), [Termination](./remittance.md#interface-termination)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
