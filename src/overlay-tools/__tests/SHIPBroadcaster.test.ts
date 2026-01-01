@@ -14,9 +14,16 @@ const mockResolver = {
 }
 
 describe('SHIPCast', () => {
+  let consoleErrorSpy: jest.SpyInstance
+
   beforeEach(() => {
     mockFacilitator.send.mockReset()
     mockResolver.query.mockReset()
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore()
   })
 
   it('Handles constructor errors', () => {
