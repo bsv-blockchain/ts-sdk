@@ -49,42 +49,53 @@ Identity acknowledgment is required before invoicing/settlement proceeds when co
 ## Basic Setup
 
 ```ts
-import { RemittanceManager } from '@bsv/sdk/remittance'
-import { Brc29RemittanceModule } from '@bsv/sdk/remittance'
+import { WalletClient, RemittanceManager, Brc29RemittanceModule } from '@bsv/sdk'
+import { MessageBoxClient, MessageBoxAdapter } from '@bsv/message-box-client'
 
+const wallet = new WalletClient('auto', 'localhost')
+const messageBoxClient = new MessageBoxClient({
+  walletClient: wallet
+})
+const commsLayer = new MessageBoxAdapter(messageBoxClient)
+const brc29Module = new Brc29RemittanceModule()
 const manager = new RemittanceManager(
   {
-    remittanceModules: [new Brc29RemittanceModule()],
+    messageBox: 'direct_payment_test',
+    remittanceModules: [brc29Module],
     options: {
-      receiptProvided: true,
-      autoIssueReceipt: true,
-      identityOptions: { makerRequestIdentity: 'beforeInvoicing', takerRequestIdentity: 'beforeSettlement' }
-    }
+      receiptProvided: false, // Disable receipting
+      autoIssueReceipt: false,
+      invoiceExpirySeconds: 3600
+    },
+    logger: console
   },
-  walletInterface,
+  wallet,
   commsLayer
 )
 
 await manager.init()
 ```
 
-## Maker Flow (create and send invoice)
-
+## Sending the Payment (unsolicited settlement)
 ```ts
-const invoiceHandle = await maker.sendInvoice('taker-identity-key', {
-  lineItems: [],
-  total: { value: '1000', unit: { namespace: 'bsv', code: 'sat', decimals: 0 } },
-  note: 'Order 123'
-})
-
-await invoiceHandle.waitForSettlement()
+  const threadHandle = await manager.sendUnsolicitedSettlement(
+    recipient,
+    {
+      moduleId: 'brc29.p2pkh',
+      option: {
+        amountSatoshis: amountSats,
+        payee: recipient
+      },
+      note: `Direct payment test - ${amountSats} sats`
+    }
+  )
 ```
 
-## Taker Flow (pay invoice)
+## Receiving the Payment (unsolicited settlement)
 
 ```ts
-await taker.syncThreads()
-const receiptOrTermination = await taker.pay(invoiceHandle.threadId, 'brc29.p2pkh')
+  // Payment will automatically be internalized when threads are synced.
+  await testSyncThreads(manager)
 ```
 
 ## Event Hooks

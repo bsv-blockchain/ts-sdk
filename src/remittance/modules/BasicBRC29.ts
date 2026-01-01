@@ -26,6 +26,8 @@ import PublicKey from '../../primitives/PublicKey.js'
 export interface Brc29OptionTerms {
   /** Payment amount in satoshis. */
   amountSatoshis: number
+  /** The recipient of the payment */
+  payee: PubKeyHex
   /** Which output index to internalize, default 0. */
   outputIndex?: number
   /** Optionally override the protocolID used in getPublicKey. */
@@ -77,7 +79,7 @@ export interface LockingScriptProvider {
  * Default nonce provider using SDK createNonce.
  */
 export const DefaultNonceProvider: NonceProvider = {
-  async createNonce (wallet, scope, originator) {
+  async createNonce(wallet, scope, originator) {
     const origin = originator as OriginatorDomainNameStringUnder250Bytes | undefined
     return await createNonce(wallet, scope, origin)
   }
@@ -87,7 +89,7 @@ export const DefaultNonceProvider: NonceProvider = {
  * Default locking script provider using SDK P2PKH template.
  */
 export const DefaultLockingScriptProvider: LockingScriptProvider = {
-  async pubKeyToP2PKHLockingScript (publicKey: string) {
+  async pubKeyToP2PKHLockingScript(publicKey: string) {
     const address = PublicKey.fromString(publicKey).toAddress()
     return new P2PKH().lock(address).toHex()
   }
@@ -128,10 +130,10 @@ export interface Brc29RemittanceModuleConfig {
  * - optional rejection can include a refund token embedded in the termination details
  */
 export class Brc29RemittanceModule
-implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29ReceiptData> {
+  implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29ReceiptData> {
   readonly id: RemittanceOptionId = 'brc29.p2pkh'
   readonly name = 'BSV (BRC-29 derived P2PKH)'
-  readonly allowUnsolicitedSettlements = false
+  readonly allowUnsolicitedSettlements = true
 
   private readonly protocolID: WalletProtocol
   private readonly labels: string[]
@@ -143,7 +145,7 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
   private readonly nonceProvider: NonceProvider
   private readonly lockingScriptProvider: LockingScriptProvider
 
-  constructor (cfg: Brc29RemittanceModuleConfig = {}) {
+  constructor(cfg: Brc29RemittanceModuleConfig = {}) {
     // BRC-29 Protocol.
     this.protocolID = cfg.protocolID ?? [2, '3241645161d8']
     this.labels = cfg.labels ?? ['brc29']
@@ -156,26 +158,11 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
     this.lockingScriptProvider = cfg.lockingScriptProvider ?? DefaultLockingScriptProvider
   }
 
-  async createOption (args: { threadId: string; invoice: Invoice }, _ctx: ModuleContext): Promise<Brc29OptionTerms> {
-    const amountSatoshis = parseSatoshisFromInvoiceTotal(args.invoice)
-    return {
-      amountSatoshis,
-      outputIndex: 0,
-      protocolID: this.protocolID,
-      labels: this.labels,
-      description: this.description
-    }
-  }
-
-  async buildSettlement (
-    args: { threadId: string; invoice?: Invoice; option: Brc29OptionTerms; note?: string },
+  async buildSettlement(
+    args: { threadId: string; option: Brc29OptionTerms; note?: string },
     ctx: ModuleContext
   ): Promise<{ action: 'settle'; artifact: Brc29SettlementArtifact } | { action: 'terminate'; termination: Termination }> {
     const { wallet, originator } = ctx
-    const invoice = args.invoice
-    if (invoice == null) {
-      return terminate('brc29.invoice_required', 'BRC-29 settlement requires an invoice.')
-    }
 
     let option: Brc29OptionTerms
     try {
@@ -185,12 +172,7 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
       return terminate('brc29.invalid_option', message)
     }
 
-    const invoiceAmount = parseSatoshisFromInvoiceTotal(invoice)
-    if (option.amountSatoshis !== invoiceAmount) {
-      return terminate('brc29.amount_mismatch', 'BRC-29 settlement amount does not match invoice total.')
-    }
     const amountSatoshis = option.amountSatoshis
-
     const origin = originator as OriginatorDomainNameStringUnder250Bytes | undefined
 
     try {
@@ -206,7 +188,7 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
         {
           protocolID,
           keyID,
-          counterparty: invoice.payee
+          counterparty: option.payee
         },
         origin
       )
@@ -231,7 +213,7 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
               customInstructions: JSON.stringify({
                 derivationPrefix,
                 derivationSuffix,
-                payee: invoice.payee,
+                payee: option.payee,
                 threadId: args.threadId,
                 note: args.note
               }),
@@ -268,16 +250,17 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
     }
   }
 
-  async acceptSettlement (
-    args: { threadId: string; invoice?: Invoice; settlement: Brc29SettlementArtifact; sender: PubKeyHex },
+  async acceptSettlement(
+    args: { threadId: string; settlement: Brc29SettlementArtifact; sender: PubKeyHex },
     ctx: ModuleContext
   ): Promise<{ action: 'accept'; receiptData?: Brc29ReceiptData } | { action: 'terminate'; termination: Termination }> {
     const { wallet, originator } = ctx
     const origin = originator as OriginatorDomainNameStringUnder250Bytes | undefined
-
+    console.log('acceptSettlement', args)
     try {
       const settlement = ensureValidSettlement(args.settlement)
       const outputIndex = settlement.outputIndex ?? 0
+      debugger
       const internalizeResult = await wallet.internalizeAction(
         {
           tx: settlement.transaction,
@@ -304,154 +287,13 @@ implements RemittanceModule<Brc29OptionTerms, Brc29SettlementArtifact, Brc29Rece
       return terminate('brc29.internalize_failed', `Failed to internalize BRC-29 settlement: ${message}`)
     }
   }
-
-  async processReceipt (
-    args: { threadId: string; invoice?: Invoice; receiptData: Brc29ReceiptData; sender: PubKeyHex },
-    ctx: ModuleContext
-  ): Promise<void> {
-    const refundToken = args.receiptData.refund?.token
-    if (refundToken == null) return
-    const refund = ensureValidSettlement(refundToken)
-
-    const { wallet, originator } = ctx
-    const origin = originator as OriginatorDomainNameStringUnder250Bytes | undefined
-    await wallet.internalizeAction(
-      {
-        tx: refund.transaction,
-        outputs: [
-          {
-            paymentRemittance: {
-              derivationPrefix: refund.customInstructions.derivationPrefix,
-              derivationSuffix: refund.customInstructions.derivationSuffix,
-              senderIdentityKey: args.sender
-            },
-            outputIndex: refund.outputIndex ?? 0,
-            protocol: this.internalizeProtocol
-          }
-        ],
-        labels: this.labels,
-        description: 'BRC-29 refund received'
-      },
-      origin
-    )
-  }
-
-  async rejectSettlement (
-    args: {
-      threadId: string
-      invoice?: Invoice
-      settlement: Brc29SettlementArtifact
-      sender: PubKeyHex
-      reason?: string
-    },
-    ctx: ModuleContext
-  ): Promise<Brc29ReceiptData> {
-    const reason = args.reason ?? 'Payment rejected'
-
-    let settlement: Brc29SettlementArtifact
-    try {
-      settlement = ensureValidSettlement(args.settlement)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      return { rejectedReason: `${reason} (invalid settlement: ${message})` }
-    }
-
-    const amount = settlement.amountSatoshis
-    const fee = this.refundFeeSatoshis
-    const refund = amount - fee
-
-    if (refund < this.minRefundSatoshis) {
-      // Reject without refund, since it would be too small after fee.
-      return { rejectedReason: `${reason} (amount too small to refund after fee)` }
-    }
-
-    const acceptance = await this.acceptSettlement(
-      {
-        threadId: args.threadId,
-        invoice: args.invoice,
-        settlement,
-        sender: args.sender
-      },
-      ctx
-    )
-    if (acceptance.action === 'terminate') {
-      return { rejectedReason: `${reason} (failed to internalize payment)` }
-    }
-
-    const refundToken = await this.createPaymentToken(
-      {
-        recipient: args.sender,
-        amountSatoshis: refund
-      },
-      ctx
-    )
-
-    return {
-      rejectedReason: reason,
-      refund: {
-        token: refundToken,
-        feeSatoshis: fee
-      }
-    }
-  }
-
-  /**
-   * Creates a BRC-29 payment token for a recipient.
-   *
-   * We reuse buildSettlement by constructing a “fake invoice” whose payee is the recipient.
-   * This keeps the BRC-29 logic centralized and ensures refunds use the same derivation pattern.
-   */
-  private async createPaymentToken (
-    args: { recipient: PubKeyHex; amountSatoshis: number },
-    ctx: ModuleContext
-  ): Promise<Brc29SettlementArtifact> {
-    const fakeInvoice: Invoice = {
-      kind: 'invoice',
-      threadId: 'refund',
-      payee: args.recipient,
-      payer: 'refund-sender',
-      createdAt: ctx.now(),
-      lineItems: [],
-      total: { value: String(args.amountSatoshis), unit: { namespace: 'bsv', code: 'sat', decimals: 0 } },
-      invoiceNumber: 'refund',
-      options: {}
-    }
-
-    const option: Brc29OptionTerms = {
-      amountSatoshis: args.amountSatoshis,
-      outputIndex: 0,
-      protocolID: this.protocolID,
-      labels: this.labels,
-      description: 'Refund'
-    }
-
-    const result = await this.buildSettlement({ threadId: 'refund', invoice: fakeInvoice, option }, ctx)
-    if (result.action === 'terminate') {
-      throw new Error(result.termination.message)
-    }
-    return result.artifact
-  }
 }
 
-function terminate (code: string, message: string, details?: unknown): { action: 'terminate'; termination: Termination } {
+function terminate(code: string, message: string, details?: unknown): { action: 'terminate'; termination: Termination } {
   return { action: 'terminate', termination: { code, message, details } }
 }
 
-function parseSatoshisFromInvoiceTotal (invoice: Invoice): number {
-  const { total } = invoice
-  if (total.unit.namespace !== 'bsv' || total.unit.code !== 'sat') {
-    throw new Error(
-      `BRC-29 module requires invoice.total to be denominated in bsv:sat (got ${total.unit.namespace}:${total.unit.code})`
-    )
-  }
-  const n = Number(total.value)
-  if (!Number.isFinite(n) || !Number.isInteger(n)) {
-    throw new Error('BRC-29 module requires invoice.total.value to be an integer satoshi string')
-  }
-  return n
-}
-
-function ensureValidOption (option: Brc29OptionTerms): Brc29OptionTerms {
+function ensureValidOption(option: Brc29OptionTerms): Brc29OptionTerms {
   if (option == null || typeof option !== 'object') {
     throw new Error('BRC-29 option terms are required')
   }
@@ -484,7 +326,7 @@ function ensureValidOption (option: Brc29OptionTerms): Brc29OptionTerms {
   return option
 }
 
-function ensureValidSettlement (settlement: Brc29SettlementArtifact): Brc29SettlementArtifact {
+function ensureValidSettlement(settlement: Brc29SettlementArtifact): Brc29SettlementArtifact {
   if (settlement == null || typeof settlement !== 'object') {
     throw new Error('BRC-29 settlement artifact is required')
   }
@@ -509,11 +351,11 @@ function ensureValidSettlement (settlement: Brc29SettlementArtifact): Brc29Settl
   return settlement
 }
 
-function isAtomicBeef (tx: unknown): tx is number[] {
+function isAtomicBeef(tx: unknown): tx is number[] {
   if (!Array.isArray(tx) || tx.length === 0) return false
   return tx.every((byte) => Number.isInteger(byte) && byte >= 0 && byte <= 255)
 }
 
-function isNonEmptyString (value: unknown): value is string {
+function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
