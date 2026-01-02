@@ -866,12 +866,14 @@ export class Peer {
       throw new Error(`Session not found for nonce: ${message.yourNonce as string}`)
     }
 
-    if (
-      peerSession.certificatesRequired &&
-      !peerSession.certificatesValidated
-    ) {
+    const certificatesRequired = peerSession.certificatesRequired === true
+    const certificatesValidated = peerSession.certificatesValidated === true
+
+    if (certificatesRequired && !certificatesValidated) {
       throw new Error(
-        `Received general message before certificate validation from peer ${peerSession.peerIdentityKey}`
+        `Received general message before certificate validation from peer ${
+          peerSession.peerIdentityKey ?? 'unknown'
+        }`
       )
     }
 
@@ -935,5 +937,4 @@ export class Peer {
 
     return Utils.toArray(data, 'base64')
   }
-
 }
