@@ -260,7 +260,7 @@ export default class PrivateKey extends BigNumber {
    */
   toPublicKey (): PublicKey {
     const c = new Curve()
-    const p = c.g.mul(this)
+    const p = c.g.mulCT(this)
     return new PublicKey(p.x, p.y)
   }
 
@@ -352,9 +352,36 @@ export default class PrivateKey extends BigNumber {
     if (!key.validate()) {
       throw new Error('Public key not valid for ECDH secret derivation')
     }
-    return key.mul(this)
+    return key.mulCT(this)
   }
 
+  /**
+   * SECURITY NOTE – DETERMINISTIC CHILD KEY DERIVATION
+   *
+   * This method derives child private keys deterministically from the caller’s
+   * long-term private key, the counterparty’s public key, and a caller-supplied
+   * invoice number using HMAC over an ECDH shared secret (BRC-42 style derivation).
+   *
+   * This construction does NOT implement a formally authenticated key exchange
+   * (AKE) and does NOT provide the following security properties:
+   *
+   *  - Forward secrecy: Compromise of a long-term private key compromises all
+   *    past and future child keys derived from it.
+   *  - Replay protection: Child keys are deterministic for a given invoice
+   *    number and key pair; previously observed messages can be replayed.
+   *  - Explicit authentication / identity binding: Possession of a public key
+   *    alone does not guarantee the intended peer identity, enabling potential
+   *    identity misbinding attacks if higher-level identity verification is absent.
+   *
+   * This derivation is intended for lightweight, deterministic key hierarchies
+   * where both parties already possess and trust each other’s long-term public
+   * keys. It SHOULD NOT be used as a drop-in replacement for a standard
+   * authenticated key exchange (e.g. X3DH, Noise, or SIGMA) in high-security or
+   * high-value contexts.
+   *
+   * Any future protocol providing forward secrecy, replay protection, or strong
+   * peer authentication will require a versioned, breaking change.
+   */
   /**
    * Derives a child key with BRC-42.
    * @param publicKey The public key of the other party

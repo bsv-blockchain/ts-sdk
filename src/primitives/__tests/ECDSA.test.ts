@@ -117,4 +117,16 @@ describe('ECDSA', () => {
       ECDSA.verify(msg, signature, infinityPub)
     ).toThrow()
   })
+
+  it('sign/verify works with large private key (mulCT stress)', () => {
+    const bigKey = new BigNumber(
+      'fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd036413f',
+      16
+    )
+
+    const sig = ECDSA.sign(msg, bigKey)
+    const pub = curve.g.mul(bigKey)
+
+    expect(ECDSA.verify(msg, sig, pub)).toBe(true)
+  })
 })

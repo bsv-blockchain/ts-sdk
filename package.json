@@ -1,6 +1,6 @@
 {
   "name": "@bsv/sdk",
-  "version": "1.9.29",
+  "version": "1.9.31",
   "type": "module",
   "description": "BSV Blockchain Software Development Kit",
   "main": "dist/cjs/mod.js",
@@ -221,7 +221,8 @@
     "prepublish": "npm run build",
     "doc": "ts2md",
     "docs:serve": "mkdocs serve",
-    "docs:build": "mkdocs build"
+    "docs:build": "mkdocs build",
+    "test:ci": "npm run build && jest --forceExit"
   },
   "repository": {
     "type": "git",
