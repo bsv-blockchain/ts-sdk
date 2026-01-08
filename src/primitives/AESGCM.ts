@@ -1,6 +1,16 @@
-
 // @ts-nocheck
 
+// NOTE:
+// Table-based AES is intentionally retained for performance.
+// JavaScript runtimes (JIT, GC, speculative execution) cannot provide
+// strong constant-time guarantees, and arithmetic-only AES implementations
+// cause catastrophic performance degradation in practice.
+//
+// This implementation therefore prioritizes correctness, performance,
+// and compatibility over attempting misleading "constant-time" behavior.
+//
+// Applications requiring strict side-channel resistance SHOULD use
+// platform-native crypto APIs (e.g. WebCrypto) or audited native libraries.
 /**
  * SECURITY DISCLAIMER – AES-GCM IMPLEMENTATION
  *
@@ -16,7 +26,6 @@
  * For high-assurance cryptographic use cases, prefer platform-provided
  * WebCrypto APIs or well-audited constant-time libraries.
  */
-
 const SBox = new Uint8Array([
   0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
   0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
@@ -35,6 +44,7 @@ const SBox = new Uint8Array([
   0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
   0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
 ])
+
 const Rcon = [
   [0x00, 0x00, 0x00, 0x00], [0x01, 0x00, 0x00, 0x00], [0x02, 0x00, 0x00, 0x00], [0x04, 0x00, 0x00, 0x00],
   [0x08, 0x00, 0x00, 0x00], [0x10, 0x00, 0x00, 0x00], [0x20, 0x00, 0x00, 0x00], [0x40, 0x00, 0x00, 0x00],
@@ -47,6 +57,20 @@ for (let i = 0; i < 256; i++) {
   const m2 = ((i << 1) ^ ((i & 0x80) !== 0 ? 0x1b : 0)) & 0xff
   mul2[i] = m2
   mul3[i] = m2 ^ i
+}
+
+function mixColumnsFast (state: number[][]): void {
+  for (let c = 0; c < 4; c++) {
+    const s0 = state[0][c]
+    const s1 = state[1][c]
+    const s2 = state[2][c]
+    const s3 = state[3][c]
+
+    state[0][c] = mul2[s0] ^ mul3[s1] ^ s2 ^ s3
+    state[1][c] = s0 ^ mul2[s1] ^ mul3[s2] ^ s3
+    state[2][c] = s0 ^ s1 ^ mul2[s2] ^ mul3[s3]
+    state[3][c] = mul3[s0] ^ s1 ^ s2 ^ mul2[s3]
+  }
 }
 
 function addRoundKey (
@@ -104,20 +128,6 @@ function shiftRows (state: number[][]): void {
   state[3][2] = state[3][1]
   state[3][1] = state[3][0]
   state[3][0] = tmp
-}
-
-function mixColumns (state: number[][]): void {
-  for (let c = 0; c < 4; c++) {
-    const s0 = state[0][c]
-    const s1 = state[1][c]
-    const s2 = state[2][c]
-    const s3 = state[3][c]
-
-    state[0][c] = mul2[s0] ^ mul3[s1] ^ s2 ^ s3
-    state[1][c] = s0 ^ mul2[s1] ^ mul3[s2] ^ s3
-    state[2][c] = s0 ^ s1 ^ mul2[s2] ^ mul3[s3]
-    state[3][c] = mul3[s0] ^ s1 ^ s2 ^ mul2[s3]
-  }
 }
 
 function keyExpansion (roundLimit: number, key: number[]): number[][] {
@@ -187,7 +197,7 @@ export function AES (input: number[], key: number[]): number[] {
     shiftRows(state)
 
     if (round + 1 < roundLimit) {
-      mixColumns(state)
+      mixColumnsFast(state)
     }
 
     addRoundKey(state, w, round * 4)
@@ -316,30 +326,24 @@ export const multiply = function (block0: Bytes, block1: Bytes): Bytes {
 
   for (let i = 0; i < 16; i++) {
     const b = block0[i]
-
     for (let j = 7; j >= 0; j--) {
       // mask = 0xff if bit is set, 0x00 otherwise
       const bit = (b >> j) & 1
       const mask = -bit & 0xff
-
       // z ^= v & mask
       for (let k = 0; k < 16; k++) {
         z[k] ^= v[k] & mask
       }
-
       // compute reduction mask
       const lsb = v[15] & 1
       const rmask = -lsb & 0xff
-
       rightShift(v)
-
       // v ^= R & rmask
       for (let k = 0; k < 16; k++) {
         v[k] ^= R[k] & rmask
       }
     }
   }
-
   return z
 }
 
@@ -347,15 +351,12 @@ export const incrementLeastSignificantThirtyTwoBits = function (
   block: Bytes
 ): Bytes {
   const result = block.slice()
-
   for (let i = 15; i > 11; i--) {
     result[i] = (result[i] + 1) & 0xff // wrap explicitly
-
     if (result[i] !== 0) {
       break
     }
   }
-
   return result
 }
 
