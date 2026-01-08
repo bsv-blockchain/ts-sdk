@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.10.1 - 2026-01-08](#)
+  - TOB Security Review
 - [1.9.31 - 2025-12-29](#1931---2025-12-29)
 - [1.9.30 - 2025-12-18](#1930---2025-12-18)
 - [1.9.29 - 2025-12-12](#1929---2025-12-12)
@@ -201,6 +203,14 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [1.10.1] - 2026-01-08
+
+### Security
+
+- Checkpoint for Trail of Bits security review, details in [Security Review Project](https://github.com/orgs/bsv-blockchain/projects/10).
 
 ---
 
