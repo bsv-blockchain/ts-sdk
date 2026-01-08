@@ -47,6 +47,8 @@ export interface PeerSession {
     peerNonce?: string;
     peerIdentityKey?: string;
     lastUpdate: number;
+    certificatesRequired?: boolean;
+    certificatesValidated?: boolean;
 }
 ```
 
