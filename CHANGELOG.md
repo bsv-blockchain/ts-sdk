@@ -217,6 +217,14 @@ All notable changes to this project will be documented in this file. The format 
 
 ---
 
+## [1.9.31] - 2025-12-29
+
+### Security
+- Documented the use of table-based AES and AES-GCM implementations and their associated cache-timing considerations as part of a TOB-5 security review.
+- Clarified that applications requiring strict side-channel resistance should use platform-native cryptography APIs or vetted constant-time libraries.
+
+---
+
 ## [1.9.30] - 2025-12-18
 
 ### Added
