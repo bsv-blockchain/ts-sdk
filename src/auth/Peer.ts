@@ -867,14 +867,31 @@ export class Peer {
     }
 
     const certificatesRequired = peerSession.certificatesRequired === true
-    const certificatesValidated = peerSession.certificatesValidated === true
+    let certificatesValidated = peerSession.certificatesValidated === true
 
+    // If certificates are required but not yet validated, wait for them with a timeout
     if (certificatesRequired && !certificatesValidated) {
-      throw new Error(
-        `Received general message before certificate validation from peer ${
-          peerSession.peerIdentityKey ?? 'unknown'
-        }`
-      )
+      const CERTIFICATE_WAIT_TIMEOUT_MS = 30000
+      const CHECK_INTERVAL_MS = 100
+      const startTime = Date.now()
+
+      while (Date.now() - startTime < CERTIFICATE_WAIT_TIMEOUT_MS) {
+        // Re-fetch session to check if certificates have been validated
+        const updatedSession = this.sessionManager.getSession(message.yourNonce as string)
+        if (updatedSession?.certificatesValidated === true) {
+          certificatesValidated = true
+          break
+        }
+        await new Promise(resolve => setTimeout(resolve, CHECK_INTERVAL_MS))
+      }
+
+      if (!certificatesValidated) {
+        throw new Error(
+          `Timeout waiting for certificate validation from peer ${
+            peerSession.peerIdentityKey ?? 'unknown'
+          }`
+        )
+      }
     }
 
     const { valid } = await this.wallet.verifySignature({
