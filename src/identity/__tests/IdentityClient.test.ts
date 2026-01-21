@@ -15,11 +15,38 @@ jest.mock('../../script', () => {
   }
 })
 
+// Store mock functions for LookupResolver so tests can configure them
+const mockLookupResolverQuery = jest.fn()
+
 jest.mock('../../overlay-tools/index.js', () => {
   return {
     TopicBroadcaster: jest.fn().mockImplementation(() => ({
       broadcast: jest.fn().mockResolvedValue('broadcastResult')
+    })),
+    LookupResolver: jest.fn().mockImplementation(() => ({
+      query: mockLookupResolverQuery
     }))
+  }
+})
+
+// Mock VerifiableCertificate for resolveViaLookup tests
+const mockDecryptFields = jest.fn()
+const mockVerify = jest.fn()
+
+jest.mock('../../auth/certificates/VerifiableCertificate.js', () => {
+  return {
+    VerifiableCertificate: jest.fn().mockImplementation(() => ({
+      decryptFields: mockDecryptFields,
+      verify: mockVerify
+    }))
+  }
+})
+
+// Mock ProtoWallet for resolveViaLookup tests
+jest.mock('../../wallet/ProtoWallet.js', () => {
+  return {
+    __esModule: true,
+    default: jest.fn().mockImplementation(() => ({}))
   }
 })
 
@@ -280,22 +307,39 @@ describe('IdentityClient', () => {
         new Error('No wallet available')
       )
 
-      // Mock the resolveViaLookup method to return mock certificates
-      const mockCertificate = {
+      // Setup mock certificate data that would come from lookup
+      const certData = {
         type: KNOWN_IDENTITY_TYPES.xCert,
+        serialNumber: 'serial123',
         subject: 'test-identity-key',
-        decryptedFields: {
-          userName: 'TestUser',
-          profilePhoto: 'test-photo-url'
-        },
-        certifierInfo: {
-          name: 'SocialCert',
-          iconUrl: 'https://socialcert.net/favicon.ico'
-        }
+        certifier: '02cf6cdf466951d8dfc9e7c9367511d0007ed6fba35ed42d425cc412fd6cfd4a17',
+        revocationOutpoint: 'outpoint',
+        fields: { userName: 'encrypted', profilePhoto: 'encrypted' },
+        keyring: { fieldKey: 'keyringValue' },
+        signature: 'sig123'
       }
 
-      // Spy on the private resolveViaLookup method
-      jest.spyOn(identityClient as any, 'resolveViaLookup').mockResolvedValue([mockCertificate])
+      // Mock LookupResolver to return output-list with certificate data
+      mockLookupResolverQuery.mockResolvedValue({
+        type: 'output-list',
+        outputs: [{
+          beef: new Uint8Array([1, 2, 3]),
+          outputIndex: 0
+        }]
+      })
+
+      // Mock PushDrop.decode to return certificate JSON
+      const { PushDrop } = require('../../script')
+      PushDrop.decode.mockReturnValue({
+        fields: [new TextEncoder().encode(JSON.stringify(certData))]
+      })
+
+      // Mock VerifiableCertificate methods
+      mockDecryptFields.mockResolvedValue({
+        userName: 'TestUser',
+        profilePhoto: 'test-photo-url'
+      })
+      mockVerify.mockResolvedValue(true)
 
       const identities = await identityClient.resolveByIdentityKey(
         { identityKey: 'test-identity-key' },
@@ -305,13 +349,131 @@ describe('IdentityClient', () => {
       // Verify wallet was called and threw
       expect(walletMock.discoverByIdentityKey).toHaveBeenCalled()
 
-      // Verify fallback was used
-      expect((identityClient as any).resolveViaLookup).toHaveBeenCalledWith({ identityKey: 'test-identity-key' })
+      // Verify LookupResolver was queried
+      expect(mockLookupResolverQuery).toHaveBeenCalledWith({
+        service: 'ls_identity',
+        query: {
+          certifiers: ['02cf6cdf466951d8dfc9e7c9367511d0007ed6fba35ed42d425cc412fd6cfd4a17'],
+          identityKey: 'test-identity-key'
+        }
+      })
 
       // Verify results were returned from fallback
       expect(identities).toHaveLength(1)
       expect(identities[0].name).toBe('TestUser')
       expect(identities[0].identityKey).toBe('test-identity-key')
+    })
+
+    it('should return empty array when LookupResolver returns no results', async () => {
+      walletMock.discoverByIdentityKey = jest.fn().mockRejectedValue(
+        new Error('No wallet available')
+      )
+
+      const mockContactsManager = identityClient['contactsManager']
+      mockContactsManager.getContacts = jest.fn().mockRejectedValue(
+        new Error('No wallet available')
+      )
+
+      // Mock LookupResolver to return empty results
+      mockLookupResolverQuery.mockResolvedValue({
+        type: 'output-list',
+        outputs: []
+      })
+
+      const identities = await identityClient.resolveByIdentityKey(
+        { identityKey: 'nonexistent-key' },
+        false
+      )
+
+      expect(identities).toHaveLength(0)
+    })
+
+    it('should return empty array when LookupResolver returns non-output-list type', async () => {
+      walletMock.discoverByIdentityKey = jest.fn().mockRejectedValue(
+        new Error('No wallet available')
+      )
+
+      const mockContactsManager = identityClient['contactsManager']
+      mockContactsManager.getContacts = jest.fn().mockRejectedValue(
+        new Error('No wallet available')
+      )
+
+      // Mock LookupResolver to return different type
+      mockLookupResolverQuery.mockResolvedValue({
+        type: 'freeform',
+        result: {}
+      })
+
+      const identities = await identityClient.resolveByIdentityKey(
+        { identityKey: 'some-key' },
+        false
+      )
+
+      expect(identities).toHaveLength(0)
+    })
+
+    it('should skip invalid certificates and continue processing', async () => {
+      walletMock.discoverByIdentityKey = jest.fn().mockRejectedValue(
+        new Error('No wallet available')
+      )
+
+      const mockContactsManager = identityClient['contactsManager']
+      mockContactsManager.getContacts = jest.fn().mockRejectedValue(
+        new Error('No wallet available')
+      )
+
+      // Mock LookupResolver to return multiple outputs
+      mockLookupResolverQuery.mockResolvedValue({
+        type: 'output-list',
+        outputs: [
+          { beef: new Uint8Array([1]), outputIndex: 0 },
+          { beef: new Uint8Array([2]), outputIndex: 0 }
+        ]
+      })
+
+      // First call throws (invalid cert), second succeeds
+      const { PushDrop } = require('../../script')
+      PushDrop.decode
+        .mockImplementationOnce(() => { throw new Error('Invalid script') })
+        .mockImplementationOnce(() => ({
+          fields: [new TextEncoder().encode(JSON.stringify({
+            type: KNOWN_IDENTITY_TYPES.xCert,
+            serialNumber: 'serial',
+            subject: 'valid-key',
+            certifier: 'certifier',
+            revocationOutpoint: 'outpoint',
+            fields: {},
+            keyring: {},
+            signature: 'sig'
+          }))]
+        }))
+
+      mockDecryptFields.mockResolvedValue({ userName: 'ValidUser' })
+      mockVerify.mockResolvedValue(true)
+
+      const identities = await identityClient.resolveByIdentityKey(
+        { identityKey: 'some-key' },
+        false
+      )
+
+      // Should have 1 identity (the valid one)
+      expect(identities).toHaveLength(1)
+      expect(identities[0].name).toBe('ValidUser')
+    })
+
+    it('should re-throw non-wallet errors', async () => {
+      walletMock.discoverByIdentityKey = jest.fn().mockRejectedValue(
+        new Error('Network timeout')
+      )
+
+      const mockContactsManager = identityClient['contactsManager']
+      mockContactsManager.getContacts = jest.fn().mockRejectedValue(
+        new Error('No wallet available')
+      )
+
+      await expect(
+        identityClient.resolveByIdentityKey({ identityKey: 'test-key' }, false)
+      ).rejects.toThrow('Network timeout')
     })
   })
 
@@ -413,7 +575,11 @@ describe('IdentityClient', () => {
         {
           name: 'Alice Smith',
           identityKey: 'alice-key',
-          avatarURL: '', abbreviatedKey: 'alice-i...', badgeIconURL: '', badgeLabel: '', badgeClickURL: ''
+          avatarURL: '',
+          abbreviatedKey: 'alice-i...',
+          badgeIconURL: '',
+          badgeLabel: '',
+          badgeClickURL: ''
         }
       ]
 
@@ -461,6 +627,82 @@ describe('IdentityClient', () => {
       expect(identities).toHaveLength(1)
       expect(identities[0].name).toBe('alice@example.com') // Should be discovered identity, not contact
       expect(mockContactsManager.getContacts).not.toHaveBeenCalled() // Should not fetch contacts
+    })
+
+    it('should fallback to LookupResolver when no wallet is available for attribute search', async () => {
+      walletMock.discoverByAttributes = jest.fn().mockRejectedValue(
+        new Error('No wallet available')
+      )
+
+      // Setup mock certificate data
+      const certData = {
+        type: KNOWN_IDENTITY_TYPES.emailCert,
+        serialNumber: 'serial123',
+        subject: 'found-identity-key',
+        certifier: '02cf6cdf466951d8dfc9e7c9367511d0007ed6fba35ed42d425cc412fd6cfd4a17',
+        revocationOutpoint: 'outpoint',
+        fields: { email: 'encrypted' },
+        keyring: { fieldKey: 'keyringValue' },
+        signature: 'sig123'
+      }
+
+      mockLookupResolverQuery.mockResolvedValue({
+        type: 'output-list',
+        outputs: [{
+          beef: new Uint8Array([1, 2, 3]),
+          outputIndex: 0
+        }]
+      })
+
+      const { PushDrop } = require('../../script')
+      PushDrop.decode.mockReturnValue({
+        fields: [new TextEncoder().encode(JSON.stringify(certData))]
+      })
+
+      mockDecryptFields.mockResolvedValue({ email: 'found@example.com' })
+      mockVerify.mockResolvedValue(true)
+
+      const identities = await identityClient.resolveByAttributes(
+        { attributes: { email: 'found@example.com' } },
+        false
+      )
+
+      // Verify LookupResolver was queried with attributes
+      expect(mockLookupResolverQuery).toHaveBeenCalledWith({
+        service: 'ls_identity',
+        query: {
+          certifiers: ['02cf6cdf466951d8dfc9e7c9367511d0007ed6fba35ed42d425cc412fd6cfd4a17'],
+          attributes: { any: 'found@example.com' }
+        }
+      })
+
+      expect(identities).toHaveLength(1)
+      expect(identities[0].name).toBe('found@example.com')
+    })
+
+    it('should use multi-attribute query when multiple attributes provided', async () => {
+      walletMock.discoverByAttributes = jest.fn().mockRejectedValue(
+        new Error('No wallet available')
+      )
+
+      mockLookupResolverQuery.mockResolvedValue({
+        type: 'output-list',
+        outputs: []
+      })
+
+      await identityClient.resolveByAttributes(
+        { attributes: { firstName: 'John', lastName: 'Doe' } },
+        false
+      )
+
+      // Verify query uses full attributes object when more than one
+      expect(mockLookupResolverQuery).toHaveBeenCalledWith({
+        service: 'ls_identity',
+        query: {
+          certifiers: ['02cf6cdf466951d8dfc9e7c9367511d0007ed6fba35ed42d425cc412fd6cfd4a17'],
+          attributes: { firstName: 'John', lastName: 'Doe' }
+        }
+      })
     })
   })
 
