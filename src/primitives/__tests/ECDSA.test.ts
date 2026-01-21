@@ -129,4 +129,20 @@ describe('ECDSA', () => {
 
     expect(ECDSA.verify(msg, sig, pub)).toBe(true)
   })
+
+  it('should reject signing messages larger than curve order bit length (TOB-22)', () => {
+    // Create a message definitely larger than secp256k1 order size
+    const tooLargeMsg = new BigNumber(1).iushln(curve.n.bitLength() + 1)
+
+    expect(() =>
+      ECDSA.sign(tooLargeMsg, key)
+    ).toThrow(/message is too large/i)
+  })
+
+  it('verify should return false for messages larger than curve order bit length (TOB-22)', () => {
+    const signature = ECDSA.sign(msg, key)
+    const tooLargeMsg = new BigNumber(1).iushln(curve.n.bitLength() + 1)
+
+    expect(ECDSA.verify(tooLargeMsg, signature, pub)).toBe(false)
+  })
 })

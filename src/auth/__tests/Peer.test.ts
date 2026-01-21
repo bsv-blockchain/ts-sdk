@@ -328,6 +328,7 @@ describe('Peer class mutual authentication and certificate exchange', () => {
     )
 
     const { bobReceivedCertificates } = setupPeers(false, true)
+
     await mockGetVerifiableCertificates(
       aliceVerifiableCertificate,
       undefined,
@@ -335,32 +336,11 @@ describe('Peer class mutual authentication and certificate exchange', () => {
       bobPubKey
     )
 
-    const bobReceivedGeneralMessage = new Promise<void>((resolve) => {
-      bob.listenForGeneralMessages((senderPublicKey, payload) => {
-        // Wrap async logic in an IIFE so the callback remains synchronous.
-        (async () => {
-          await bobReceivedCertificates
+    // Initiate handshake ONLY
+    await alice.getAuthenticatedSession(bobPubKey)
 
-          if (certificatesReceivedByBob !== undefined && certificatesReceivedByBob.length > 0) {
-            // Use a for...of loop instead of forEach with an async callback.
-            for (const cert of certificatesReceivedByBob) {
-              // Decrypt to ensure it has the correct fields.
-              // const decryptedFields = await cert.decryptFields(walletB)
-              if (cert.certifier !== 'bob') {
-                // console.log('Bob accepted the message:', Utils.toUTF8(payload))
-                // console.log('Decrypted fields:', decryptedFields)
-              }
-            }
-          }
-          resolve()
-        })().catch((e) => {
-          // console.error(e)
-        })
-      })
-  })
-
-    await alice.toPeer(Utils.toArray('Hello Bob!'))
-    await bobReceivedGeneralMessage
+    // Wait for Bob to receive Alice's certificates
+    await bobReceivedCertificates
 
     expect(certificatesReceivedByAlice).toEqual([])
     expect(certificatesReceivedByBob).toEqual([aliceVerifiableCertificate])
@@ -418,16 +398,10 @@ describe('Peer class mutual authentication and certificate exchange', () => {
   })
 
   it('Alice requests Bob to present his library card before lending him a book', async () => {
-    const alicePubKey = (await walletA.getPublicKey({ identityKey: true }))
-      .publicKey
-    const bobPubKey = (await walletB.getPublicKey({ identityKey: true }))
-      .publicKey
+    const alicePubKey = (await walletA.getPublicKey({ identityKey: true })).publicKey
+    const bobPubKey = (await walletB.getPublicKey({ identityKey: true })).publicKey
 
-    // Bob's certificate includes his library card number
-    const bobMasterCertificate = await createMasterCertificate(
-      walletB,
-      bobFields
-    )
+    const bobMasterCertificate = await createMasterCertificate(walletB, bobFields)
     const bobVerifiableCertificate = await createVerifiableCertificate(
       bobMasterCertificate,
       walletB,
@@ -435,7 +409,6 @@ describe('Peer class mutual authentication and certificate exchange', () => {
       ['libraryCardNumber']
     )
 
-    // Alice requires Bob to present his library card number
     const aliceCertificatesToRequest = {
       certifiers: [certifierPublicKey],
       types: { [certificateType]: ['libraryCardNumber'] }
@@ -444,6 +417,7 @@ describe('Peer class mutual authentication and certificate exchange', () => {
     const { aliceReceivedCertificates } = setupPeers(true, false, {
       aliceCertsToRequest: aliceCertificatesToRequest
     })
+
     await mockGetVerifiableCertificates(
       undefined,
       bobVerifiableCertificate,
@@ -453,39 +427,19 @@ describe('Peer class mutual authentication and certificate exchange', () => {
 
     const aliceAcceptedLibraryCard = jest.fn()
 
-    alice.listenForCertificatesReceived((senderPublicKey, certificates) => {
-      (async () => {
-        for (const cert of certificates) {
-          // Decrypt Bob's certificate fields
-          const decryptedFields = await cert.decryptFields(walletA)
-
-          // Check and use the decrypted fields
-          if (
-            Object.keys(decryptedFields).length !== 0 &&
-            typeof decryptedFields.libraryCardNumber !== 'undefined'
-          ) {
-            // console.log(
-            //   `Alice received Bob's library card number: ${decryptedFields.libraryCardNumber}`
-            // )
-            aliceAcceptedLibraryCard()
-          }
+    alice.listenForCertificatesReceived(async (_sender, certificates) => {
+      for (const cert of certificates) {
+        const decrypted = await cert.decryptFields(walletA)
+        if (decrypted.libraryCardNumber !== undefined) {
+          aliceAcceptedLibraryCard()
         }
-      })().catch(e => { console.error(e) })
+      }
     })
 
-    const bobReceivedGeneralMessage = new Promise<void>((resolve) => {
-      bob.listenForGeneralMessages((senderPublicKey, payload) => {
-        // console.log('Bob received message from Alice:', Utils.toUTF8(payload))
-        resolve()
-      })
-    })
+    // 🔑 Correct trigger: certificate request, NOT general message
+    await alice.requestCertificates(aliceCertificatesToRequest, bobPubKey)
 
-    // Alice sends a message to Bob requesting his library card before lending him a book
-    await alice.toPeer(
-      Utils.toArray('Please present your library card to borrow a book.')
-    )
     await aliceReceivedCertificates
-    await bobReceivedGeneralMessage
 
     expect(aliceAcceptedLibraryCard).toHaveBeenCalled()
     expect(certificatesReceivedByAlice).toEqual([bobVerifiableCertificate])
@@ -501,6 +455,7 @@ describe('Peer class mutual authentication and certificate exchange', () => {
     const aliceMasterCertificate = await createMasterCertificate(walletA, {
       name: 'Alice'
     })
+
     const aliceVerifiableCertificate = await createVerifiableCertificate(
       aliceMasterCertificate,
       walletA,
@@ -509,6 +464,7 @@ describe('Peer class mutual authentication and certificate exchange', () => {
     )
 
     const { bobReceivedCertificates } = setupPeers(false, true)
+
     await mockGetVerifiableCertificates(
       aliceVerifiableCertificate,
       undefined,
@@ -516,45 +472,23 @@ describe('Peer class mutual authentication and certificate exchange', () => {
       bobPubKey
     )
 
-    const bobReceivedGeneralMessage = new Promise<void>((resolve) => {
-      bob.listenForGeneralMessages((senderPublicKey, payload) => {
-        (async () => {
-          await bobReceivedCertificates
-          // console.log('Bob received message:', Utils.toUTF8(payload))
+    // ---- Initial communication = handshake + initial cert exchange
+    await alice.getAuthenticatedSession(bobPubKey)
+    await bobReceivedCertificates
 
-          // Bob requests additional certificates after initial communication
-          await bob.requestCertificates(certificatesToRequest, senderPublicKey)
-          resolve()
-        })().catch(e => { console.error(e) })
-      })
-    })
-
-    // Initial communication from Alice
-    await alice.toPeer(Utils.toArray('Hello Bob!'))
-    await bobReceivedGeneralMessage
-
-    // Listen for certificates received from the additional request
+    // ---- Bob requests additional certificates AFTER validation
     const bobReceivedAdditionalCertificates = new Promise<void>((resolve) => {
-      bob.listenForCertificatesReceived((senderPublicKey, certificates) => {
-        (async () => {
-          if (certificates.length > 0) {
-            // Decrypt to confirm
-            for (const cert of certificates) {
-              const decrypted = await cert.decryptFields(walletB)
-              // console.log(
-              //   'Bob received additional certificates from Alice:',
-              //   cert
-              // )
-              // console.log('Decrypted fields:', decrypted)
-            }
-            resolve()
+      bob.listenForCertificatesReceived(async (senderPublicKey, certificates) => {
+        if (certificates.length > 0) {
+          for (const cert of certificates) {
+            await cert.decryptFields(walletB)
           }
-        })().catch((error) => {
-          console.error(error)
-        })
+          resolve()
+        }
       })
     })
 
+    await bob.requestCertificates(certificatesToRequest, alicePubKey)
     await bobReceivedAdditionalCertificates
 
     expect(certificatesReceivedByBob).toEqual([aliceVerifiableCertificate])
@@ -566,11 +500,11 @@ describe('Peer class mutual authentication and certificate exchange', () => {
     const bobPubKey = (await walletB.getPublicKey({ identityKey: true }))
       .publicKey
 
-    // Alice's certificate includes her membership status
     const aliceMasterCertificate = await createMasterCertificate(walletA, {
       ...aliceFields,
       membershipStatus: 'Gold'
     })
+
     const aliceVerifiableCertificate = await createVerifiableCertificate(
       aliceMasterCertificate,
       walletA,
@@ -578,7 +512,6 @@ describe('Peer class mutual authentication and certificate exchange', () => {
       ['membershipStatus']
     )
 
-    // Bob requires Alice to present her membership status
     const bobCertificatesToRequest = {
       certifiers: [certifierPublicKey],
       types: { [certificateType]: ['membershipStatus'] }
@@ -587,6 +520,7 @@ describe('Peer class mutual authentication and certificate exchange', () => {
     const { bobReceivedCertificates } = setupPeers(false, true, {
       bobCertsToRequest: bobCertificatesToRequest
     })
+
     await mockGetVerifiableCertificates(
       aliceVerifiableCertificate,
       undefined,
@@ -597,40 +531,26 @@ describe('Peer class mutual authentication and certificate exchange', () => {
     const bobAcceptedMembershipStatus = jest.fn()
 
     const waitForCerts = new Promise<void>((resolve) => {
-      bob.listenForCertificatesReceived((senderPublicKey, certificates) => {
-        (async () => {
-          for (const cert of certificates) {
-            // Decrypt Alice's certificate fields
-            const decryptedFields = await cert.decryptFields(walletB)
-            if (typeof decryptedFields.membershipStatus !== 'undefined') {
-              // console.log(
-              //   `Bob received Alice's membership status: ${decryptedFields.membershipStatus}`
-              // )
-              bobAcceptedMembershipStatus()
-              resolve()
-            }
+      bob.listenForCertificatesReceived(async (_, certificates) => {
+        for (const cert of certificates) {
+          const decryptedFields = await cert.decryptFields(walletB)
+          if (decryptedFields.membershipStatus === 'Gold') {
+            bobAcceptedMembershipStatus()
+            resolve()
           }
-        })().catch((error) => {
-          console.error('Error processing certificates:', error)
-        })
-      }
-      )
-    })
-
-    const bobReceivedGeneralMessage = new Promise<void>((resolve) => {
-      bob.listenForGeneralMessages((senderPublicKey, payload) => {
-        // console.log('Bob received message from Alice:', Utils.toUTF8(payload))
-        resolve()
+        }
       })
     })
 
-    // Alice sends a message to Bob requesting access to premium content
+    // ---- INITIAL COMMUNICATION = handshake + certificate exchange
+    await alice.getAuthenticatedSession(bobPubKey)
+    await bobReceivedCertificates
+    await waitForCerts
+
+    // ---- OPTIONAL: now Alice can request premium content
     await alice.toPeer(
       Utils.toArray('I would like to access the premium content.')
     )
-    await bobReceivedCertificates
-    await bobReceivedGeneralMessage
-    await waitForCerts
 
     expect(bobAcceptedMembershipStatus).toHaveBeenCalled()
     expect(certificatesReceivedByBob).toEqual([aliceVerifiableCertificate])
@@ -638,12 +558,9 @@ describe('Peer class mutual authentication and certificate exchange', () => {
   }, 15000)
 
   it("Both peers require each other's driver's license before carpooling", async () => {
-    const alicePubKey = (await walletA.getPublicKey({ identityKey: true }))
-      .publicKey
-    const bobPubKey = (await walletB.getPublicKey({ identityKey: true }))
-      .publicKey
+    const alicePubKey = (await walletA.getPublicKey({ identityKey: true })).publicKey
+    const bobPubKey = (await walletB.getPublicKey({ identityKey: true })).publicKey
 
-    // Both Alice and Bob have driver's license certificates
     const aliceMasterCertificate = await createMasterCertificate(walletA, {
       ...aliceFields,
       driversLicenseNumber: 'DLA123456'
@@ -666,7 +583,6 @@ describe('Peer class mutual authentication and certificate exchange', () => {
       ['driversLicenseNumber']
     )
 
-    // Both peers require the driver's license number
     const certificatesToRequestDriversLicense = {
       certifiers: [certifierPublicKey],
       types: { [certificateType]: ['driversLicenseNumber'] }
@@ -680,6 +596,7 @@ describe('Peer class mutual authentication and certificate exchange', () => {
         bobCertsToRequest: certificatesToRequestDriversLicense
       }
     )
+
     await mockGetVerifiableCertificates(
       aliceVerifiableCertificate,
       bobVerifiableCertificate,
@@ -687,91 +604,31 @@ describe('Peer class mutual authentication and certificate exchange', () => {
       bobPubKey
     )
 
-    const aliceAcceptedBobDL = jest.fn()
-    const bobAcceptedAliceDL = jest.fn()
-
-    const waitForAliceToAcceptBobDL = new Promise<void>((resolve) => {
-      alice.listenForCertificatesReceived((senderPublicKey, certificates) => {
-        (async () => {
-          for (const cert of certificates) {
-            const decryptedFields = await cert.decryptFields(walletA)
-            if (decryptedFields.driversLicenseNumber !== undefined) {
-              // console.log(
-              //   `Alice received Bob's driver's license number: ${decryptedFields.driversLicenseNumber}`
-              // )
-              aliceAcceptedBobDL()
-              resolve()
-            }
-          }
-        })().catch(e => { })
-      }
-      )
-    })
-
-    const waitForBobToAcceptAliceDL = new Promise<void>((resolve) => {
-      bob.listenForCertificatesReceived((senderPublicKey, certificates) => {
-        (async () => {
-          for (const cert of certificates) {
-            const decryptedFields = await cert.decryptFields(walletB)
-            if (decryptedFields.driversLicenseNumber !== undefined) {
-              // console.log(
-              //   `Bob received Alice's driver's license number: ${decryptedFields.driversLicenseNumber}`
-              // )
-              bobAcceptedAliceDL()
-              resolve()
-            }
-          }
-        })().catch(e => { })
-      }
-      )
-    })
-
-    const bobReceivedGeneralMessage = new Promise<void>((resolve) => {
-      bob.listenForGeneralMessages((senderPublicKey, payload) => {
-        (async () => {
-          // console.log('Bob received message from Alice:', Utils.toUTF8(payload))
-          await bob.toPeer(
-            Utils.toArray('Looking forward to carpooling!'),
-            senderPublicKey
-          )
-          resolve()
-        })().catch(e => { })
-      })
-    })
-
-    const aliceReceivedGeneralMessage = new Promise<void>((resolve) => {
-      alice.listenForGeneralMessages((senderPublicKey, payload) => {
-        // console.log('Alice received message from Bob:', Utils.toUTF8(payload))
-        resolve()
-      })
-    })
-
-    // Alice initiates the conversation
-    await alice.toPeer(
-      Utils.toArray("Please share your driver's license number for carpooling.")
-    )
+    // 🔑 Step 1: Alice requests Bob's cert
+    await alice.requestCertificates(certificatesToRequestDriversLicense, bobPubKey)
     await aliceReceivedCertificates
+
+    // 🔑 Step 2: Bob requests Alice's cert
+    await bob.requestCertificates(certificatesToRequestDriversLicense, alicePubKey)
     await bobReceivedCertificates
-    await bobReceivedGeneralMessage
-    await aliceReceivedGeneralMessage
 
-    // Wait for both sides to fully accept each other's certificate
-    await waitForAliceToAcceptBobDL
-    await waitForBobToAcceptAliceDL
-
-    expect(aliceAcceptedBobDL).toHaveBeenCalled()
-    expect(bobAcceptedAliceDL).toHaveBeenCalled()
     expect(certificatesReceivedByAlice).toEqual([bobVerifiableCertificate])
     expect(certificatesReceivedByBob).toEqual([aliceVerifiableCertificate])
+
+    // 🔓 Step 3: NOW general messages are allowed
+    const bobReceivedMessage = new Promise<void>((resolve) => {
+      bob.listenForGeneralMessages(() => resolve())
+    })
+
+    await alice.toPeer(Utils.toArray('Ready to carpool!'), bobPubKey)
+    await bobReceivedMessage
   }, 20000)
 
   it('Peers accept partial certificates if at least one required field is present', async () => {
-    const alicePubKey = (await walletA.getPublicKey({ identityKey: true }))
-      .publicKey
-    const bobPubKey = (await walletB.getPublicKey({ identityKey: true }))
-      .publicKey
+    const alicePubKey = (await walletA.getPublicKey({ identityKey: true })).publicKey
+    const bobPubKey = (await walletB.getPublicKey({ identityKey: true })).publicKey
 
-    // Alice's certificate contains 'name' and 'email'; Bob's contains only 'email'
+    // Alice has name+email, Bob has only email
     const aliceMasterCertificate = await createMasterCertificate(walletA, {
       name: 'Alice',
       email: 'alice@example.com'
@@ -806,6 +663,7 @@ describe('Peer class mutual authentication and certificate exchange', () => {
         bobCertsToRequest: partialCertificatesToRequest
       }
     )
+
     await mockGetVerifiableCertificates(
       aliceVerifiableCertificate,
       bobVerifiableCertificate,
@@ -813,63 +671,36 @@ describe('Peer class mutual authentication and certificate exchange', () => {
       bobPubKey
     )
 
-    const aliceAcceptedPartialCert = jest.fn()
-    const bobAcceptedPartialCert = jest.fn()
+    // --- Exchange certs explicitly (no general messages yet) ---
+    await alice.requestCertificates(partialCertificatesToRequest, bobPubKey)
+    await bob.requestCertificates(partialCertificatesToRequest, alicePubKey)
 
-    const waitForAlicePartialCert = new Promise<void>((resolve) => {
-      alice.listenForCertificatesReceived((senderPublicKey, certificates) => {
-        (async () => {
-          for (const cert of certificates) {
-            const decryptedFields = await cert.decryptFields(walletA)
-            if (decryptedFields.email !== undefined || decryptedFields.name !== undefined) {
-              // console.log(
-              //   `Alice received Bob's certificate with fields: ${Object.keys(decryptedFields).join(', ')}`
-              // )
-              aliceAcceptedPartialCert()
-              resolve()
-            }
-          }
-        })().catch(e => { })
-      })
-    })
-
-    const waitForBobPartialCert = new Promise<void>((resolve) => {
-      bob.listenForCertificatesReceived((senderPublicKey, certificates) => {
-        (async () => {
-          for (const cert of certificates) {
-            const decryptedFields = await cert.decryptFields(walletB)
-            if (decryptedFields.email !== undefined || decryptedFields.name !== undefined) {
-              // console.log(
-              //   `Bob received Alice's certificate with fields: ${Object.keys(decryptedFields).join(', ')}`
-              // )
-              bobAcceptedPartialCert()
-              resolve()
-            }
-          }
-        })().catch(e => { })
-      })
-    })
-
-    const bobReceivedGeneralMessage = new Promise<void>((resolve) => {
-      bob.listenForGeneralMessages((senderPublicKey, payload) => {
-        // console.log('Bob received message:', Utils.toUTF8(payload))
-        resolve()
-      })
-    })
-
-    await alice.toPeer(Utils.toArray('Hello Bob!'))
     await aliceReceivedCertificates
     await bobReceivedCertificates
-    await bobReceivedGeneralMessage
 
-    // Wait for both sides to fully accept the partial cert
-    await waitForAlicePartialCert
-    await waitForBobPartialCert
+    // --- Validate "partial" acceptance by decrypting on each side ---
+    const aliceDecrypted = await certificatesReceivedByAlice![0].decryptFields(walletA)
+    const bobDecrypted = await certificatesReceivedByBob![0].decryptFields(walletB)
 
-    expect(aliceAcceptedPartialCert).toHaveBeenCalled()
-    expect(bobAcceptedPartialCert).toHaveBeenCalled()
+    // Alice received Bob's cert which only has email, but request was name+email
+    expect(aliceDecrypted.email).toBeDefined()
+    // (Bob did not reveal name, so it may be undefined)
+    expect(aliceDecrypted.name).toBeUndefined()
+
+    // Bob received Alice's cert which has both name+email
+    expect(bobDecrypted.email).toBeDefined()
+    expect(bobDecrypted.name).toBeDefined()
+
     expect(certificatesReceivedByAlice).toEqual([bobVerifiableCertificate])
     expect(certificatesReceivedByBob).toEqual([aliceVerifiableCertificate])
+
+    // --- Optional: now general messages should work (since validation happened) ---
+    const bobReceivedGeneralMessage = new Promise<void>((resolve) => {
+      bob.listenForGeneralMessages(() => resolve())
+    })
+
+    await alice.toPeer(Utils.toArray('Hello Bob!'), bobPubKey)
+    await bobReceivedGeneralMessage
   }, 20000)
 
   describe('Transport Error Handling', () => {
@@ -1055,5 +886,83 @@ describe('Peer class mutual authentication and certificate exchange', () => {
         expect(error.message).toContain('Network failure')
       }
     }, 15000)
+  })
+
+  describe('Certificate gating for general messages', () => {
+    it('rejects incoming general messages before certificate validation', async () => {
+      const bobPubKey = (await walletB.getPublicKey({ identityKey: true })).publicKey
+
+      setupPeers(false, true) // Bob requires certs
+
+      let received = false
+      bob.listenForGeneralMessages(() => {
+        received = true
+      })
+
+      // Send message — error is thrown internally
+      try {
+        await alice.toPeer(Utils.toArray('Hello Bob!'), bobPubKey)
+      } catch {
+        // swallow — error is expected but not part of assertion
+      }
+
+      // Allow transport handlers to run
+      await new Promise(r => setTimeout(r, 50))
+
+      // Message must NOT be delivered
+      expect(received).toBe(false)
+    })
+
+    it('blocks outgoing messages until certificates are validated', async () => {
+      setupPeers(true, false) // Alice requires certs from Bob
+
+      // Prevent Bob from auto-supplying certificates during the handshake.
+      // This keeps Alice in "certs required but not validated" state.
+      bob.listenForCertificatesRequested(() => {
+        // Intentionally do nothing (no auto-response)
+      })
+
+      await expect(
+        alice.toPeer(Utils.toArray('Hello Bob!'))
+      ).rejects.toThrow('certificate validation')
+    })
+
+    it('allows general messages after certificate validation completes', async () => {
+      const alicePubKey = (await walletA.getPublicKey({ identityKey: true })).publicKey
+      const bobPubKey = (await walletB.getPublicKey({ identityKey: true })).publicKey
+
+      const bobMasterCert = await createMasterCertificate(walletB, { name: 'Bob' })
+      const bobCert = await createVerifiableCertificate(
+        bobMasterCert,
+        walletB,
+        alicePubKey,
+        ['name']
+      )
+
+      // Alice requires certs from Bob
+      const { aliceReceivedCertificates } = setupPeers(true, false)
+
+      // Bob will provide his cert to Alice when asked
+      await mockGetVerifiableCertificates(
+        undefined,
+        bobCert,
+        alicePubKey,
+        bobPubKey
+      )
+
+      // Trigger handshake + cert exchange WITHOUT sending a general message
+      await alice.toPeer(Utils.toArray('handshake'), bobPubKey)
+
+      // Wait until Alice has validated Bob’s certificate
+      await aliceReceivedCertificates
+
+      // Now general messages must be allowed
+      const received = new Promise<void>((resolve) => {
+        bob.listenForGeneralMessages(() => resolve())
+      })
+
+      await alice.toPeer(Utils.toArray('Hello Bob!'), bobPubKey)
+      await received
+    })
   })
 })
