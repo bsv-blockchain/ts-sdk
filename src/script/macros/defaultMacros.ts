@@ -11,7 +11,7 @@ const MACRO_REVERSE_BYTE_COUNT = 32
 const MACRO_REVERSE_SPLITS = MACRO_REVERSE_BYTE_COUNT - 1
 const MACRO_HASH256_REVERSE_LENGTH = 1 + (MACRO_REVERSE_SPLITS * 2) + (MACRO_REVERSE_SPLITS * 2)
 const MACRO_MIN_SWAP_CAT_RUN = 1
-const MACRO_MIN_SPLIT_1X_RUN = 2
+const MACRO_MIN_SPLIT_1X_RUN = 1
 const PREAMBLE_GX_HEX = '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
 const PREAMBLE_PUBKEY = Object.freeze([2, ...hexToBytes(PREAMBLE_GX_HEX)])
 const PREAMBLE_SCOPE = TransactionSignature.SIGHASH_FORKID | TransactionSignature.SIGHASH_ALL
@@ -46,6 +46,24 @@ function matchPairSequence (
     }
   }
   return true
+}
+
+function readSmallPush (chunk: ScriptChunk | undefined, max: number = 16): number | null {
+  if (chunk == null || typeof chunk.op !== 'number') return null
+  if (chunk.op >= OP.OP_1 && chunk.op <= OP.OP_16) {
+    const value = chunk.op - (OP.OP_1 - 1)
+    return value <= max ? value : null
+  }
+  if (chunk.op < 0 || chunk.op > OP.OP_PUSHDATA4) return null
+  const data = Array.isArray(chunk.data) ? chunk.data : []
+  let value: bigint
+  try {
+    value = BigNumber.fromScriptNum(data, requireMinimalPush).toBigInt()
+  } catch {
+    return null
+  }
+  if (value < 0n || value > BigInt(max)) return null
+  return Number(value)
 }
 
 function matchHash256Reverse32 (
@@ -107,7 +125,7 @@ function matchSplit1xRun (
 ): ScriptMacroMatch | null {
   let count = 0
   let index = startIndex
-  while (chunks[index]?.op === OP.OP_1 && chunks[index + 1]?.op === OP.OP_SPLIT) {
+  while (readSmallPush(chunks[index], 1) === 1 && chunks[index + 1]?.op === OP.OP_SPLIT) {
     count++
     index += 2
   }
@@ -163,10 +181,9 @@ function matchConstSplitDrop (
   chunks: ReadonlyArray<ScriptChunk>,
   startIndex: number
 ): ScriptMacroMatch | null {
-  const op = chunks[startIndex]?.op
-  if (op == null || op < OP.OP_1 || op > OP.OP_16) return null
+  const count = readSmallPush(chunks[startIndex], 16)
+  if (count == null) return null
   if (chunks[startIndex + 1]?.op !== OP.OP_SPLIT || chunks[startIndex + 2]?.op !== OP.OP_DROP) return null
-  const count = op - (OP.OP_1 - 1)
   return { length: 3, meta: { count } }
 }
 
@@ -174,10 +191,9 @@ function matchConstSplitNip (
   chunks: ReadonlyArray<ScriptChunk>,
   startIndex: number
 ): ScriptMacroMatch | null {
-  const op = chunks[startIndex]?.op
-  if (op == null || op < OP.OP_1 || op > OP.OP_16) return null
+  const count = readSmallPush(chunks[startIndex], 16)
+  if (count == null) return null
   if (chunks[startIndex + 1]?.op !== OP.OP_SPLIT || chunks[startIndex + 2]?.op !== OP.OP_NIP) return null
-  const count = op - (OP.OP_1 - 1)
   return { length: 3, meta: { count } }
 }
 
@@ -214,6 +230,33 @@ function match2DropRun (
   }
   if (count < 2) return null
   return { length: count, meta: { count } }
+}
+
+function matchCatSwap (
+  chunks: ReadonlyArray<ScriptChunk>,
+  startIndex: number
+): ScriptMacroMatch | null {
+  if (chunks[startIndex]?.op !== OP.OP_CAT) return null
+  if (chunks[startIndex + 1]?.op !== OP.OP_SWAP) return null
+  return { length: 2 }
+}
+
+function matchDropPush0 (
+  chunks: ReadonlyArray<ScriptChunk>,
+  startIndex: number
+): ScriptMacroMatch | null {
+  if (chunks[startIndex]?.op !== OP.OP_DROP) return null
+  if (chunks[startIndex + 1]?.op !== OP.OP_0) return null
+  return { length: 2 }
+}
+
+function matchCatCat (
+  chunks: ReadonlyArray<ScriptChunk>,
+  startIndex: number
+): ScriptMacroMatch | null {
+  if (chunks[startIndex]?.op !== OP.OP_CAT) return null
+  if (chunks[startIndex + 1]?.op !== OP.OP_CAT) return null
+  return { length: 2 }
 }
 
 function matchDropRun (
@@ -498,6 +541,65 @@ function apply2DropRun (spend: ScriptMacroApplyContext, match: ScriptMacroMatch)
   return true
 }
 
+function applyCatSwap (spend: ScriptMacroApplyContext): boolean {
+  if (spend.stack.length < 3) return false
+  const top = spend.stack[spend.stack.length - 1]
+  const second = spend.stack[spend.stack.length - 2]
+  if (!Array.isArray(top) || !Array.isArray(second)) return false
+  const catLen = top.length + second.length
+  if (catLen > maxScriptElementSize) return false
+  if (spend.stackMem - top.length - second.length + catLen > spend.memoryLimit) return false
+
+  const c = spend.stack.pop() as number[]
+  const b = spend.stack.pop() as number[]
+  const a = spend.stack.pop() as number[]
+  spend.stackMem -= a.length + b.length + c.length
+
+  const cat = new Array(catLen)
+  for (let i = 0; i < b.length; i++) cat[i] = b[i]
+  for (let i = 0; i < c.length; i++) cat[b.length + i] = c[i]
+
+  spend.stack.push(cat)
+  spend.stack.push(a)
+  spend.stackMem += cat.length + a.length
+  return true
+}
+
+function applyDropPush0 (spend: ScriptMacroApplyContext): boolean {
+  if (spend.stack.length < 1) return false
+  const item = spend.stack.pop() as number[]
+  spend.stackMem -= item.length
+  if (spend.stackMem + 1 > spend.memoryLimit) return false
+  spend.stack.push([])
+  return true
+}
+
+function applyCatCat (spend: ScriptMacroApplyContext): boolean {
+  if (spend.stack.length < 3) return false
+  const top = spend.stack[spend.stack.length - 1]
+  const second = spend.stack[spend.stack.length - 2]
+  const third = spend.stack[spend.stack.length - 3]
+  if (!Array.isArray(top) || !Array.isArray(second) || !Array.isArray(third)) return false
+  const catLen = top.length + second.length + third.length
+  if (catLen > maxScriptElementSize) return false
+  if (spend.stackMem - top.length - second.length - third.length + catLen > spend.memoryLimit) return false
+
+  const c = spend.stack.pop() as number[]
+  const b = spend.stack.pop() as number[]
+  const a = spend.stack.pop() as number[]
+  spend.stackMem -= a.length + b.length + c.length
+
+  const cat = new Array(catLen)
+  let offset = 0
+  for (let i = 0; i < a.length; i++) cat[offset++] = a[i]
+  for (let i = 0; i < b.length; i++) cat[offset++] = b[i]
+  for (let i = 0; i < c.length; i++) cat[offset++] = c[i]
+
+  spend.stack.push(cat)
+  spend.stackMem += cat.length
+  return true
+}
+
 function applyDropRun (spend: ScriptMacroApplyContext, match: ScriptMacroMatch): boolean {
   const count = typeof match.meta?.count === 'number' ? match.meta.count : 0
   if (!Number.isInteger(count) || count < 1) return false
@@ -619,5 +721,29 @@ export const DEFAULT_MACROS: ReadonlyArray<ScriptMacroDefinition> = Object.freez
     skipWhenNotExecuting: true,
     pattern: 'OP_DROP x N',
     description: 'Drops N stack items.'
+  }),
+  Object.freeze({
+    name: 'cat-swap',
+    match: matchCatSwap,
+    apply: (spend: ScriptMacroApplyContext) => applyCatSwap(spend),
+    skipWhenNotExecuting: true,
+    pattern: 'OP_CAT OP_SWAP',
+    description: 'Concatenates the top two stack items and swaps with the next item.'
+  }),
+  Object.freeze({
+    name: 'drop-push0',
+    match: matchDropPush0,
+    apply: (spend: ScriptMacroApplyContext) => applyDropPush0(spend),
+    skipWhenNotExecuting: true,
+    pattern: 'OP_DROP OP_0',
+    description: 'Drops the top stack item and pushes an empty array.'
+  }),
+  Object.freeze({
+    name: 'cat-cat',
+    match: matchCatCat,
+    apply: (spend: ScriptMacroApplyContext) => applyCatCat(spend),
+    skipWhenNotExecuting: true,
+    pattern: 'OP_CAT OP_CAT',
+    description: 'Concatenates the top three stack items in order.'
   })
 ])
