@@ -267,6 +267,52 @@ describe('IdentityClient', () => {
       // Wallet method should not be called when contact is found
       expect(walletMock.discoverByIdentityKey).not.toHaveBeenCalled()
     })
+
+    it('should fallback to LookupResolver when no wallet is available', async () => {
+      // Mock wallet methods to throw "No wallet available" error
+      walletMock.discoverByIdentityKey = jest.fn().mockRejectedValue(
+        new Error('No wallet available over any communication substrate. Install a BSV wallet today!')
+      )
+
+      // Mock ContactsManager to also throw (since it requires wallet)
+      const mockContactsManager = identityClient['contactsManager']
+      mockContactsManager.getContacts = jest.fn().mockRejectedValue(
+        new Error('No wallet available')
+      )
+
+      // Mock the resolveViaLookup method to return mock certificates
+      const mockCertificate = {
+        type: KNOWN_IDENTITY_TYPES.xCert,
+        subject: 'test-identity-key',
+        decryptedFields: {
+          userName: 'TestUser',
+          profilePhoto: 'test-photo-url'
+        },
+        certifierInfo: {
+          name: 'SocialCert',
+          iconUrl: 'https://socialcert.net/favicon.ico'
+        }
+      }
+
+      // Spy on the private resolveViaLookup method
+      jest.spyOn(identityClient as any, 'resolveViaLookup').mockResolvedValue([mockCertificate])
+
+      const identities = await identityClient.resolveByIdentityKey(
+        { identityKey: 'test-identity-key' },
+        false // Don't override with contacts
+      )
+
+      // Verify wallet was called and threw
+      expect(walletMock.discoverByIdentityKey).toHaveBeenCalled()
+
+      // Verify fallback was used
+      expect((identityClient as any).resolveViaLookup).toHaveBeenCalledWith({ identityKey: 'test-identity-key' })
+
+      // Verify results were returned from fallback
+      expect(identities).toHaveLength(1)
+      expect(identities[0].name).toBe('TestUser')
+      expect(identities[0].identityKey).toBe('test-identity-key')
+    })
   })
 
   it('should throw if createAction returns no tx', async () => {
