@@ -210,6 +210,8 @@ All notable changes to this project will be documented in this file. The format 
 Merge of BeefUint8Array branch: This is a non-breaking expansion of the API to support migration to Uint8Array
 
 ### Changed
+- BEEF and AtomicBEEF types are now EITHER Byte[] OR Uint8Array. BREAKING CHANGE. Requires code to convert to single type, possibly using new toUint8Array Utils method.
+- Transaction.fromBEEF and fromAtomicBEEF now use BEEF type instead of number[]
 - Migrate ReaderUint8Array from wallet-toolbox to ts-sdk Utils to support Uint8Array binary format in Beef and Transaction.
 - Utils toHex now handles Uint8Array input
 - Beef mergeRawTx, mergeBeef now handle Uint8Array input
@@ -222,6 +224,7 @@ Merge of BeefUint8Array branch: This is a non-breaking expansion of the API to s
 - Beef.test.ts now tests toUint8ArrayAtomic result bytes are equal to toBinaryAtomic
 
 ### Added
+- Utils toUint8Array (like toArray, but also accepts Uint8Array input and output is always Uint8Array)
 - Beef toUint8ArrayAtomic (like toBinaryAtomic but result is Uint8Array)
 
 ## [2.0.0] - 2026-01-01
