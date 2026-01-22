@@ -49,6 +49,19 @@ export const toHex = (msg: number[] | Uint8Array): string => {
 }
 
 /**
+ * Converts various message formats into a Uint8Array.
+ * Supports Uint8Array, arrays of bytes, hexadecimal strings, base64 strings, and UTF-8 strings.
+ *
+ * @param {any} msg - The input message (array or string).
+ * @param {('hex' | 'utf8' | 'base64')} enc - Specifies the string encoding, if applicable.
+ * @returns {Uint8Array}
+ */
+export const toUint8Array = (msg: any, enc?: 'hex' | 'utf8' | 'base64'): Uint8Array => {
+  if (msg instanceof Uint8Array) return msg
+  return new Uint8Array(toArray(msg, enc))
+}
+
+/**
  * Converts various message formats into an array of numbers.
  * Supports arrays, hexadecimal strings, base64 strings, and UTF-8 strings.
  *
