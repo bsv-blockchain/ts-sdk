@@ -110,7 +110,7 @@ export default class Transaction {
    * @param txid Optional TXID of the transaction to retrieve from the BEEF data.
    * @returns An anchored transaction, linked to its associated inputs populated with merkle paths.
    */
-  static fromBEEF (beef: number[], txid?: string): Transaction {
+  static fromBEEF (beef: BEEF, txid?: string): Transaction {
     const { tx } = Transaction.fromAnyBeef(beef, txid)
     return tx
   }
@@ -122,7 +122,7 @@ export default class Transaction {
    * @param beef A binary representation of an Atomic BEEF structure.
    * @returns The subject transaction, linked to its associated inputs populated with merkle paths.
    */
-  static fromAtomicBEEF (beef: number[]): Transaction {
+  static fromAtomicBEEF (beef: BEEF): Transaction {
     const { tx, txid, beef: b } = Transaction.fromAnyBeef(beef)
     if (txid !== b.atomicTxid) {
       if (b.atomicTxid != null) {
@@ -134,7 +134,7 @@ export default class Transaction {
     return tx
   }
 
-  private static fromAnyBeef (beef: number[], txid?: string): { tx: Transaction, beef: Beef, txid: string } {
+  private static fromAnyBeef (beef: BEEF, txid?: string): { tx: Transaction, beef: Beef, txid: string } {
     const b = Beef.fromBinary(beef)
     if (b.txs.length < 1) {
       throw new Error('beef must include at least one transaction.')
