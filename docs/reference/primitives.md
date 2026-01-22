@@ -1786,6 +1786,7 @@ export default class Point extends BasePoint {
     getX(): BigNumber 
     getY(): BigNumber 
     mul(k: BigNumber | number | number[] | string): Point 
+    mulCT(k: BigNumber | number | number[] | string): Point 
     mulAdd(k1: BigNumber, p2: Point, k2: BigNumber): Point 
     jmulAdd(k1: BigNumber, p2: Point, k2: BigNumber): JPoint 
     eq(p: Point): boolean 
@@ -2507,6 +2508,32 @@ Returns
 , modN } where modN is this PrivateKey's current BigNumber value mod curve.n, and inField is true only if modN equals current BigNumber value.
 
 #### Method deriveChild
+
+SECURITY NOTE – DETERMINISTIC CHILD KEY DERIVATION
+
+This method derives child private keys deterministically from the caller’s
+long-term private key, the counterparty’s public key, and a caller-supplied
+invoice number using HMAC over an ECDH shared secret (BRC-42 style derivation).
+
+This construction does NOT implement a formally authenticated key exchange
+(AKE) and does NOT provide the following security properties:
+
+ - Forward secrecy: Compromise of a long-term private key compromises all
+   past and future child keys derived from it.
+ - Replay protection: Child keys are deterministic for a given invoice
+   number and key pair; previously observed messages can be replayed.
+ - Explicit authentication / identity binding: Possession of a public key
+   alone does not guarantee the intended peer identity, enabling potential
+   identity misbinding attacks if higher-level identity verification is absent.
+
+This derivation is intended for lightweight, deterministic key hierarchies
+where both parties already possess and trust each other’s long-term public
+keys. It SHOULD NOT be used as a drop-in replacement for a standard
+authenticated key exchange (e.g. X3DH, Noise, or SIGMA) in high-security or
+high-value contexts.
+
+Any future protocol providing forward secrecy, replay protection, or strong
+peer authentication will require a versioned, breaking change.
 
 Derives a child key with BRC-42.
 
@@ -5923,16 +5950,18 @@ multiply = function (block0: Bytes, block1: Bytes): Bytes {
     const v = block1.slice();
     const z = createZeroBlock(16);
     for (let i = 0; i < 16; i++) {
+        const b = block0[i];
         for (let j = 7; j >= 0; j--) {
-            if ((block0[i] & (1 << j)) !== 0) {
-                xorInto(z, v);
+            const bit = (b >> j) & 1;
+            const mask = -bit & 255;
+            for (let k = 0; k < 16; k++) {
+                z[k] ^= v[k] & mask;
             }
-            if ((v[15] & 1) !== 0) {
-                rightShift(v);
-                xorInto(v, R);
-            }
-            else {
-                rightShift(v);
+            const lsb = v[15] & 1;
+            const rmask = -lsb & 255;
+            rightShift(v);
+            for (let k = 0; k < 16; k++) {
+                v[k] ^= R[k] & rmask;
             }
         }
     }
@@ -6110,8 +6139,8 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ```ts
 sign = (msg: BigNumber, key: BigNumber, forceLowS: boolean = false, customK?: BigNumber | ((iter: number) => BigNumber)): Signature => {
     msg = truncateToN(msg);
-    const msgBig = BigInt("0x" + msg.toString(16));
-    const keyBig = BigInt("0x" + key.toString(16));
+    const msgBig = bnToBigInt(msg);
+    const keyBig = bnToBigInt(key);
     const bkey = key.toArray("be", bytes);
     const nonce = msg.toArray("be", bytes);
     const drbg = new DRBG(bkey, nonce);
@@ -6121,26 +6150,24 @@ sign = (msg: BigNumber, key: BigNumber, forceLowS: boolean = false, customK?: Bi
             : BigNumber.isBN(customK)
                 ? customK
                 : new BigNumber(drbg.generate(bytes), 16);
-        if (kBN == null)
+        if (kBN == null) {
             throw new Error("k is undefined");
+        }
         kBN = truncateToN(kBN, true);
         if (kBN.cmpn(1) < 0 || kBN.cmp(ns1) > 0) {
             if (BigNumber.isBN(customK)) {
-                throw new Error("Invalid fixed custom K value (must be >1 and <N\u20111)");
+                throw new Error("Invalid fixed custom K value (must be >1 and <N-1)");
             }
             continue;
         }
-        const kBig = BigInt("0x" + kBN.toString(16));
-        const R = scalarMultiplyWNAF(kBig, { x: GX_BIGINT, y: GY_BIGINT });
-        if (R.Z === 0n) {
+        const R = curve.g.mulCT(kBN);
+        if (R.isInfinity()) {
             if (BigNumber.isBN(customK)) {
                 throw new Error("Invalid fixed custom K value (k\u00B7G at infinity)");
             }
             continue;
         }
-        const zInv = biModInv(R.Z);
-        const zInv2 = biModMul(zInv, zInv);
-        const xAff = biModMul(R.X, zInv2);
+        const xAff = BigInt("0x" + R.getX().toString(16));
         const rBig = modN(xAff);
         if (rBig === 0n) {
             if (BigNumber.isBN(customK)) {
@@ -6148,6 +6175,7 @@ sign = (msg: BigNumber, key: BigNumber, forceLowS: boolean = false, customK?: Bi
             }
             continue;
         }
+        const kBig = BigInt("0x" + kBN.toString(16));
         const kInv = modInvN(kBig);
         const rTimesKey = modMulN(rBig, keyBig);
         const sum = modN(msgBig + rTimesKey);
@@ -6168,7 +6196,7 @@ sign = (msg: BigNumber, key: BigNumber, forceLowS: boolean = false, customK?: Bi
 }
 ```
 
-See also: [BigNumber](./primitives.md#class-bignumber), [DRBG](./primitives.md#class-drbg), [GX_BIGINT](./primitives.md#variable-gx_bigint), [GY_BIGINT](./primitives.md#variable-gy_bigint), [N_BIGINT](./primitives.md#variable-n_bigint), [Signature](./primitives.md#class-signature), [biModInv](./primitives.md#variable-bimodinv), [biModMul](./primitives.md#variable-bimodmul), [modInvN](./primitives.md#variable-modinvn), [modMulN](./primitives.md#variable-modmuln), [modN](./primitives.md#variable-modn), [scalarMultiplyWNAF](./primitives.md#variable-scalarmultiplywnaf), [toArray](./primitives.md#variable-toarray)
+See also: [BigNumber](./primitives.md#class-bignumber), [DRBG](./primitives.md#class-drbg), [N_BIGINT](./primitives.md#variable-n_bigint), [Signature](./primitives.md#class-signature), [modInvN](./primitives.md#variable-modinvn), [modMulN](./primitives.md#variable-modmuln), [modN](./primitives.md#variable-modn), [toArray](./primitives.md#variable-toarray)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -6285,17 +6313,17 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 verify = (msg: BigNumber, sig: Signature, key: Point): boolean => {
-    const hash = BigInt("0x" + msg.toString(16));
+    const hash = bnToBigInt(msg);
     if ((key.x == null) || (key.y == null)) {
         throw new Error("Invalid public key: missing coordinates.");
     }
     const publicKey = {
-        x: BigInt("0x" + key.x.toString(16)),
-        y: BigInt("0x" + key.y.toString(16))
+        x: bnToBigInt(key.x),
+        y: bnToBigInt(key.y)
     };
     const signature = {
-        r: BigInt("0x" + sig.r.toString(16)),
-        s: BigInt("0x" + sig.s.toString(16))
+        r: bnToBigInt(sig.r),
+        s: bnToBigInt(sig.s)
     };
     const { r, s } = signature;
     const z = hash;

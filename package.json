@@ -1,6 +1,6 @@
 {
   "name": "@bsv/sdk",
-  "version": "2.0.1",
+  "version": "2.0.0-beta.2",
   "type": "module",
   "description": "BSV Blockchain Software Development Kit",
   "main": "dist/cjs/mod.js",
@@ -203,6 +203,16 @@
       "import": "./dist/esm/src/kvstore/*.js",
       "require": "./dist/cjs/src/kvstore/*.js",
       "types": "./dist/types/src/kvstore/*.d.ts"
+    },
+    "./remittance": {
+      "import": "./dist/esm/src/remittance/index.js",
+      "require": "./dist/cjs/src/remittance/index.js",
+      "types": "./dist/types/src/remittance/index.d.ts"
+    },
+    "./remittance/*": {
+      "import": "./dist/esm/src/remittance/*.js",
+      "require": "./dist/cjs/src/remittance/*.js",
+      "types": "./dist/types/src/remittance/*.d.ts"
     },
     "./umd": {
       "import": "./dist/umd/bundle.js"
