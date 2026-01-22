@@ -575,12 +575,12 @@ export class Beef {
     findTransactionForSigning(txid: string): Transaction | undefined 
     findAtomicTransaction(txid: string): Transaction | undefined 
     mergeBump(bump: MerklePath): number 
-    mergeRawTx(rawTx: number[], bumpIndex?: number): BeefTx 
+    mergeRawTx(rawTx: number[] | Uint8Array, bumpIndex?: number): BeefTx 
     mergeTransaction(tx: Transaction): BeefTx 
     removeExistingTxid(txid: string): void 
     mergeTxidOnly(txid: string): BeefTx 
     mergeBeefTx(btx: BeefTx): BeefTx 
-    mergeBeef(beef: number[] | Beef): void 
+    mergeBeef(beef: Beef | number[] | Uint8Array): void 
     isValid(allowTxidOnly?: boolean): boolean 
     async verify(chainTracker: ChainTracker, allowTxidOnly?: boolean): Promise<boolean> 
     verifyValid(allowTxidOnly?: boolean): {
@@ -591,9 +591,10 @@ export class Beef {
     toBinary(): number[] 
     toUint8Array(): Uint8Array 
     toBinaryAtomic(txid: string): number[] 
+    toUint8ArrayAtomic(txid: string): Uint8Array 
     toHex(): string 
-    static fromReader(br: Reader): Beef 
-    static fromBinary(bin: number[]): Beef 
+    static fromReader(br: Reader | ReaderUint8Array): Beef 
+    static fromBinary(bin: number[] | Uint8Array): Beef 
     static fromString(s: string, enc: "hex" | "utf8" | "base64" = "hex"): Beef 
     sortTxs(): {
         missingInputs: string[];
@@ -610,7 +611,7 @@ export class Beef {
 }
 ```
 
-See also: [BEEF_V2](./transaction.md#variable-beef_v2), [BeefTx](./transaction.md#class-beeftx), [ChainTracker](./transaction.md#interface-chaintracker), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [Transaction](./transaction.md#class-transaction), [Writer](./primitives.md#class-writer), [toHex](./primitives.md#variable-tohex), [verify](./compat.md#variable-verify)
+See also: [BEEF_V2](./transaction.md#variable-beef_v2), [BeefTx](./transaction.md#class-beeftx), [ChainTracker](./transaction.md#interface-chaintracker), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [Transaction](./transaction.md#class-transaction), [Writer](./primitives.md#class-writer), [toHex](./primitives.md#variable-tohex), [toUint8Array](./primitives.md#variable-touint8array), [verify](./compat.md#variable-verify)
 
 #### Method addComputedLeaves
 
@@ -705,7 +706,7 @@ Argument Details
 Constructs an instance of the Beef class based on the provided binary array
 
 ```ts
-static fromBinary(bin: number[]): Beef 
+static fromBinary(bin: number[] | Uint8Array): Beef 
 ```
 See also: [Beef](./transaction.md#class-beef)
 
@@ -716,7 +717,7 @@ An instance of the Beef class constructed from the binary data
 Argument Details
 
 + **bin**
-  + The binary array from which to construct BEEF
+  + The binary array or Uint8Array from which to construct BEEF
 
 #### Method fromString
 
@@ -808,7 +809,7 @@ Checks that a transaction with the same txid hasn't already been merged.
 Replaces existing transaction with same txid.
 
 ```ts
-mergeRawTx(rawTx: number[], bumpIndex?: number): BeefTx 
+mergeRawTx(rawTx: number[] | Uint8Array, bumpIndex?: number): BeefTx 
 ```
 See also: [BeefTx](./transaction.md#class-beeftx)
 
@@ -886,6 +887,8 @@ Returns
 
 A binary array representing the BEEF
 
+An array of byte values containing binary serialization of the BEEF
+
 #### Method toBinaryAtomic
 
 Serialize this Beef as AtomicBEEF.
@@ -923,6 +926,34 @@ toLogString(): string
 Returns
 
 Summary of `Beef` contents as multi-line string.
+
+#### Method toUint8Array
+
+Returns a binary array representing the serialized BEEF
+
+```ts
+toUint8Array(): Uint8Array 
+```
+
+Returns
+
+A Uint8Array containing binary serialization of the BEEF
+
+#### Method toUint8ArrayAtomic
+
+Serialize this Beef as AtomicBEEF.
+
+`txid` must exist
+
+after sorting, if txid is not last txid, creates a clone and removes newer txs
+
+```ts
+toUint8ArrayAtomic(txid: string): Uint8Array 
+```
+
+Returns
+
+serialized contents of this Beef with AtomicBEEF prefix.
 
 #### Method toWriter
 
@@ -1147,21 +1178,21 @@ export default class BeefTx {
     get txid(): string 
     get tx(): Transaction | undefined 
     get rawTx(): number[] | undefined 
-    constructor(tx: Transaction | number[] | string, bumpIndex?: number) 
+    constructor(tx: Transaction | number[] | string | Uint8Array, bumpIndex?: number) 
     static fromTx(tx: Transaction, bumpIndex?: number): BeefTx 
     static fromRawTx(rawTx: number[], bumpIndex?: number): BeefTx 
     static fromTxid(txid: string, bumpIndex?: number): BeefTx 
     toWriter(writer: Writer, version: number): void 
-    static fromReader(br: Reader, version: number): BeefTx 
+    static fromReader(br: Reader | ReaderUint8Array, version: number): BeefTx 
 }
 ```
 
-See also: [Reader](./primitives.md#class-reader), [Transaction](./transaction.md#class-transaction), [Writer](./primitives.md#class-writer)
+See also: [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [Transaction](./transaction.md#class-transaction), [Writer](./primitives.md#class-writer)
 
 #### Constructor
 
 ```ts
-constructor(tx: Transaction | number[] | string, bumpIndex?: number) 
+constructor(tx: Transaction | number[] | string | Uint8Array, bumpIndex?: number) 
 ```
 See also: [Transaction](./transaction.md#class-transaction)
 
@@ -1293,7 +1324,7 @@ export default class MerklePath {
         duplicate?: boolean;
     }>>;
     static fromHex(hex: string): MerklePath 
-    static fromReader(reader: Reader, legalOffsetsOnly: boolean = true): MerklePath 
+    static fromReader(reader: Reader | ReaderUint8Array, legalOffsetsOnly: boolean = true): MerklePath 
     static fromBinary(bump: number[]): MerklePath 
     static fromCoinbaseTxidAndHeight(txid: string, height: number): MerklePath 
     constructor(blockHeight: number, path: Array<Array<{
@@ -1312,7 +1343,7 @@ export default class MerklePath {
 }
 ```
 
-See also: [ChainTracker](./transaction.md#interface-chaintracker), [MerklePathLeaf](./transaction.md#interface-merklepathleaf), [Reader](./primitives.md#class-reader), [toHex](./primitives.md#variable-tohex), [verify](./compat.md#variable-verify)
+See also: [ChainTracker](./transaction.md#interface-chaintracker), [MerklePathLeaf](./transaction.md#interface-merklepathleaf), [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [toHex](./primitives.md#variable-tohex), [verify](./compat.md#variable-verify)
 
 #### Method combine
 
@@ -1565,8 +1596,8 @@ export default class Transaction {
     lockTime: number;
     metadata: Record<string, any>;
     merklePath?: MerklePath;
-    static fromBEEF(beef: number[], txid?: string): Transaction 
-    static fromAtomicBEEF(beef: number[]): Transaction 
+    static fromBEEF(beef: BEEF, txid?: string): Transaction 
+    static fromAtomicBEEF(beef: BEEF): Transaction 
     static fromEF(ef: number[]): Transaction 
     static parseScriptOffsets(bin: number[]): {
         inputs: Array<{
@@ -1580,7 +1611,7 @@ export default class Transaction {
             length: number;
         }>;
     } 
-    static fromReader(br: Reader): Transaction 
+    static fromReader(br: Reader | ReaderUint8Array): Transaction 
     static fromBinary(bin: number[]): Transaction 
     static fromHex(hex: string): Transaction 
     static fromHexEF(hex: string): Transaction 
@@ -1612,7 +1643,7 @@ export default class Transaction {
 }
 ```
 
-See also: [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [Broadcaster](./transaction.md#interface-broadcaster), [ChainTracker](./transaction.md#interface-chaintracker), [CreateActionOptions](./wallet.md#interface-createactionoptions), [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [FeeModel](./transaction.md#interface-feemodel), [LivePolicy](./transaction.md#class-livepolicy), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput), [WalletInterface](./wallet.md#interface-walletinterface), [defaultBroadcaster](./transaction.md#function-defaultbroadcaster), [defaultChainTracker](./transaction.md#function-defaultchaintracker), [sign](./compat.md#variable-sign), [toHex](./primitives.md#variable-tohex), [verify](./compat.md#variable-verify)
+See also: [BEEF](./wallet.md#type-beef), [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [Broadcaster](./transaction.md#interface-broadcaster), [ChainTracker](./transaction.md#interface-chaintracker), [CreateActionOptions](./wallet.md#interface-createactionoptions), [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [FeeModel](./transaction.md#interface-feemodel), [LivePolicy](./transaction.md#class-livepolicy), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput), [WalletInterface](./wallet.md#interface-walletinterface), [defaultBroadcaster](./transaction.md#function-defaultbroadcaster), [defaultChainTracker](./transaction.md#function-defaultchaintracker), [sign](./compat.md#variable-sign), [toHex](./primitives.md#variable-tohex), [toUint8Array](./primitives.md#variable-touint8array), [verify](./compat.md#variable-verify)
 
 #### Method addInput
 
@@ -1727,9 +1758,9 @@ Creates a new transaction from an Atomic BEEF (BRC-95) structure.
 Extracts the subject transaction and supporting merkle path and source transactions contained in the BEEF data
 
 ```ts
-static fromAtomicBEEF(beef: number[]): Transaction 
+static fromAtomicBEEF(beef: BEEF): Transaction 
 ```
-See also: [Transaction](./transaction.md#class-transaction)
+See also: [BEEF](./wallet.md#type-beef), [Transaction](./transaction.md#class-transaction)
 
 Returns
 
@@ -1748,9 +1779,9 @@ If the TXID is provided but not found in the BEEF data, an error will be thrown.
 If no TXID is provided, the last transaction in the BEEF data is returned, or the atomic txid.
 
 ```ts
-static fromBEEF(beef: number[], txid?: string): Transaction 
+static fromBEEF(beef: BEEF, txid?: string): Transaction 
 ```
-See also: [Transaction](./transaction.md#class-transaction)
+See also: [BEEF](./wallet.md#type-beef), [Transaction](./transaction.md#class-transaction)
 
 Returns
 
