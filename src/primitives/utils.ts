@@ -2,8 +2,10 @@ import BigNumber from './BigNumber.js'
 import { hash256 } from './Hash.js'
 import { assertValidHex } from './hex.js'
 import { WriterUint8Array } from './WriterUint8Array.js'
+import { ReaderUint8Array } from './ReaderUint8Array.js'
 
 export { WriterUint8Array }
+export { ReaderUint8Array }
 
 const BufferCtor =
   typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
@@ -35,7 +37,7 @@ for (let i = 0; i < 256; i++) {
     HEX_DIGITS[(i >> 4) & 0xf] + HEX_DIGITS[i & 0xf]
 }
 
-export const toHex = (msg: number[]): string => {
+export const toHex = (msg: number[] | Uint8Array): string => {
   if (CAN_USE_BUFFER) {
     return BufferCtor.from(msg).toString('hex')
   }
@@ -48,10 +50,23 @@ export const toHex = (msg: number[]): string => {
 }
 
 /**
+ * Converts various message formats into a Uint8Array.
+ * Supports Uint8Array, arrays of bytes, hexadecimal strings, base64 strings, and UTF-8 strings.
+ *
+ * @param {any} msg - The input message (Uint8Array, number[], Array or string).
+ * @param {('hex' | 'utf8' | 'base64')} enc - Specifies the string encoding, if applicable.
+ * @returns {Uint8Array}
+ */
+export const toUint8Array = (msg: any, enc?: 'hex' | 'utf8' | 'base64'): Uint8Array => {
+  if (msg instanceof Uint8Array) return msg
+  return new Uint8Array(toArray(msg, enc))
+}
+
+/**
  * Converts various message formats into an array of numbers.
  * Supports arrays, hexadecimal strings, base64 strings, and UTF-8 strings.
  *
- * @param {any} msg - The input message (array or string).
+ * @param {any} msg - The input message (Uint8Array, number[], Array or string).
  * @param {('hex' | 'utf8' | 'base64')} enc - Specifies the string encoding, if applicable.
  * @returns {any[]} - Array representation of the input.
  */
