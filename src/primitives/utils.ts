@@ -1,6 +1,9 @@
 import BigNumber from './BigNumber.js'
 import { hash256 } from './Hash.js'
 import { assertValidHex } from './hex.js'
+import { WriterUint8Array } from './WriterUint8Array.js'
+
+export { WriterUint8Array }
 
 const BufferCtor =
   typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
