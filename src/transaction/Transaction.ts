@@ -3,7 +3,7 @@ import TransactionInput from './TransactionInput.js'
 import TransactionOutput from './TransactionOutput.js'
 import UnlockingScript from '../script/UnlockingScript.js'
 import LockingScript from '../script/LockingScript.js'
-import { Reader, Writer, toHex, toArray } from '../primitives/utils.js'
+import { Reader, Writer, toHex, toArray, ReaderUint8Array, toUint8Array } from '../primitives/utils.js'
 import { hash256 } from '../primitives/Hash.js'
 import FeeModel from './FeeModel.js'
 import LivePolicy from './fee-models/LivePolicy.js'
@@ -156,8 +156,8 @@ export default class Transaction {
    * @param ef A binary representation of a transaction in EF format.
    * @returns An extended transaction, linked to its associated inputs by locking script and satoshis amounts only.
    */
-  static fromEF (ef: number[]): Transaction {
-    const br = new Reader(ef)
+  static fromEF (ef: number[] | Uint8Array): Transaction {
+    const br = ReaderUint8Array.makeReader(ef)
     const version = br.readUInt32LE()
     if (toHex(br.read(6)) !== '0000000000ef') { throw new Error('Invalid EF marker') }
     const inputsLength = br.readVarIntNum()
@@ -285,10 +285,10 @@ export default class Transaction {
    * @param {number[]} bin - The binary array representation of the transaction.
    * @returns {Transaction} - A new Transaction instance.
    */
-  static fromBinary (bin: number[]): Transaction {
+  static fromBinary (bin: number[] | Uint8Array): Transaction {
     const copy = bin.slice()
     const rawBytes = Uint8Array.from(copy)
-    const br = new Reader(copy)
+    const br = new ReaderUint8Array(rawBytes)
     const tx = Transaction.fromReader(br)
     tx.rawBytesCache = rawBytes
     return tx
@@ -302,15 +302,11 @@ export default class Transaction {
    * @returns {Transaction} - A new Transaction instance.
    */
   static fromHex (hex: string): Transaction {
-    const bin = toArray(hex, 'hex')
-    const rawBytes = Uint8Array.from(bin)
-    const br = new Reader(bin)
+    const rawBytes = toUint8Array(hex, 'hex')
+    const br = new ReaderUint8Array(rawBytes)
     const tx = Transaction.fromReader(br)
     tx.rawBytesCache = rawBytes
-    tx.hexCache =
-      BufferCtor != null
-        ? BufferCtor.from(rawBytes).toString('hex')
-        : toHex(bin)
+    tx.hexCache = toHex(rawBytes)
     return tx
   }
 
@@ -322,7 +318,7 @@ export default class Transaction {
    * @returns {Transaction} - A new Transaction instance.
    */
   static fromHexEF (hex: string): Transaction {
-    return Transaction.fromEF(toArray(hex, 'hex'))
+    return Transaction.fromEF(toUint8Array(hex, 'hex'))
   }
 
   /**
