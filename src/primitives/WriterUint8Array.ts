@@ -14,15 +14,15 @@ export class WriterUint8Array {
   private pos: number
   private capacity: number
 
-  constructor(bufs?: WriterChunk[], initialCapacity: number = 256) {
-    if (bufs && bufs.length > 0) {
+  constructor (bufs?: WriterChunk[], initialCapacity: number = 256) {
+    if ((bufs != null) && bufs.length > 0) {
       const totalLength = bufs.reduce((sum, buf) => sum + buf.length, 0)
       initialCapacity = Math.max(initialCapacity, totalLength)
     }
     this.buffer = new Uint8Array(initialCapacity)
     this.pos = 0
     this.capacity = initialCapacity
-    if (bufs) {
+    if (bufs != null) {
       for (const buf of bufs) {
         this.write(buf)
       }
@@ -32,32 +32,32 @@ export class WriterUint8Array {
   /**
    * Returns the current length of written data
    */
-  getLength(): number {
+  getLength (): number {
     return this.pos
   }
 
   /**
    * @return the written data as Uint8Array copy of the internal buffer
    */
-  toUint8Array(): Uint8Array {
+  toUint8Array (): Uint8Array {
     return this.buffer.slice(0, this.pos)
   }
 
   /**
    * Legacy compatibility method – returns number[] (Byte[])
    */
-  toArray(): number[] {
+  toArray (): number[] {
     return Array.from(this.toUint8Array())
   }
 
   /**
    * @return the written data as Uint8Array. CAUTION: This is zero-copy subarray of the internal buffer).
    */
-  toUint8ArrayZeroCopy(): Uint8Array {
+  toUint8ArrayZeroCopy (): Uint8Array {
     return this.buffer.subarray(0, this.pos)
   }
 
-  private ensureCapacity(needed: number): void {
+  private ensureCapacity (needed: number): void {
     if (this.pos + needed > this.capacity) {
       let newCapacity = this.capacity * 2
       while (this.pos + needed > newCapacity) {
@@ -70,7 +70,7 @@ export class WriterUint8Array {
     }
   }
 
-  write(bytes: WriterChunk): this {
+  write (bytes: WriterChunk): this {
     const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
     this.ensureCapacity(data.length)
     this.buffer.set(data, this.pos)
@@ -88,70 +88,70 @@ export class WriterUint8Array {
     return this
   }
 
-  writeUInt8(value: number): this {
+  writeUInt8 (value: number): this {
     this.ensureCapacity(1)
     this.buffer[this.pos] = value & 0xff
     this.pos += 1
     return this
   }
 
-  writeInt8(value: number): this {
+  writeInt8 (value: number): this {
     this.writeUInt8(value)
     return this
   }
 
-  writeUInt16LE(value: number): this {
+  writeUInt16LE (value: number): this {
     this.ensureCapacity(2)
-    this.buffer[this.pos]     = value & 0xff
+    this.buffer[this.pos] = value & 0xff
     this.buffer[this.pos + 1] = (value >> 8) & 0xff
     this.pos += 2
     return this
   }
 
-  writeUInt16BE(value: number): this {
+  writeUInt16BE (value: number): this {
     this.ensureCapacity(2)
-    this.buffer[this.pos]     = (value >> 8) & 0xff
+    this.buffer[this.pos] = (value >> 8) & 0xff
     this.buffer[this.pos + 1] = value & 0xff
     this.pos += 2
     return this
   }
 
-  writeInt16LE(value: number): this {
+  writeInt16LE (value: number): this {
     this.writeUInt16LE(value & 0xffff)
     return this
   }
 
-  writeInt16BE(value: number): this {
+  writeInt16BE (value: number): this {
     this.writeUInt16BE(value & 0xffff)
     return this
   }
 
-  writeUInt32LE(value: number): this {
+  writeUInt32LE (value: number): this {
     this.ensureCapacity(4)
-    this.buffer[this.pos]     = value & 0xff
-    this.buffer[this.pos + 1] = (value >> 8)  & 0xff
+    this.buffer[this.pos] = value & 0xff
+    this.buffer[this.pos + 1] = (value >> 8) & 0xff
     this.buffer[this.pos + 2] = (value >> 16) & 0xff
     this.buffer[this.pos + 3] = (value >> 24) & 0xff
     this.pos += 4
     return this
   }
 
-  writeUInt32BE(value: number): this {
+  writeUInt32BE (value: number): this {
     this.ensureCapacity(4)
-    this.buffer[this.pos]     = (value >> 24) & 0xff
+    this.buffer[this.pos] = (value >> 24) & 0xff
     this.buffer[this.pos + 1] = (value >> 16) & 0xff
-    this.buffer[this.pos + 2] = (value >> 8)  & 0xff
+    this.buffer[this.pos + 2] = (value >> 8) & 0xff
     this.buffer[this.pos + 3] = value & 0xff
     this.pos += 4
     return this
   }
 
-  writeInt32LE(value: number): this {
+  writeInt32LE (value: number): this {
     this.writeUInt32LE(value >>> 0)
     return this
   }
 
-  writeInt32BE(value: number): this {
+  writeInt32BE (value: number): this {
     this.writeUInt32BE(value >>> 0)
     return this
   }
@@ -189,7 +189,7 @@ export class WriterUint8Array {
   /**
    * Resets the writer to empty state (reuses the buffer)
    */
-  reset(): void {
+  reset (): void {
     this.pos = 0
   }
 }
