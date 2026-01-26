@@ -873,7 +873,40 @@ export class Beef {
         i++
       }
     }
-    // TODO: bumps could be trimmed to eliminate unreferenced proofs.
+    
+    // Trim unreferenced bumps after removing known txids
+    const referencedBumpIndices = new Set<number>()
+    for (const tx of this.txs) {
+      if (tx.bumpIndex !== undefined) {
+        referencedBumpIndices.add(tx.bumpIndex)
+      }
+    }
+
+    // Check if there are any unreferenced bumps to remove
+    if (referencedBumpIndices.size < this.bumps.length) {
+      // Build mapping of old indices to new indices after removal
+      const indexMap = new Map<number, number>()
+      let newIndex = 0
+      for (let i = 0; i < this.bumps.length; i++) {
+        if (referencedBumpIndices.has(i)) {
+          indexMap.set(i, newIndex)
+          newIndex++
+        }
+      }
+
+      // Remove unreferenced bumps
+      this.bumps = this.bumps.filter((_, i) => referencedBumpIndices.has(i))
+
+      // Update all transaction bumpIndex references
+      for (const tx of this.txs) {
+        if (tx.bumpIndex !== undefined) {
+          tx.bumpIndex = indexMap.get(tx.bumpIndex)
+        }
+      }
+      
+      mutated = true
+    }
+    
     if (mutated) {
       this.markMutated(true)
     }
