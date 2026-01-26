@@ -2,7 +2,7 @@ import BigNumber from './BigNumber.js'
 import { Reader } from './utils.js'
 
 /**
- * Reader for Uint8Array data.
+ * Reader for serialized Uint8Array binary data.
  */
 export class ReaderUint8Array {
   public bin: Uint8Array
