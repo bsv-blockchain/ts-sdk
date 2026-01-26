@@ -299,6 +299,13 @@ console.log(BigNumber.wordSize);  // output: 26
 Compute the multiplicative inverse of the current BigNumber in the modulus field specified by `p`.
 The multiplicative inverse is a number which when multiplied with the current BigNumber gives '1' in the modulus field.
 
+SECURITY NOTE:
+This implementation avoids variable-time extended Euclidean algorithms
+to reduce timing side-channel leakage. However, JavaScript BigInt arithmetic
+does not provide constant-time guarantees. This implementation is suitable
+for browser and single-tenant environments but is not hardened against
+high-resolution timing attacks in shared CPU contexts.
+
 ```ts
 _invmp(p: BigNumber): BigNumber 
 ```
@@ -3336,6 +3343,14 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ---
 ### Class: ReductionContext
 
+SECURITY NOTE:
+This reduction context avoids obvious variable-time constructs (such as
+sliding-window exponentiation and conditional modular reduction) to reduce
+timing side-channel leakage. However, JavaScript BigInt arithmetic does not
+provide constant-time guarantees. These mitigations improve resistance to
+coarse timing attacks but do not make the implementation suitable for
+hostile multi-tenant or shared-CPU environments.
+
 A base reduction engine that provides several arithmetic operations over
 big numbers under a modulus context. It's particularly suitable for
 calculations required in cryptography algorithms and encoding schemas.
@@ -6138,6 +6153,10 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 sign = (msg: BigNumber, key: BigNumber, forceLowS: boolean = false, customK?: BigNumber | ((iter: number) => BigNumber)): Signature => {
+    const nBitLength = curve.n.bitLength();
+    if (msg.bitLength() > nBitLength) {
+        throw new Error(`ECDSA message is too large: expected <= ${nBitLength} bits. Callers must hash messages before signing.`);
+    }
     msg = truncateToN(msg);
     const msgBig = bnToBigInt(msg);
     const keyBig = bnToBigInt(key);
@@ -6313,6 +6332,10 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 verify = (msg: BigNumber, sig: Signature, key: Point): boolean => {
+    const nBitLength = curve.n.bitLength();
+    if (msg.bitLength() > nBitLength) {
+        return false;
+    }
     const hash = bnToBigInt(msg);
     if ((key.x == null) || (key.y == null)) {
         throw new Error("Invalid public key: missing coordinates.");
