@@ -47,6 +47,8 @@ export interface PeerSession {
     peerNonce?: string;
     peerIdentityKey?: string;
     lastUpdate: number;
+    certificatesRequired?: boolean;
+    certificatesValidated?: boolean;
 }
 ```
 
@@ -679,9 +681,9 @@ export class Peer {
     public sessionManager: SessionManager;
     certificatesToRequest: RequestedCertificateSet;
     constructor(wallet: WalletInterface, transport: Transport, certificatesToRequest?: RequestedCertificateSet, sessionManager?: SessionManager, autoPersistLastSession?: boolean, originator?: OriginatorDomainNameStringUnder250Bytes) 
-    async toPeer(message: number[], identityKey?: string, maxWaitTime?: number): Promise<void> 
-    async requestCertificates(certificatesToRequest: RequestedCertificateSet, identityKey?: string, maxWaitTime = 10000): Promise<void> 
-    async getAuthenticatedSession(identityKey?: string, maxWaitTime?: number): Promise<PeerSession> 
+    async toPeer(message: number[], identityKey?: string): Promise<void> 
+    async requestCertificates(certificatesToRequest: RequestedCertificateSet, identityKey?: string): Promise<void> 
+    async getAuthenticatedSession(identityKey?: string): Promise<PeerSession> 
     listenForGeneralMessages(callback: (senderPublicKey: string, payload: number[]) => void): number 
     stopListeningForGeneralMessages(callbackID: number): void 
     listenForCertificatesReceived(callback: (senderPublicKey: string, certs: VerifiableCertificate[]) => void): number 
@@ -726,7 +728,7 @@ or the session is not authenticated, initiates a handshake to create or authenti
 - If `identityKey` is not provided, but we have a `lastInteractedWithPeer`, we try that key.
 
 ```ts
-async getAuthenticatedSession(identityKey?: string, maxWaitTime?: number): Promise<PeerSession> 
+async getAuthenticatedSession(identityKey?: string): Promise<PeerSession> 
 ```
 See also: [PeerSession](./auth.md#interface-peersession)
 
@@ -738,8 +740,6 @@ Argument Details
 
 + **identityKey**
   + The identity public key of the peer.
-+ **maxWaitTime**
-  + The maximum time in milliseconds to wait for the handshake.
 
 #### Method listenForCertificatesReceived
 
@@ -801,7 +801,7 @@ This method allows a peer to dynamically request specific certificates after
 an initial handshake or message has been exchanged.
 
 ```ts
-async requestCertificates(certificatesToRequest: RequestedCertificateSet, identityKey?: string, maxWaitTime = 10000): Promise<void> 
+async requestCertificates(certificatesToRequest: RequestedCertificateSet, identityKey?: string): Promise<void> 
 ```
 See also: [RequestedCertificateSet](./auth.md#interface-requestedcertificateset)
 
@@ -815,8 +815,6 @@ Argument Details
   + Specifies the certifiers and types of certificates required from the peer.
 + **identityKey**
   + The identity public key of the peer. If not provided, the current or last session identity is used.
-+ **maxWaitTime**
-  + Maximum time in milliseconds to wait for the peer session to be authenticated.
 
 Throws
 
@@ -886,7 +884,7 @@ Argument Details
 Sends a general message to a peer, and initiates a handshake if necessary.
 
 ```ts
-async toPeer(message: number[], identityKey?: string, maxWaitTime?: number): Promise<void> 
+async toPeer(message: number[], identityKey?: string): Promise<void> 
 ```
 
 Argument Details
@@ -895,8 +893,6 @@ Argument Details
   + The message payload to send.
 + **identityKey**
   + The identity public key of the peer. If not provided, uses lastInteractedWithPeer (if any).
-+ **maxWaitTime**
-  + optional max wait time in ms
 
 Throws
 
