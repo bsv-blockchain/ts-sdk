@@ -873,7 +873,7 @@ export class Beef {
         i++
       }
     }
-    
+
     // Trim unreferenced bumps after removing known txids
     const referencedBumpIndices = new Set<number>()
     for (const tx of this.txs) {
@@ -900,13 +900,17 @@ export class Beef {
       // Update all transaction bumpIndex references
       for (const tx of this.txs) {
         if (tx.bumpIndex !== undefined) {
-          tx.bumpIndex = indexMap.get(tx.bumpIndex)
+          const newIndex = indexMap.get(tx.bumpIndex)
+          if (newIndex === undefined) {
+            throw new Error(`Internal error: bumpIndex ${tx.bumpIndex} not found in indexMap`)
+          }
+          tx.bumpIndex = newIndex
         }
       }
-      
+
       mutated = true
     }
-    
+
     if (mutated) {
       this.markMutated(true)
     }
