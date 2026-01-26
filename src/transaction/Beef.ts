@@ -5,9 +5,6 @@ import BeefTx from './BeefTx.js'
 import { Reader, Writer, toHex, toArray, verifyNotNull, ReaderUint8Array, WriterUint8Array, toUint8Array } from '../primitives/utils.js'
 import { hash256 } from '../primitives/Hash.js'
 
-const BufferCtor =
-  typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
-
 export const BEEF_V1 = 4022206465 // 0100BEEF in LE order
 export const BEEF_V2 = 4022206466 // 0200BEEF in LE order
 export const ATOMIC_BEEF = 0x01010101 // 01010101

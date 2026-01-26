@@ -207,7 +207,14 @@ All notable changes to this project will be documented in this file. The format 
 
 ---
 
-### Added
+## [1.10.3] - 2026-01-26
+
+- Updates to Transaction, MerklePath, Beef, BeefTx to support Uint8Array serialization.
+
+- Added ReaderUint8Array to Utils
+- Added WriterUint8Array to Utils
+
+---
 
 ## [1.10.2] - 2026-01-21
 
