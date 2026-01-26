@@ -2,11 +2,8 @@ import MerklePath from './MerklePath.js'
 import Transaction from './Transaction.js'
 import ChainTracker from './ChainTracker.js'
 import BeefTx from './BeefTx.js'
-import { Reader, Writer, toHex, toArray, verifyNotNull } from '../primitives/utils.js'
+import { Reader, Writer, toHex, toArray, verifyNotNull, ReaderUint8Array, WriterUint8Array, toUint8Array } from '../primitives/utils.js'
 import { hash256 } from '../primitives/Hash.js'
-
-const BufferCtor =
-  typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
 
 export const BEEF_V1 = 4022206465 // 0100BEEF in LE order
 export const BEEF_V2 = 4022206466 // 0200BEEF in LE order
@@ -112,11 +109,35 @@ export class Beef {
     this.ensureSerializableState()
     if (this.rawBytesCache == null) {
       this.ensureSortedForSerialization()
-      const writer = new Writer()
+      const writer = new WriterUint8Array()
       this.toWriter(writer)
       this.rawBytesCache = writer.toUint8Array()
     }
     return this.rawBytesCache
+  }
+
+  private getBeefForAtomic (txid: string): { beef: Beef, writer: WriterUint8Array } {
+    if (this.needsSort) {
+      this.sortTxs()
+    }
+    const tx = this.findTxid(txid)
+    if (tx == null) {
+      throw new Error(`${txid} does not exist in this Beef`)
+    }
+
+    // If the transaction is not the last one, clone and modify
+    const beef = (this.txs[this.txs.length - 1] === tx) ? this : this.clone()
+
+    if (beef !== this) {
+      const i = this.txs.findIndex((t) => t.txid === txid)
+      beef.txs.splice(i + 1)
+    }
+
+    const writer = new WriterUint8Array()
+    writer.writeUInt32LE(ATOMIC_BEEF)
+    writer.writeReverse(toArray(txid, 'hex'))
+
+    return { beef, writer }
   }
 
   /**
@@ -308,7 +329,7 @@ export class Beef {
    * @param bumpIndex Optional. If a number, must be valid index into bumps array.
    * @returns txid of rawTx
    */
-  mergeRawTx (rawTx: number[], bumpIndex?: number): BeefTx {
+  mergeRawTx (rawTx: number[] | Uint8Array, bumpIndex?: number): BeefTx {
     this.markMutated(true)
     const newTx: BeefTx = new BeefTx(rawTx, bumpIndex)
     this.removeExistingTxid(newTx.txid)
@@ -394,8 +415,8 @@ export class Beef {
     return beefTx
   }
 
-  mergeBeef (beef: number[] | Beef): void {
-    const b: Beef = Array.isArray(beef) ? Beef.fromBinary(beef) : beef
+  mergeBeef (beef: Beef | number[] | Uint8Array): void {
+    const b: Beef = (beef instanceof Beef) ? beef : Beef.fromBinary(beef)
 
     for (const bump of b.bumps) {
       this.mergeBump(bump)
@@ -549,7 +570,7 @@ export class Beef {
    * Serializes this data to `writer`
    * @param writer
    */
-  toWriter (writer: Writer): void {
+  toWriter (writer: Writer | WriterUint8Array): void {
     writer.writeUInt32LE(this.version)
 
     writer.writeVarIntNum(this.bumps.length)
@@ -566,11 +587,16 @@ export class Beef {
   /**
    * Returns a binary array representing the serialized BEEF
    * @returns A binary array representing the BEEF
+   * @returns An array of byte values containing binary serialization of the BEEF
    */
   toBinary (): number[] {
     return Array.from(this.getSerializedBytes())
   }
 
+  /**
+   * Returns a binary array representing the serialized BEEF
+   * @returns A Uint8Array containing binary serialization of the BEEF
+   */
   toUint8Array (): Uint8Array {
     return this.getSerializedBytes()
   }
@@ -586,28 +612,29 @@ export class Beef {
    * @returns serialized contents of this Beef with AtomicBEEF prefix.
    */
   toBinaryAtomic (txid: string): number[] {
-    if (this.needsSort) {
-      this.sortTxs()
-    }
-    const tx = this.findTxid(txid)
-    if (tx == null) {
-      throw new Error(`${txid} does not exist in this Beef`)
-    }
-
-    // If the transaction is not the last one, clone and modify
-    const beef = (this.txs[this.txs.length - 1] === tx) ? this : this.clone()
-
-    if (beef !== this) {
-      const i = this.txs.findIndex((t) => t.txid === txid)
-      beef.txs.splice(i + 1)
-    }
-
-    const writer = new Writer()
-    writer.writeUInt32LE(ATOMIC_BEEF)
-    writer.writeReverse(toArray(txid, 'hex'))
+    const { beef, writer } = this.getBeefForAtomic(txid)
     beef.toWriter(writer)
-
     return writer.toArray()
+  }
+
+  /**
+   * Serialize this Beef as AtomicBEEF.
+   *
+   * `txid` must exist
+   *
+   * after sorting, if txid is not last txid, creates a clone and removes newer txs
+   *
+   * @param txid
+   * @returns serialized contents of this Beef with AtomicBEEF prefix.
+   */
+  toUint8ArrayAtomic (txid: string): Uint8Array {
+    const { beef, writer } = this.getBeefForAtomic(txid)
+    const beefUint8 = beef.getSerializedBytes()
+    const prefix = writer.toUint8Array()
+    const atomic = new Uint8Array(prefix.length + beefUint8.length)
+    atomic.set(prefix, 0)
+    atomic.set(beefUint8, prefix.length)
+    return atomic
   }
 
   /**
@@ -619,15 +646,12 @@ export class Beef {
       return this.hexCache
     }
     const bytes = this.getSerializedBytes()
-    const hex =
-      BufferCtor != null
-        ? BufferCtor.from(bytes).toString('hex')
-        : toHex(Array.from(bytes))
+    const hex = toHex(bytes)
     this.hexCache = hex
     return hex
   }
 
-  static fromReader (br: Reader): Beef {
+  static fromReader (br: Reader | ReaderUint8Array): Beef {
     let version = br.readUInt32LE()
     let atomicTxid: string | undefined
     if (version === ATOMIC_BEEF) {
@@ -657,11 +681,11 @@ export class Beef {
 
   /**
    * Constructs an instance of the Beef class based on the provided binary array
-   * @param bin The binary array from which to construct BEEF
+   * @param bin The binary array or Uint8Array from which to construct BEEF
    * @returns An instance of the Beef class constructed from the binary data
    */
-  static fromBinary (bin: number[]): Beef {
-    const br = new Reader(bin)
+  static fromBinary (bin: number[] | Uint8Array): Beef {
+    const br = ReaderUint8Array.makeReader(bin)
     return Beef.fromReader(br)
   }
 
@@ -672,8 +696,8 @@ export class Beef {
    * @returns An instance of the Beef class constructed from the string
    */
   static fromString (s: string, enc: 'hex' | 'utf8' | 'base64' = 'hex'): Beef {
-    const bin = toArray(s, enc)
-    const br = new Reader(bin)
+    const bin = toUint8Array(s, enc)
+    const br = new ReaderUint8Array(bin)
     return Beef.fromReader(br)
   }
 
@@ -825,6 +849,8 @@ export class Beef {
     c.txs = Array.from(this.txs)
     c.txidIndex = undefined
     c.needsSort = this.needsSort
+    c.hexCache = this.hexCache
+    c.rawBytesCache = this.rawBytesCache
     return c
   }
 
@@ -844,7 +870,44 @@ export class Beef {
         i++
       }
     }
-    // TODO: bumps could be trimmed to eliminate unreferenced proofs.
+
+    // Trim unreferenced bumps after removing known txids
+    const referencedBumpIndices = new Set<number>()
+    for (const tx of this.txs) {
+      if (tx.bumpIndex !== undefined) {
+        referencedBumpIndices.add(tx.bumpIndex)
+      }
+    }
+
+    // Check if there are any unreferenced bumps to remove
+    if (referencedBumpIndices.size < this.bumps.length) {
+      // Build mapping of old indices to new indices after removal
+      const indexMap = new Map<number, number>()
+      let newIndex = 0
+      for (let i = 0; i < this.bumps.length; i++) {
+        if (referencedBumpIndices.has(i)) {
+          indexMap.set(i, newIndex)
+          newIndex++
+        }
+      }
+
+      // Remove unreferenced bumps
+      this.bumps = this.bumps.filter((_, i) => referencedBumpIndices.has(i))
+
+      // Update all transaction bumpIndex references
+      for (const tx of this.txs) {
+        if (tx.bumpIndex !== undefined) {
+          const newIndex = indexMap.get(tx.bumpIndex)
+          if (newIndex === undefined) {
+            throw new Error(`Internal error: bumpIndex ${tx.bumpIndex} not found in indexMap`)
+          }
+          tx.bumpIndex = newIndex
+        }
+      }
+
+      mutated = true
+    }
+
     if (mutated) {
       this.markMutated(true)
     }
