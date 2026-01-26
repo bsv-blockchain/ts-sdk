@@ -259,5 +259,33 @@ describe('PushDrop', () => {
       ).publicKey
       expect(decoded.lockingPublicKey.toString()).toEqual(expectedPublicKey)
     })
+
+    it('decodes the locking script correctly with lockPosition after', async () => {
+      const fields = [
+        Utils.toArray('hello world', 'utf8'),
+        Utils.toArray('This is a field', 'utf8'),
+        [0xde, 0xad, 0xbe, 0xef]
+      ]
+      const protocolID: [0 | 1 | 2, string] = [0, 'tests']
+      const keyID = 'test-key'
+      const counterparty = 'self'
+
+      const lockingScript = await pushDrop.lock(
+        fields,
+        protocolID,
+        keyID,
+        counterparty,
+        false,
+        true,
+        'after'
+      )
+
+      const decoded = await PushDrop.decode(lockingScript, 'after')
+      expect(decoded.fields).toEqual(fields)
+      const expectedPublicKey = (
+        await wallet.getPublicKey({ protocolID, keyID, counterparty })
+      ).publicKey
+      expect(decoded.lockingPublicKey.toString()).toEqual(expectedPublicKey)
+    })
   })
 })

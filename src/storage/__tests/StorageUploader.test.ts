@@ -15,7 +15,7 @@ describe('StorageUploader Tests', () => {
   let walletClient: WalletClient
 
   // We'll have TWO spies:
-  let authFetchSpy: jest.SpiedFunction<typeof global.fetch>
+  let authFetchSpy: jest.SpyInstance
   let globalFetchSpy: jest.SpiedFunction<typeof global.fetch>
 
   beforeEach(() => {
