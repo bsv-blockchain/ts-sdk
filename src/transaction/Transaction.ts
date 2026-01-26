@@ -16,9 +16,6 @@ import { defaultChainTracker } from './chaintrackers/DefaultChainTracker.js'
 import { Beef, BEEF_V1 } from './Beef.js'
 import P2PKH from '../script/templates/P2PKH.js'
 
-const BufferCtor =
-  typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
-
 /**
  * Represents a complete Bitcoin transaction. This class encapsulates all the details
  * required for creating, signing, and processing a Bitcoin transaction, including
