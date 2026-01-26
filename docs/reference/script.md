@@ -444,7 +444,7 @@ export default class Script {
 }
 ```
 
-See also: [BigNumber](./primitives.md#class-bignumber), [ScriptChunk](./script.md#interface-scriptchunk), [toHex](./primitives.md#variable-tohex)
+See also: [BigNumber](./primitives.md#class-bignumber), [ScriptChunk](./script.md#interface-scriptchunk), [toHex](./primitives.md#variable-tohex), [toUint8Array](./primitives.md#variable-touint8array)
 
 #### Constructor
 
