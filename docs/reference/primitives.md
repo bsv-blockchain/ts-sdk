@@ -44,16 +44,16 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | | | |
 | --- | --- | --- |
-| [BasePoint](#class-basepoint) | [PointInFiniteField](#class-pointinfinitefield) | [SHA256HMAC](#class-sha256hmac) |
-| [BigNumber](#class-bignumber) | [Polynomial](#class-polynomial) | [SHA512](#class-sha512) |
-| [Curve](#class-curve) | [PrivateKey](#class-privatekey) | [SHA512HMAC](#class-sha512hmac) |
-| [DRBG](#class-drbg) | [PublicKey](#class-publickey) | [Schnorr](#class-schnorr) |
-| [JacobianPoint](#class-jacobianpoint) | [RIPEMD160](#class-ripemd160) | [Secp256r1](#class-secp256r1) |
-| [K256](#class-k256) | [Reader](#class-reader) | [Signature](#class-signature) |
-| [KeyShares](#class-keyshares) | [ReductionContext](#class-reductioncontext) | [SymmetricKey](#class-symmetrickey) |
-| [Mersenne](#class-mersenne) | [SHA1](#class-sha1) | [TransactionSignature](#class-transactionsignature) |
-| [MontgomoryMethod](#class-montgomorymethod) | [SHA1HMAC](#class-sha1hmac) | [Writer](#class-writer) |
-| [Point](#class-point) | [SHA256](#class-sha256) |  |
+| [BasePoint](#class-basepoint) | [PointInFiniteField](#class-pointinfinitefield) | [SHA256](#class-sha256) |
+| [BigNumber](#class-bignumber) | [Polynomial](#class-polynomial) | [SHA256HMAC](#class-sha256hmac) |
+| [Curve](#class-curve) | [PrivateKey](#class-privatekey) | [SHA512](#class-sha512) |
+| [DRBG](#class-drbg) | [PublicKey](#class-publickey) | [SHA512HMAC](#class-sha512hmac) |
+| [JacobianPoint](#class-jacobianpoint) | [RIPEMD160](#class-ripemd160) | [Schnorr](#class-schnorr) |
+| [K256](#class-k256) | [Reader](#class-reader) | [Secp256r1](#class-secp256r1) |
+| [KeyShares](#class-keyshares) | [ReaderUint8Array](#class-readeruint8array) | [Signature](#class-signature) |
+| [Mersenne](#class-mersenne) | [ReductionContext](#class-reductioncontext) | [SymmetricKey](#class-symmetrickey) |
+| [MontgomoryMethod](#class-montgomorymethod) | [SHA1](#class-sha1) | [TransactionSignature](#class-transactionsignature) |
+| [Point](#class-point) | [SHA1HMAC](#class-sha1hmac) | [Writer](#class-writer) |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -298,6 +298,13 @@ console.log(BigNumber.wordSize);  // output: 26
 
 Compute the multiplicative inverse of the current BigNumber in the modulus field specified by `p`.
 The multiplicative inverse is a number which when multiplied with the current BigNumber gives '1' in the modulus field.
+
+SECURITY NOTE:
+This implementation avoids variable-time extended Euclidean algorithms
+to reduce timing side-channel leakage. However, JavaScript BigInt arithmetic
+does not provide constant-time guarantees. This implementation is suitable
+for browser and single-tenant environments but is not hardened against
+high-resolution timing attacks in shared CPU contexts.
 
 ```ts
 _invmp(p: BigNumber): BigNumber 
@@ -3334,7 +3341,50 @@ See also: [BigNumber](./primitives.md#class-bignumber)
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
+### Class: ReaderUint8Array
+
+```ts
+export class ReaderUint8Array {
+    public bin: Uint8Array;
+    public pos: number;
+    static makeReader(bin: Uint8Array | number[], pos: number = 0): Reader | ReaderUint8Array 
+    constructor(bin: Uint8Array = new Uint8Array(0), pos: number = 0) 
+    public eof(): boolean 
+    public read(len = this.length): Uint8Array 
+    public readReverse(len = this.length): Uint8Array 
+    public readUInt8(): number 
+    public readInt8(): number 
+    public readUInt16BE(): number 
+    public readInt16BE(): number 
+    public readUInt16LE(): number 
+    public readInt16LE(): number 
+    public readUInt32BE(): number 
+    public readInt32BE(): number 
+    public readUInt32LE(): number 
+    public readInt32LE(): number 
+    public readUInt64BEBn(): BigNumber 
+    public readUInt64LEBn(): BigNumber 
+    public readInt64LEBn(): BigNumber 
+    public readVarIntNum(signed: boolean = true): number 
+    public readVarInt(): Uint8Array 
+    public readVarIntBn(): BigNumber 
+}
+```
+
+See also: [BigNumber](./primitives.md#class-bignumber), [Reader](./primitives.md#class-reader)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Class: ReductionContext
+
+SECURITY NOTE:
+This reduction context avoids obvious variable-time constructs (such as
+sliding-window exponentiation and conditional modular reduction) to reduce
+timing side-channel leakage. However, JavaScript BigInt arithmetic does not
+provide constant-time guarantees. These mitigations improve resistance to
+coarse timing attacks but do not make the implementation suitable for
+hostile multi-tenant or shared-CPU environments.
 
 A base reduction engine that provides several arithmetic operations over
 big numbers under a modulus context. It's particularly suitable for
@@ -4979,7 +5029,7 @@ export class Writer {
 }
 ```
 
-See also: [BigNumber](./primitives.md#class-bignumber), [toArray](./primitives.md#variable-toarray)
+See also: [BigNumber](./primitives.md#class-bignumber), [toArray](./primitives.md#variable-toarray), [toUint8Array](./primitives.md#variable-touint8array)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5336,24 +5386,25 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | | | |
 | --- | --- | --- |
-| [BI_EIGHT](#variable-bi_eight) | [biModSqrt](#variable-bimodsqrt) | [modN](#variable-modn) |
-| [BI_FOUR](#variable-bi_four) | [biModSub](#variable-bimodsub) | [multiply](#variable-multiply) |
-| [BI_ONE](#variable-bi_one) | [checkBit](#variable-checkbit) | [rightShift](#variable-rightshift) |
-| [BI_THREE](#variable-bi_three) | [encode](#variable-encode) | [ripemd160](#variable-ripemd160) |
-| [BI_TWO](#variable-bi_two) | [exclusiveOR](#variable-exclusiveor) | [scalarMultiplyWNAF](#variable-scalarmultiplywnaf) |
-| [BI_ZERO](#variable-bi_zero) | [fromBase58](#variable-frombase58) | [sha1](#variable-sha1) |
-| [GX_BIGINT](#variable-gx_bigint) | [fromBase58Check](#variable-frombase58check) | [sha256](#variable-sha256) |
-| [GY_BIGINT](#variable-gy_bigint) | [getBytes](#variable-getbytes) | [sha256hmac](#variable-sha256hmac) |
-| [MASK_256](#variable-mask_256) | [getBytes64](#variable-getbytes64) | [sha512](#variable-sha512) |
-| [N_BIGINT](#variable-n_bigint) | [hash160](#variable-hash160) | [sha512hmac](#variable-sha512hmac) |
-| [P_BIGINT](#variable-p_bigint) | [hash256](#variable-hash256) | [sign](#variable-sign) |
-| [P_PLUS1_DIV4](#variable-p_plus1_div4) | [incrementLeastSignificantThirtyTwoBits](#variable-incrementleastsignificantthirtytwobits) | [toArray](#variable-toarray) |
-| [biMod](#variable-bimod) | [jpAdd](#variable-jpadd) | [toBase58](#variable-tobase58) |
-| [biModAdd](#variable-bimodadd) | [jpDouble](#variable-jpdouble) | [toBase58Check](#variable-tobase58check) |
-| [biModInv](#variable-bimodinv) | [jpNeg](#variable-jpneg) | [toHex](#variable-tohex) |
-| [biModMul](#variable-bimodmul) | [minimallyEncode](#variable-minimallyencode) | [toUTF8](#variable-toutf8) |
-| [biModPow](#variable-bimodpow) | [modInvN](#variable-modinvn) | [verify](#variable-verify) |
-| [biModSqr](#variable-bimodsqr) | [modMulN](#variable-modmuln) | [zero2](#variable-zero2) |
+| [BI_EIGHT](#variable-bi_eight) | [biModSub](#variable-bimodsub) | [rightShift](#variable-rightshift) |
+| [BI_FOUR](#variable-bi_four) | [checkBit](#variable-checkbit) | [ripemd160](#variable-ripemd160) |
+| [BI_ONE](#variable-bi_one) | [encode](#variable-encode) | [scalarMultiplyWNAF](#variable-scalarmultiplywnaf) |
+| [BI_THREE](#variable-bi_three) | [exclusiveOR](#variable-exclusiveor) | [sha1](#variable-sha1) |
+| [BI_TWO](#variable-bi_two) | [fromBase58](#variable-frombase58) | [sha256](#variable-sha256) |
+| [BI_ZERO](#variable-bi_zero) | [fromBase58Check](#variable-frombase58check) | [sha256hmac](#variable-sha256hmac) |
+| [GX_BIGINT](#variable-gx_bigint) | [getBytes](#variable-getbytes) | [sha512](#variable-sha512) |
+| [GY_BIGINT](#variable-gy_bigint) | [getBytes64](#variable-getbytes64) | [sha512hmac](#variable-sha512hmac) |
+| [MASK_256](#variable-mask_256) | [hash160](#variable-hash160) | [sign](#variable-sign) |
+| [N_BIGINT](#variable-n_bigint) | [hash256](#variable-hash256) | [toArray](#variable-toarray) |
+| [P_BIGINT](#variable-p_bigint) | [incrementLeastSignificantThirtyTwoBits](#variable-incrementleastsignificantthirtytwobits) | [toBase58](#variable-tobase58) |
+| [P_PLUS1_DIV4](#variable-p_plus1_div4) | [jpAdd](#variable-jpadd) | [toBase58Check](#variable-tobase58check) |
+| [biMod](#variable-bimod) | [jpDouble](#variable-jpdouble) | [toHex](#variable-tohex) |
+| [biModAdd](#variable-bimodadd) | [jpNeg](#variable-jpneg) | [toUTF8](#variable-toutf8) |
+| [biModInv](#variable-bimodinv) | [minimallyEncode](#variable-minimallyencode) | [toUint8Array](#variable-touint8array) |
+| [biModMul](#variable-bimodmul) | [modInvN](#variable-modinvn) | [verify](#variable-verify) |
+| [biModPow](#variable-bimodpow) | [modMulN](#variable-modmuln) | [zero2](#variable-zero2) |
+| [biModSqr](#variable-bimodsqr) | [modN](#variable-modn) |  |
+| [biModSqrt](#variable-bimodsqrt) | [multiply](#variable-multiply) |  |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -6138,6 +6189,10 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ```ts
 sign = (msg: BigNumber, key: BigNumber, forceLowS: boolean = false, customK?: BigNumber | ((iter: number) => BigNumber)): Signature => {
+    const nBitLength = curve.n.bitLength();
+    if (msg.bitLength() > nBitLength) {
+        throw new Error(`ECDSA message is too large: expected <= ${nBitLength} bits. Callers must hash messages before signing.`);
+    }
     msg = truncateToN(msg);
     const msgBig = bnToBigInt(msg);
     const keyBig = bnToBigInt(key);
@@ -6281,7 +6336,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Variable: toHex
 
 ```ts
-toHex = (msg: number[]): string => {
+toHex = (msg: number[] | Uint8Array): string => {
     if (CAN_USE_BUFFER) {
         return BufferCtor.from(msg).toString("hex");
     }
@@ -6309,10 +6364,29 @@ toUTF8 = (arr: number[]): string => {
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
+### Variable: toUint8Array
+
+```ts
+toUint8Array = (msg: any, enc?: "hex" | "utf8" | "base64"): Uint8Array => {
+    if (msg instanceof Uint8Array)
+        return msg;
+    return new Uint8Array(toArray(msg, enc));
+}
+```
+
+See also: [toArray](./primitives.md#variable-toarray)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Variable: verify
 
 ```ts
 verify = (msg: BigNumber, sig: Signature, key: Point): boolean => {
+    const nBitLength = curve.n.bitLength();
+    if (msg.bitLength() > nBitLength) {
+        return false;
+    }
     const hash = bnToBigInt(msg);
     if ((key.x == null) || (key.y == null)) {
         throw new Error("Invalid public key: missing coordinates.");

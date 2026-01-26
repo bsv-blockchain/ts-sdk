@@ -1,7 +1,8 @@
 import { hash256 } from '../primitives/Hash.js'
-import { Reader, Writer, toHex, toArray } from '../primitives/utils.js'
+import { Reader, Writer, toHex, toArray, verifyNotNull } from '../primitives/utils.js'
 import Transaction from './Transaction.js'
 import { BEEF_V2, TX_DATA_FORMAT } from './Beef.js'
+import { ReaderUint8Array } from '../primitives/ReaderUint8Array.js'
 
 /**
  * A single bitcoin transaction associated with a `Beef` validity proof set.
@@ -15,7 +16,7 @@ import { BEEF_V2, TX_DATA_FORMAT } from './Beef.js'
 export default class BeefTx {
   _bumpIndex?: number
   _tx?: Transaction
-  _rawTx?: number[]
+  _rawTx?: Uint8Array           // ← changed to Uint8Array internally
   _txid?: string
   inputTxids: string[] = []
   /**
@@ -64,10 +65,28 @@ export default class BeefTx {
     return undefined
   }
 
+  /**
+   * Legacy compatibility getter — returns number[] (Byte[])
+   */
   get rawTx (): number[] | undefined {
+    if (this._rawTx != null) {
+      return Array.from(this._rawTx)
+    }
+    if (this._tx != null) {
+      const bytes = this._tx.toUint8Array()
+      this._rawTx = bytes   // cache
+      return Array.from(bytes)
+    }
+    return undefined
+  }
+
+  /**
+   * Preferred modern getter — returns Uint8Array (zero-copy where possible)
+   */
+  get rawTxUint8Array (): Uint8Array | undefined {
     if (this._rawTx != null) return this._rawTx
     if (this._tx != null) {
-      this._rawTx = this._tx.toBinary()
+      this._rawTx = this._tx.toUint8Array()
       return this._rawTx
     }
     return undefined
@@ -77,13 +96,17 @@ export default class BeefTx {
    * @param tx If string, must be a valid txid. If `number[]` must be a valid serialized transaction.
    * @param bumpIndex If transaction already has a proof in the beef to which it will be added.
    */
-  constructor (tx: Transaction | number[] | string, bumpIndex?: number) {
+  constructor (tx: Transaction | Uint8Array | number[] | string, bumpIndex?: number) {
     if (typeof tx === 'string') {
       this._txid = tx
-    } else if (Array.isArray(tx)) {
+    } else if (tx instanceof Uint8Array) {
       this._rawTx = tx
-    } else {
+    } else if (Array.isArray(tx)) {
+      this._rawTx = new Uint8Array(tx)
+    } else if (tx instanceof Transaction) {
       this._tx = tx
+    } else {
+      throw new Error('Invalid transaction data type')
     }
     this.bumpIndex = bumpIndex
     this.updateInputTxids()
@@ -93,7 +116,7 @@ export default class BeefTx {
     return new BeefTx(tx, bumpIndex)
   }
 
-  static fromRawTx (rawTx: number[], bumpIndex?: number): BeefTx {
+  static fromRawTx (rawTx: Uint8Array | number[], bumpIndex?: number): BeefTx {
     return new BeefTx(rawTx, bumpIndex)
   }
 
@@ -106,14 +129,13 @@ export default class BeefTx {
       // If we have a proof, or don't have a parsed transaction
       this.inputTxids = []
     } else {
-      const inputTxids: Record<string, boolean> = {} // ✅ Explicit object type
+      const inputTxids: Set<string> = new Set()   // minor perf improvement
       for (const input of this.tx.inputs) {
         if (input.sourceTXID !== undefined && input.sourceTXID !== null && input.sourceTXID !== '') {
-          // ✅ Ensure sourceTXID is defined
-          inputTxids[input.sourceTXID] = true
+          inputTxids.add(input.sourceTXID)
         }
       }
-      this.inputTxids = Object.keys(inputTxids)
+      this.inputTxids = Array.from(inputTxids)
     }
   }
 
@@ -130,13 +152,11 @@ export default class BeefTx {
     }
 
     const writeTx = (): void => {
-      if (this._rawTx != null) {
-        writer.write(this._rawTx)
-      } else if (this._tx != null) {
-        writer.write(this._tx.toUint8Array())
-      } else {
+      const bytes = this.rawTxUint8Array
+      if (bytes == null) {
         throw new Error('a valid serialized Transaction is expected')
       }
+      writer.write(bytes)
     }
 
     const writeBumpIndex = (): void => {
@@ -166,8 +186,8 @@ export default class BeefTx {
     }
   }
 
-  static fromReader (br: Reader, version: number): BeefTx {
-    let data: Transaction | number[] | string | undefined
+  static fromReader (br: Reader | ReaderUint8Array, version: number): BeefTx {
+    let data: Transaction | undefined
     let bumpIndex: number | undefined
     let beefTx: BeefTx | undefined
     if (version === BEEF_V2) {
