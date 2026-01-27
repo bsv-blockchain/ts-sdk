@@ -3,7 +3,7 @@ import TransactionInput from './TransactionInput.js'
 import TransactionOutput from './TransactionOutput.js'
 import UnlockingScript from '../script/UnlockingScript.js'
 import LockingScript from '../script/LockingScript.js'
-import { Reader, Writer, toHex, toArray, ReaderUint8Array, toUint8Array } from '../primitives/utils.js'
+import { Reader, Writer, toHex, toArray, ReaderUint8Array, toUint8Array, WriterUint8Array } from '../primitives/utils.js'
 import { hash256 } from '../primitives/Hash.js'
 import FeeModel from './FeeModel.js'
 import LivePolicy from './fee-models/LivePolicy.js'
@@ -15,10 +15,6 @@ import { defaultBroadcaster } from './broadcasters/DefaultBroadcaster.js'
 import { defaultChainTracker } from './chaintrackers/DefaultChainTracker.js'
 import { Beef, BEEF_V1 } from './Beef.js'
 import P2PKH from '../script/templates/P2PKH.js'
-import { CreateActionArgs, CreateActionOptions, SignActionOptions, WalletInterface, DescriptionString5to50Bytes } from '../wallet/WalletInterface.js'
-
-const BufferCtor =
-  typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
 
 /**
  * Represents a complete Bitcoin transaction. This class encapsulates all the details
@@ -110,7 +106,7 @@ export default class Transaction {
    * @param txid Optional TXID of the transaction to retrieve from the BEEF data.
    * @returns An anchored transaction, linked to its associated inputs populated with merkle paths.
    */
-  static fromBEEF (beef: BEEF, txid?: string): Transaction {
+  static fromBEEF (beef: number[] | Uint8Array, txid?: string): Transaction {
     const { tx } = Transaction.fromAnyBeef(beef, txid)
     return tx
   }
@@ -122,7 +118,7 @@ export default class Transaction {
    * @param beef A binary representation of an Atomic BEEF structure.
    * @returns The subject transaction, linked to its associated inputs populated with merkle paths.
    */
-  static fromAtomicBEEF (beef: BEEF): Transaction {
+  static fromAtomicBEEF (beef: number[] | Uint8Array): Transaction {
     const { tx, txid, beef: b } = Transaction.fromAnyBeef(beef)
     if (txid !== b.atomicTxid) {
       if (b.atomicTxid != null) {
@@ -134,7 +130,7 @@ export default class Transaction {
     return tx
   }
 
-  private static fromAnyBeef (beef: BEEF, txid?: string): { tx: Transaction, beef: Beef, txid: string } {
+  private static fromAnyBeef (beef: number[] | Uint8Array, txid?: string): { tx: Transaction, beef: Beef, txid: string } {
     const b = Beef.fromBinary(beef)
     if (b.txs.length < 1) {
       throw new Error('beef must include at least one transaction.')
@@ -218,11 +214,11 @@ export default class Transaction {
    *   outputs: { vout: number, offset: number, length: number }[]
    * }
    */
-  static parseScriptOffsets (bin: number[]): {
+  static parseScriptOffsets (bin: number[] | Uint8Array): {
     inputs: Array<{ vin: number, offset: number, length: number }>
     outputs: Array<{ vout: number, offset: number, length: number }>
   } {
-    const br = new Reader(bin)
+    const br = ReaderUint8Array.makeReader(bin)
     const inputs: Array<{ vin: number, offset: number, length: number }> = []
     const outputs: Array<{ vout: number, offset: number, length: number }> = []
 
@@ -613,7 +609,7 @@ export default class Transaction {
     return await broadcaster.broadcast(this)
   }
 
-  private writeTransactionBody (writer: Writer): void {
+  private writeTransactionBody (writer: Writer | WriterUint8Array): void {
     writer.writeUInt32LE(this.version)
     writer.writeVarIntNum(this.inputs.length)
     for (const i of this.inputs) {
@@ -646,7 +642,7 @@ export default class Transaction {
   }
 
   private buildSerializedBytes (): Uint8Array {
-    const writer = new Writer()
+    const writer = new WriterUint8Array()
     this.writeTransactionBody(writer)
     return writer.toUint8Array()
   }
@@ -671,13 +667,7 @@ export default class Transaction {
     return this.getSerializedBytes()
   }
 
-  /**
-   * Converts the transaction to a BRC-30 EF format.
-   *
-   * @returns {number[]} - The BRC-30 EF representation of the transaction.
-   */
-  toEF (): number[] {
-    const writer = new Writer()
+  private writeEF (writer: Writer | WriterUint8Array): void {
     writer.writeUInt32LE(this.version)
     writer.write([0, 0, 0, 0, 0, 0xef])
     writer.writeVarIntNum(this.inputs.length)
@@ -718,7 +708,28 @@ export default class Transaction {
       writer.write(scriptBin)
     }
     writer.writeUInt32LE(this.lockTime)
+  }
+
+  /**
+   * Converts the transaction to a BRC-30 EF format.
+   *
+   * @returns {number[]} - The BRC-30 EF representation of the transaction.
+   */
+  toEF (): number[] {
+    const writer = new Writer()
+    this.writeEF(writer)
     return writer.toArray()
+  }
+
+  /**
+   * Converts the transaction to a BRC-30 EF format.
+   *
+   * @returns {Uint8Array} - The BRC-30 EF representation of the transaction.
+   */
+  toEFUint8Array (): Uint8Array {
+    const writer = new WriterUint8Array()
+    this.writeEF(writer)
+    return writer.toUint8Array()
   }
 
   /**
@@ -727,7 +738,7 @@ export default class Transaction {
    * @returns {string} - The hexadecimal string representation of the transaction EF.
    */
   toHexEF (): string {
-    return toHex(this.toEF())
+    return toHex(this.toEFUint8Array())
   }
 
   /**
@@ -740,10 +751,7 @@ export default class Transaction {
       return this.hexCache
     }
     const bytes = this.getSerializedBytes()
-    const hex =
-      BufferCtor != null
-        ? BufferCtor.from(bytes).toString('hex')
-        : toHex(Array.from(bytes))
+    const hex = toHex(bytes)
     this.hexCache = hex
     return hex
   }
@@ -948,13 +956,13 @@ export default class Transaction {
   /**
    * Serializes this transaction, together with its inputs and the respective merkle proofs, into the BEEF (BRC-62) format. This enables efficient verification of its compliance with the rules of SPV.
    *
+   * @param writer The writer to serialize to
    * @param allowPartial If true, error will not be thrown if there are any missing sourceTransactions.
    *
    * @returns The serialized BEEF structure
    * @throws Error if there are any missing sourceTransactions unless `allowPartial` is true.
    */
-  toBEEF (allowPartial?: boolean): number[] {
-    const writer = new Writer()
+  writeSerializedBEEF (writer: Writer | WriterUint8Array, allowPartial?: boolean): void {
     writer.writeUInt32LE(BEEF_V1)
     const BUMPs: MerklePath[] = []
     const bumpIndexByInstance = new Map<MerklePath, number>()
@@ -1033,6 +1041,34 @@ export default class Transaction {
   }
 
   /**
+   * Serializes this transaction, together with its inputs and the respective merkle proofs, into the BEEF (BRC-62) format. This enables efficient verification of its compliance with the rules of SPV.
+   *
+   * @param allowPartial If true, error will not be thrown if there are any missing sourceTransactions.
+   *
+   * @returns {number[]} The serialized BEEF structure
+   * @throws Error if there are any missing sourceTransactions unless `allowPartial` is true.
+   */
+  toBEEF (allowPartial?: boolean): number[] {
+    const writer = new Writer()
+    this.writeSerializedBEEF(writer, allowPartial)
+    return writer.toArray()
+  }
+
+  /**
+   * Serializes this transaction, together with its inputs and the respective merkle proofs, into the BEEF (BRC-62) format. This enables efficient verification of its compliance with the rules of SPV.
+   *
+   * @param allowPartial If true, error will not be thrown if there are any missing sourceTransactions.
+   *
+   * @returns {number[]} The serialized BEEF structure
+   * @throws Error if there are any missing sourceTransactions unless `allowPartial` is true.
+   */
+  toBEEFUint8Array (allowPartial?: boolean): Uint8Array {
+    const writer = new WriterUint8Array()
+    this.writeSerializedBEEF(writer, allowPartial)
+    return writer.toArray()
+  }
+
+  /**
    * Serializes this transaction and its inputs into the Atomic BEEF (BRC-95) format.
    * The Atomic BEEF format starts with a 4-byte prefix `0x01010101`, followed by the TXID of the subject transaction,
    * and then the BEEF data containing only the subject transaction and its dependencies.
@@ -1048,6 +1084,27 @@ export default class Transaction {
     const txHash = this.hash() as number[]
     const beefData = this.toBEEF(allowPartial)
     return prefix.concat(txHash, beefData)
+  }
+
+  /**
+   * Serializes this transaction and its inputs into the Atomic BEEF (BRC-95) format.
+   * The Atomic BEEF format starts with a 4-byte prefix `0x01010101`, followed by the TXID of the subject transaction,
+   * and then the BEEF data containing only the subject transaction and its dependencies.
+   * This format ensures that the BEEF structure is atomic and contains no unrelated transactions.
+   *
+   * @param allowPartial If true, error will not be thrown if there are any missing sourceTransactions.
+   *
+   * @returns {number[]} - The serialized Atomic BEEF structure.
+   * @throws Error if there are any missing sourceTransactions unless `allowPartial` is true.
+   */
+  toAtomicBEEFUint8Array (allowPartial?: boolean): Uint8Array {
+    const writer = new WriterUint8Array()
+    const prefix = [1, 1, 1, 1]
+    writer.write(prefix)
+    const txHash = this.hash() as number[]
+    writer.write(txHash)
+    this.writeSerializedBEEF(writer, allowPartial)
+    return writer.toUint8Array()
   }
 
   /**

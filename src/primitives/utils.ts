@@ -1,9 +1,10 @@
 import BigNumber from './BigNumber.js'
 import { hash256 } from './Hash.js'
 import { assertValidHex } from './hex.js'
-
+import { WriterUint8Array } from './WriterUint8Array.js'
 import { ReaderUint8Array } from './ReaderUint8Array.js'
 
+export { WriterUint8Array }
 export { ReaderUint8Array }
 
 const BufferCtor =
@@ -52,7 +53,7 @@ export const toHex = (msg: number[] | Uint8Array): string => {
  * Converts various message formats into a Uint8Array.
  * Supports Uint8Array, arrays of bytes, hexadecimal strings, base64 strings, and UTF-8 strings.
  *
- * @param {any} msg - The input message (array or string).
+ * @param {any} msg - The input message (Uint8Array, number[], Array or string).
  * @param {('hex' | 'utf8' | 'base64')} enc - Specifies the string encoding, if applicable.
  * @returns {Uint8Array}
  */
@@ -65,7 +66,7 @@ export const toUint8Array = (msg: any, enc?: 'hex' | 'utf8' | 'base64'): Uint8Ar
  * Converts various message formats into an array of numbers.
  * Supports arrays, hexadecimal strings, base64 strings, and UTF-8 strings.
  *
- * @param {any} msg - The input message (array or string).
+ * @param {any} msg - The input message (Uint8Array, number[], Array or string).
  * @param {('hex' | 'utf8' | 'base64')} enc - Specifies the string encoding, if applicable.
  * @returns {any[]} - Array representation of the input.
  */

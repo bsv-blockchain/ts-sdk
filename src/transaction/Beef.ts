@@ -2,12 +2,8 @@ import MerklePath from './MerklePath.js'
 import Transaction from './Transaction.js'
 import ChainTracker from './ChainTracker.js'
 import BeefTx from './BeefTx.js'
-import { Reader, Writer, toHex, toArray, verifyNotNull } from '../primitives/utils.js'
+import { Reader, Writer, toHex, toArray, verifyNotNull, ReaderUint8Array, WriterUint8Array, toUint8Array } from '../primitives/utils.js'
 import { hash256 } from '../primitives/Hash.js'
-import { ReaderUint8Array } from '../primitives/ReaderUint8Array.js'
-
-const BufferCtor =
-  typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
 
 export const BEEF_V1 = 4022206465 // 0100BEEF in LE order
 export const BEEF_V2 = 4022206466 // 0200BEEF in LE order
@@ -113,14 +109,14 @@ export class Beef {
     this.ensureSerializableState()
     if (this.rawBytesCache == null) {
       this.ensureSortedForSerialization()
-      const writer = new Writer()
+      const writer = new WriterUint8Array()
       this.toWriter(writer)
       this.rawBytesCache = writer.toUint8Array()
     }
     return this.rawBytesCache
   }
 
-  private getBeefForAtomic (txid: string): { beef: Beef, writer: Writer } {
+  private getBeefForAtomic (txid: string): { beef: Beef, writer: WriterUint8Array } {
     if (this.needsSort) {
       this.sortTxs()
     }
@@ -137,7 +133,7 @@ export class Beef {
       beef.txs.splice(i + 1)
     }
 
-    const writer = new Writer()
+    const writer = new WriterUint8Array()
     writer.writeUInt32LE(ATOMIC_BEEF)
     writer.writeReverse(toArray(txid, 'hex'))
 
@@ -574,7 +570,7 @@ export class Beef {
    * Serializes this data to `writer`
    * @param writer
    */
-  toWriter (writer: Writer): void {
+  toWriter (writer: Writer | WriterUint8Array): void {
     writer.writeUInt32LE(this.version)
 
     writer.writeVarIntNum(this.bumps.length)
@@ -650,10 +646,7 @@ export class Beef {
       return this.hexCache
     }
     const bytes = this.getSerializedBytes()
-    const hex =
-      BufferCtor != null
-        ? BufferCtor.from(bytes).toString('hex')
-        : toHex(Array.from(bytes))
+    const hex = toHex(bytes)
     this.hexCache = hex
     return hex
   }
@@ -703,8 +696,8 @@ export class Beef {
    * @returns An instance of the Beef class constructed from the string
    */
   static fromString (s: string, enc: 'hex' | 'utf8' | 'base64' = 'hex'): Beef {
-    const bin = toArray(s, enc)
-    const br = new Reader(bin)
+    const bin = toUint8Array(s, enc)
+    const br = new ReaderUint8Array(bin)
     return Beef.fromReader(br)
   }
 
@@ -856,6 +849,8 @@ export class Beef {
     c.txs = Array.from(this.txs)
     c.txidIndex = undefined
     c.needsSort = this.needsSort
+    c.hexCache = this.hexCache
+    c.rawBytesCache = this.rawBytesCache
     return c
   }
 
@@ -875,7 +870,44 @@ export class Beef {
         i++
       }
     }
-    // TODO: bumps could be trimmed to eliminate unreferenced proofs.
+
+    // Trim unreferenced bumps after removing known txids
+    const referencedBumpIndices = new Set<number>()
+    for (const tx of this.txs) {
+      if (tx.bumpIndex !== undefined) {
+        referencedBumpIndices.add(tx.bumpIndex)
+      }
+    }
+
+    // Check if there are any unreferenced bumps to remove
+    if (referencedBumpIndices.size < this.bumps.length) {
+      // Build mapping of old indices to new indices after removal
+      const indexMap = new Map<number, number>()
+      let newIndex = 0
+      for (let i = 0; i < this.bumps.length; i++) {
+        if (referencedBumpIndices.has(i)) {
+          indexMap.set(i, newIndex)
+          newIndex++
+        }
+      }
+
+      // Remove unreferenced bumps
+      this.bumps = this.bumps.filter((_, i) => referencedBumpIndices.has(i))
+
+      // Update all transaction bumpIndex references
+      for (const tx of this.txs) {
+        if (tx.bumpIndex !== undefined) {
+          const newIndex = indexMap.get(tx.bumpIndex)
+          if (newIndex === undefined) {
+            throw new Error(`Internal error: bumpIndex ${tx.bumpIndex} not found in indexMap`)
+          }
+          tx.bumpIndex = newIndex
+        }
+      }
+
+      mutated = true
+    }
+
     if (mutated) {
       this.markMutated(true)
     }

@@ -210,6 +210,7 @@ All notable changes to this project will be documented in this file. The format 
 Merge of BeefUint8Array branch: This is a non-breaking expansion of the API to support migration to Uint8Array
 
 ### Changed
+
 - BEEF and AtomicBEEF types are now EITHER Byte[] OR Uint8Array. BREAKING CHANGE. Requires code to convert to single type, possibly using new toUint8Array Utils method.
 - Migrate ReaderUint8Array from wallet-toolbox to ts-sdk Utils to support Uint8Array binary format in Beef and Transaction.
 - Utils toHex now handles Uint8Array input
@@ -225,20 +226,47 @@ Merge of BeefUint8Array branch: This is a non-breaking expansion of the API to s
 - Beef.test.ts now tests toUint8ArrayAtomic result bytes are equal to toBinaryAtomic
 
 ### Added
+
 - Utils toUint8Array (like toArray, but also accepts Uint8Array input and output is always Uint8Array)
 - Beef toUint8ArrayAtomic (like toBinaryAtomic but result is Uint8Array)
 
 ## [2.0.0] - 2026-01-01
 
 ### Added
+
 - Implemented new `Transaction.completeWithWallet()` method that provides complete BRC-100 wallet integration for transaction funding, signing, and broadcasting.
 - Added the remittance manager system with identity flows, state machine + event hooks, and a Basic BRC-29 module plus a remittance getting started guide.
 
 ### Changed
+
 - UTF8 encoding and decoding is now TextEncoder and TextDecoder based, and therefore standard. Previously we had a custom implementation which did thinks slightly differently, which caused issues when connecting client sand servers which use different languages. May cause a difference in HMAC calculation and therefore major version number is appropriate.
 
 ### Fixed
+
 - The session nonce was not being used correctly in the initial response message. Specifically the base64 string nonces were being concatenated as strings prior to decode, which sometimes lead to only reading the first of the two values because of a terminating "=" character in the first nonce. Reported by Freddie in https://github.com/bsv-blockchain/ts-sdk/security/advisories/GHSA-vjpq-xx5g-qvmm
+
+---
+
+## [1.10.3] - 2026-01-26
+
+- Updates to Transaction, MerklePath, Beef, BeefTx to support Uint8Array serialization.
+
+- Added ReaderUint8Array to Utils
+- Added WriterUint8Array to Utils
+
+---
+
+## [1.10.2] - 2026-01-21
+
+- Added a default fallback for identity resolution when a wallet is not available.
+
+---
+
+## [1.10.1] - 2026-01-08
+
+### Security
+
+- Checkpoint for Trail of Bits security review, details in [Security Review Project](https://github.com/orgs/bsv-blockchain/projects/10).
 
 ---
 
