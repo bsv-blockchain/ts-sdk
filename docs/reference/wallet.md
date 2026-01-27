@@ -884,19 +884,20 @@ export interface ReviewActionResult {
     txid: TXIDHexString;
     status: ReviewActionResultStatus;
     competingTxs?: string[];
-    competingBeef?: number[];
+    competingBeef?: BEEF;
 }
 ```
 
-See also: [ReviewActionResultStatus](./wallet.md#type-reviewactionresultstatus), [TXIDHexString](./wallet.md#type-txidhexstring)
+See also: [BEEF](./wallet.md#type-beef), [ReviewActionResultStatus](./wallet.md#type-reviewactionresultstatus), [TXIDHexString](./wallet.md#type-txidhexstring)
 
 #### Property competingBeef
 
 Merged beef of competingTxs, valid when status is 'doubleSpend'.
 
 ```ts
-competingBeef?: number[]
+competingBeef?: BEEF
 ```
+See also: [BEEF](./wallet.md#type-beef)
 
 #### Property competingTxs
 
@@ -5578,7 +5579,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Type: AtomicBEEF
 
 ```ts
-export type AtomicBEEF = Byte[]
+export type AtomicBEEF = Byte[] | Uint8Array
 ```
 
 See also: [Byte](./wallet.md#type-byte)
@@ -5589,7 +5590,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Type: BEEF
 
 ```ts
-export type BEEF = Byte[]
+export type BEEF = Byte[] | Uint8Array
 ```
 
 See also: [Byte](./wallet.md#type-byte)

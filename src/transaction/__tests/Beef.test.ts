@@ -324,6 +324,81 @@ describe('Beef tests', () => {
     }
   })
 
+  test('6b_trimKnownTxids_removes_unreferenced_bumps', async () => {
+    // Create a beef with multiple transactions and bumps
+    const beef = Beef.fromString(beefs[0])
+    
+    // Verify initial state
+    const initialBumpCount = beef.bumps.length
+    const initialTxCount = beef.txs.length
+    expect(initialBumpCount).toBe(1)
+    expect(initialTxCount).toBe(1)
+    
+    // Add some txid-only transactions that don't have bumps
+    beef.mergeTxidOnly('txid1')
+    beef.mergeTxidOnly('txid2')
+    beef.mergeTxidOnly('txid3')
+    
+    expect(beef.txs.length).toBe(4)
+    expect(beef.bumps.length).toBe(1)
+    
+    // Get the txid of the transaction with a bump
+    const txWithBump = beef.txs.find(tx => tx.bumpIndex !== undefined)
+    expect(txWithBump).toBeTruthy()
+    
+    // Trim all txid-only transactions
+    beef.trimKnownTxids(['txid1', 'txid2', 'txid3'])
+    
+    // Verify txids were removed
+    expect(beef.txs.length).toBe(1)
+    expect(beef.bumps.length).toBe(1) // Bump should still be there because it's referenced
+    
+    // Now test removing the transaction that has the bump
+    // First, make it txidOnly
+    const originalTxid = txWithBump!.txid
+    beef.makeTxidOnly(originalTxid)
+    
+    // Now trim it
+    beef.trimKnownTxids([originalTxid])
+    
+    // The bump should be removed since no transactions reference it anymore
+    expect(beef.txs.length).toBe(0)
+    expect(beef.bumps.length).toBe(0)
+  })
+
+  test('6c_trimKnownTxids_updates_bump_indices', async () => {
+    // Use existing beef with bumps
+    const beef = Beef.fromString(beefs[0])
+    
+    const initialBumpCount = beef.bumps.length
+    const initialTxCount = beef.txs.length
+    
+    // Find transaction with bump
+    const txWithBump = beef.txs.find(tx => tx.bumpIndex !== undefined)
+    expect(txWithBump).toBeTruthy()
+    const originalBumpIndex = txWithBump!.bumpIndex
+    
+    // Add some txid-only transactions
+    beef.mergeTxidOnly('known1')
+    beef.mergeTxidOnly('known2')
+    
+    expect(beef.txs.length).toBe(initialTxCount + 2)
+    expect(beef.bumps.length).toBe(initialBumpCount)
+    
+    // Trim the known txids
+    beef.trimKnownTxids(['known1', 'known2'])
+    
+    // Verify bump count didn't change (all bumps are still referenced)
+    expect(beef.bumps.length).toBe(initialBumpCount)
+    
+    // Verify transaction count decreased
+    expect(beef.txs.length).toBe(initialTxCount)
+    
+    // Verify bumpIndex is still correct
+    const txAfterTrim = beef.txs.find(tx => tx.txid === txWithBump!.txid)
+    expect(txAfterTrim?.bumpIndex).toBe(originalBumpIndex)
+  })
+
   test('7_AtomicBeef', async () => {
     {
       const beef = Beef.fromString(beefs[0])
@@ -391,6 +466,8 @@ describe('Beef tests', () => {
     const t2 = Transaction.fromAtomicBEEF(atomic)
     const beef2 = t2.toAtomicBEEF()
     expect(atomic).toEqual(beef2)
+    const atomic2 = beef.toUint8ArrayAtomic(tx.id('hex'))
+    expect(atomic).toEqual(Array.from(atomic2))
   })
   test('9_sortTxs', async () => {
     {
