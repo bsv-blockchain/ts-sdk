@@ -587,7 +587,7 @@ export class Beef {
         valid: boolean;
         roots: Record<number, string>;
     } 
-    toWriter(writer: Writer): void 
+    toWriter(writer: Writer | WriterUint8Array): void 
     toBinary(): number[] 
     toUint8Array(): Uint8Array 
     toBinaryAtomic(txid: string): number[] 
@@ -611,7 +611,7 @@ export class Beef {
 }
 ```
 
-See also: [BEEF_V2](./transaction.md#variable-beef_v2), [BeefTx](./transaction.md#class-beeftx), [ChainTracker](./transaction.md#interface-chaintracker), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [Transaction](./transaction.md#class-transaction), [Writer](./primitives.md#class-writer), [toHex](./primitives.md#variable-tohex), [toUint8Array](./primitives.md#variable-touint8array), [verify](./compat.md#variable-verify)
+See also: [BEEF_V2](./transaction.md#variable-beef_v2), [BeefTx](./transaction.md#class-beeftx), [ChainTracker](./transaction.md#interface-chaintracker), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [Transaction](./transaction.md#class-transaction), [Writer](./primitives.md#class-writer), [WriterUint8Array](./primitives.md#class-writeruint8array), [toHex](./primitives.md#variable-tohex), [toUint8Array](./primitives.md#variable-touint8array), [verify](./compat.md#variable-verify)
 
 #### Method addComputedLeaves
 
@@ -960,9 +960,9 @@ serialized contents of this Beef with AtomicBEEF prefix.
 Serializes this data to `writer`
 
 ```ts
-toWriter(writer: Writer): void 
+toWriter(writer: Writer | WriterUint8Array): void 
 ```
-See also: [Writer](./primitives.md#class-writer)
+See also: [Writer](./primitives.md#class-writer), [WriterUint8Array](./primitives.md#class-writeruint8array)
 
 #### Method trimKnownTxids
 
@@ -1167,7 +1167,7 @@ which they can merge if necessary to create a valid beef.
 export default class BeefTx {
     _bumpIndex?: number;
     _tx?: Transaction;
-    _rawTx?: number[];
+    _rawTx?: Uint8Array;
     _txid?: string;
     inputTxids: string[] = [];
     isValid?: boolean = undefined;
@@ -1178,21 +1178,22 @@ export default class BeefTx {
     get txid(): string 
     get tx(): Transaction | undefined 
     get rawTx(): number[] | undefined 
-    constructor(tx: Transaction | number[] | string | Uint8Array, bumpIndex?: number) 
+    get rawTxUint8Array(): Uint8Array | undefined 
+    constructor(tx: Transaction | Uint8Array | number[] | string, bumpIndex?: number) 
     static fromTx(tx: Transaction, bumpIndex?: number): BeefTx 
-    static fromRawTx(rawTx: number[], bumpIndex?: number): BeefTx 
+    static fromRawTx(rawTx: Uint8Array | number[], bumpIndex?: number): BeefTx 
     static fromTxid(txid: string, bumpIndex?: number): BeefTx 
-    toWriter(writer: Writer, version: number): void 
+    toWriter(writer: Writer | WriterUint8Array, version: number): void 
     static fromReader(br: Reader | ReaderUint8Array, version: number): BeefTx 
 }
 ```
 
-See also: [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [Transaction](./transaction.md#class-transaction), [Writer](./primitives.md#class-writer)
+See also: [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [Transaction](./transaction.md#class-transaction), [Writer](./primitives.md#class-writer), [WriterUint8Array](./primitives.md#class-writeruint8array)
 
 #### Constructor
 
 ```ts
-constructor(tx: Transaction | number[] | string | Uint8Array, bumpIndex?: number) 
+constructor(tx: Transaction | Uint8Array | number[] | string, bumpIndex?: number) 
 ```
 See also: [Transaction](./transaction.md#class-transaction)
 
@@ -1325,7 +1326,7 @@ export default class MerklePath {
     }>>;
     static fromHex(hex: string): MerklePath 
     static fromReader(reader: Reader | ReaderUint8Array, legalOffsetsOnly: boolean = true): MerklePath 
-    static fromBinary(bump: number[]): MerklePath 
+    static fromBinary(bump: number[] | Uint8Array): MerklePath 
     static fromCoinbaseTxidAndHeight(txid: string, height: number): MerklePath 
     constructor(blockHeight: number, path: Array<Array<{
         offset: number;
@@ -1333,7 +1334,9 @@ export default class MerklePath {
         txid?: boolean;
         duplicate?: boolean;
     }>>, legalOffsetsOnly: boolean = true) 
+    toWriter(writer: Writer | WriterUint8Array): void 
     toBinary(): number[] 
+    toBinaryUint8Array(): Uint8Array 
     toHex(): string 
     computeRoot(txid?: string): string 
     findOrComputeLeaf(height: number, offset: number): MerklePathLeaf | undefined 
@@ -1343,7 +1346,7 @@ export default class MerklePath {
 }
 ```
 
-See also: [ChainTracker](./transaction.md#interface-chaintracker), [MerklePathLeaf](./transaction.md#interface-merklepathleaf), [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [toHex](./primitives.md#variable-tohex), [verify](./compat.md#variable-verify)
+See also: [ChainTracker](./transaction.md#interface-chaintracker), [MerklePathLeaf](./transaction.md#interface-merklepathleaf), [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [Writer](./primitives.md#class-writer), [WriterUint8Array](./primitives.md#class-writeruint8array), [toHex](./primitives.md#variable-tohex), [verify](./compat.md#variable-verify)
 
 #### Method combine
 
@@ -1400,7 +1403,7 @@ See also: [MerklePathLeaf](./transaction.md#interface-merklepathleaf)
 Creates a MerklePath instance from a binary array.
 
 ```ts
-static fromBinary(bump: number[]): MerklePath 
+static fromBinary(bump: number[] | Uint8Array): MerklePath 
 ```
 See also: [MerklePath](./transaction.md#class-merklepath)
 
@@ -1461,6 +1464,18 @@ Returns
 
 - The binary array representation of the Merkle Path.
 
+#### Method toBinaryUint8Array
+
+Converts the MerklePath to a binary array format.
+
+```ts
+toBinaryUint8Array(): Uint8Array 
+```
+
+Returns
+
+- The binary array representation of the Merkle Path.
+
 #### Method toHex
 
 Converts the MerklePath to a hexadecimal string format.
@@ -1472,6 +1487,20 @@ toHex(): string
 Returns
 
 - The hexadecimal string representation of the Merkle Path.
+
+#### Method toWriter
+
+Serializes the MerklePath to the writer provided.
+
+```ts
+toWriter(writer: Writer | WriterUint8Array): void 
+```
+See also: [Writer](./primitives.md#class-writer), [WriterUint8Array](./primitives.md#class-writeruint8array)
+
+Argument Details
+
++ **writer**
+  + The writer to which the Merkle Path will be serialized.
 
 #### Method trim
 
@@ -1596,10 +1625,10 @@ export default class Transaction {
     lockTime: number;
     metadata: Record<string, any>;
     merklePath?: MerklePath;
-    static fromBEEF(beef: BEEF, txid?: string): Transaction 
-    static fromAtomicBEEF(beef: BEEF): Transaction 
-    static fromEF(ef: number[]): Transaction 
-    static parseScriptOffsets(bin: number[]): {
+    static fromBEEF(beef: number[] | Uint8Array, txid?: string): Transaction 
+    static fromAtomicBEEF(beef: number[] | Uint8Array): Transaction 
+    static fromEF(ef: number[] | Uint8Array): Transaction 
+    static parseScriptOffsets(bin: number[] | Uint8Array): {
         inputs: Array<{
             vin: number;
             offset: number;
@@ -1612,7 +1641,7 @@ export default class Transaction {
         }>;
     } 
     static fromReader(br: Reader | ReaderUint8Array): Transaction 
-    static fromBinary(bin: number[]): Transaction 
+    static fromBinary(bin: number[] | Uint8Array): Transaction 
     static fromHex(hex: string): Transaction 
     static fromHexEF(hex: string): Transaction 
     static fromHexBEEF(hex: string, txid?: string): Transaction 
@@ -1628,6 +1657,7 @@ export default class Transaction {
     toBinary(): number[] 
     toUint8Array(): Uint8Array 
     toEF(): number[] 
+    toEFUint8Array(): Uint8Array 
     toHexEF(): string 
     toHex(): string 
     toHexBEEF(): string 
@@ -1637,13 +1667,16 @@ export default class Transaction {
     id(enc: "hex"): string;
     id(enc?: "hex"): number[] | string 
     async verify(chainTracker: ChainTracker | "scripts only" = defaultChainTracker(), feeModel?: FeeModel, memoryLimit?: number): Promise<boolean> 
+    writeSerializedBEEF(writer: Writer | WriterUint8Array, allowPartial?: boolean): void 
     toBEEF(allowPartial?: boolean): number[] 
+    toBEEFUint8Array(allowPartial?: boolean): Uint8Array 
     toAtomicBEEF(allowPartial?: boolean): number[] 
+    toAtomicBEEFUint8Array(allowPartial?: boolean): Uint8Array 
     async completeWithWallet(wallet: WalletInterface, actionDescription?: DescriptionString5to50Bytes, originator?: string, options?: CreateActionOptions): Promise<void> 
 }
 ```
 
-See also: [BEEF](./wallet.md#type-beef), [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [Broadcaster](./transaction.md#interface-broadcaster), [ChainTracker](./transaction.md#interface-chaintracker), [CreateActionOptions](./wallet.md#interface-createactionoptions), [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [FeeModel](./transaction.md#interface-feemodel), [LivePolicy](./transaction.md#class-livepolicy), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput), [WalletInterface](./wallet.md#interface-walletinterface), [defaultBroadcaster](./transaction.md#function-defaultbroadcaster), [defaultChainTracker](./transaction.md#function-defaultchaintracker), [sign](./compat.md#variable-sign), [toHex](./primitives.md#variable-tohex), [toUint8Array](./primitives.md#variable-touint8array), [verify](./compat.md#variable-verify)
+See also: [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [Broadcaster](./transaction.md#interface-broadcaster), [ChainTracker](./transaction.md#interface-chaintracker), [CreateActionOptions](./wallet.md#interface-createactionoptions), [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [FeeModel](./transaction.md#interface-feemodel), [LivePolicy](./transaction.md#class-livepolicy), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput), [WalletInterface](./wallet.md#interface-walletinterface), [Writer](./primitives.md#class-writer), [WriterUint8Array](./primitives.md#class-writeruint8array), [defaultBroadcaster](./transaction.md#function-defaultbroadcaster), [defaultChainTracker](./transaction.md#function-defaultchaintracker), [sign](./compat.md#variable-sign), [toHex](./primitives.md#variable-tohex), [toUint8Array](./primitives.md#variable-touint8array), [verify](./compat.md#variable-verify)
 
 #### Method addInput
 
@@ -1758,9 +1791,9 @@ Creates a new transaction from an Atomic BEEF (BRC-95) structure.
 Extracts the subject transaction and supporting merkle path and source transactions contained in the BEEF data
 
 ```ts
-static fromAtomicBEEF(beef: BEEF): Transaction 
+static fromAtomicBEEF(beef: number[] | Uint8Array): Transaction 
 ```
-See also: [BEEF](./wallet.md#type-beef), [Transaction](./transaction.md#class-transaction)
+See also: [Transaction](./transaction.md#class-transaction)
 
 Returns
 
@@ -1779,9 +1812,9 @@ If the TXID is provided but not found in the BEEF data, an error will be thrown.
 If no TXID is provided, the last transaction in the BEEF data is returned, or the atomic txid.
 
 ```ts
-static fromBEEF(beef: BEEF, txid?: string): Transaction 
+static fromBEEF(beef: number[] | Uint8Array, txid?: string): Transaction 
 ```
-See also: [BEEF](./wallet.md#type-beef), [Transaction](./transaction.md#class-transaction)
+See also: [Transaction](./transaction.md#class-transaction)
 
 Returns
 
@@ -1799,7 +1832,7 @@ Argument Details
 Creates a Transaction instance from a binary array.
 
 ```ts
-static fromBinary(bin: number[]): Transaction 
+static fromBinary(bin: number[] | Uint8Array): Transaction 
 ```
 See also: [Transaction](./transaction.md#class-transaction)
 
@@ -1817,7 +1850,7 @@ Argument Details
 Creates a new transaction, linked to its inputs and their associated merkle paths, from a EF (BRC-30) structure.
 
 ```ts
-static fromEF(ef: number[]): Transaction 
+static fromEF(ef: number[] | Uint8Array): Transaction 
 ```
 See also: [Transaction](./transaction.md#class-transaction)
 
@@ -1975,7 +2008,7 @@ This function efficiently parses binary transaction data to determine the offset
 This supports the efficient retreival of script data from transaction data.
 
 ```ts
-static parseScriptOffsets(bin: number[]): {
+static parseScriptOffsets(bin: number[] | Uint8Array): {
     inputs: Array<{
         vin: number;
         offset: number;
@@ -2032,12 +2065,57 @@ Throws
 
 Error if there are any missing sourceTransactions unless `allowPartial` is true.
 
+#### Method toAtomicBEEFUint8Array
+
+Serializes this transaction and its inputs into the Atomic BEEF (BRC-95) format.
+The Atomic BEEF format starts with a 4-byte prefix `0x01010101`, followed by the TXID of the subject transaction,
+and then the BEEF data containing only the subject transaction and its dependencies.
+This format ensures that the BEEF structure is atomic and contains no unrelated transactions.
+
+```ts
+toAtomicBEEFUint8Array(allowPartial?: boolean): Uint8Array 
+```
+
+Returns
+
+- The serialized Atomic BEEF structure.
+
+Argument Details
+
++ **allowPartial**
+  + If true, error will not be thrown if there are any missing sourceTransactions.
+
+Throws
+
+Error if there are any missing sourceTransactions unless `allowPartial` is true.
+
 #### Method toBEEF
 
 Serializes this transaction, together with its inputs and the respective merkle proofs, into the BEEF (BRC-62) format. This enables efficient verification of its compliance with the rules of SPV.
 
 ```ts
 toBEEF(allowPartial?: boolean): number[] 
+```
+
+Returns
+
+The serialized BEEF structure
+
+Argument Details
+
++ **allowPartial**
+  + If true, error will not be thrown if there are any missing sourceTransactions.
+
+Throws
+
+Error if there are any missing sourceTransactions unless `allowPartial` is true.
+
+#### Method toBEEFUint8Array
+
+Serializes this transaction, together with its inputs and the respective merkle proofs, into the BEEF (BRC-62) format. This enables efficient verification of its compliance with the rules of SPV.
+
+```ts
+toBEEFUint8Array(allowPartial?: boolean): Uint8Array 
 ```
 
 Returns
@@ -2071,6 +2149,18 @@ Converts the transaction to a BRC-30 EF format.
 
 ```ts
 toEF(): number[] 
+```
+
+Returns
+
+- The BRC-30 EF representation of the transaction.
+
+#### Method toEFUint8Array
+
+Converts the transaction to a BRC-30 EF format.
+
+```ts
+toEFUint8Array(): Uint8Array 
 ```
 
 Returns
@@ -2165,6 +2255,30 @@ Example
 ```ts
 tx.verify(new WhatsOnChain(), LivePolicy.getInstance())
 ```
+
+#### Method writeSerializedBEEF
+
+Serializes this transaction, together with its inputs and the respective merkle proofs, into the BEEF (BRC-62) format. This enables efficient verification of its compliance with the rules of SPV.
+
+```ts
+writeSerializedBEEF(writer: Writer | WriterUint8Array, allowPartial?: boolean): void 
+```
+See also: [Writer](./primitives.md#class-writer), [WriterUint8Array](./primitives.md#class-writeruint8array)
+
+Returns
+
+The serialized BEEF structure
+
+Argument Details
+
++ **writer**
+  + The writer to serialize to
++ **allowPartial**
+  + If true, error will not be thrown if there are any missing sourceTransactions.
+
+Throws
+
+Error if there are any missing sourceTransactions unless `allowPartial` is true.
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 

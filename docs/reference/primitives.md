@@ -44,16 +44,17 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | | | |
 | --- | --- | --- |
-| [BasePoint](#class-basepoint) | [PointInFiniteField](#class-pointinfinitefield) | [SHA256](#class-sha256) |
-| [BigNumber](#class-bignumber) | [Polynomial](#class-polynomial) | [SHA256HMAC](#class-sha256hmac) |
-| [Curve](#class-curve) | [PrivateKey](#class-privatekey) | [SHA512](#class-sha512) |
-| [DRBG](#class-drbg) | [PublicKey](#class-publickey) | [SHA512HMAC](#class-sha512hmac) |
-| [JacobianPoint](#class-jacobianpoint) | [RIPEMD160](#class-ripemd160) | [Schnorr](#class-schnorr) |
-| [K256](#class-k256) | [Reader](#class-reader) | [Secp256r1](#class-secp256r1) |
-| [KeyShares](#class-keyshares) | [ReaderUint8Array](#class-readeruint8array) | [Signature](#class-signature) |
-| [Mersenne](#class-mersenne) | [ReductionContext](#class-reductioncontext) | [SymmetricKey](#class-symmetrickey) |
-| [MontgomoryMethod](#class-montgomorymethod) | [SHA1](#class-sha1) | [TransactionSignature](#class-transactionsignature) |
-| [Point](#class-point) | [SHA1HMAC](#class-sha1hmac) | [Writer](#class-writer) |
+| [BasePoint](#class-basepoint) | [Polynomial](#class-polynomial) | [SHA512](#class-sha512) |
+| [BigNumber](#class-bignumber) | [PrivateKey](#class-privatekey) | [SHA512HMAC](#class-sha512hmac) |
+| [Curve](#class-curve) | [PublicKey](#class-publickey) | [Schnorr](#class-schnorr) |
+| [DRBG](#class-drbg) | [RIPEMD160](#class-ripemd160) | [Secp256r1](#class-secp256r1) |
+| [JacobianPoint](#class-jacobianpoint) | [Reader](#class-reader) | [Signature](#class-signature) |
+| [K256](#class-k256) | [ReaderUint8Array](#class-readeruint8array) | [SymmetricKey](#class-symmetrickey) |
+| [KeyShares](#class-keyshares) | [ReductionContext](#class-reductioncontext) | [TransactionSignature](#class-transactionsignature) |
+| [Mersenne](#class-mersenne) | [SHA1](#class-sha1) | [Writer](#class-writer) |
+| [MontgomoryMethod](#class-montgomorymethod) | [SHA1HMAC](#class-sha1hmac) | [WriterUint8Array](#class-writeruint8array) |
+| [Point](#class-point) | [SHA256](#class-sha256) |  |
+| [PointInFiniteField](#class-pointinfinitefield) | [SHA256HMAC](#class-sha256hmac) |  |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -3343,12 +3344,14 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ---
 ### Class: ReaderUint8Array
 
+Reader for serialized Uint8Array binary data.
+
 ```ts
 export class ReaderUint8Array {
     public bin: Uint8Array;
     public pos: number;
     static makeReader(bin: Uint8Array | number[], pos: number = 0): Reader | ReaderUint8Array 
-    constructor(bin: Uint8Array = new Uint8Array(0), pos: number = 0) 
+    constructor(bin: Uint8Array | number[] = new Uint8Array(0), pos: number = 0) 
     public eof(): boolean 
     public read(len = this.length): Uint8Array 
     public readReverse(len = this.length): Uint8Array 
@@ -5030,6 +5033,90 @@ export class Writer {
 ```
 
 See also: [BigNumber](./primitives.md#class-bignumber), [toArray](./primitives.md#variable-toarray), [toUint8Array](./primitives.md#variable-touint8array)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Class: WriterUint8Array
+
+WriterUint8Array is a utility class for writing binary data into a dynamically
+growing Uint8Array buffer. It provides methods to write various integer types
+and variable-length integers, similar to the Writer class but optimized for
+Uint8Array usage.
+
+```ts
+export class WriterUint8Array {
+    constructor(bufs?: WriterChunk[], initialCapacity: number = 256) 
+    getLength(): number 
+    toUint8Array(): Uint8Array 
+    toArray(): number[] 
+    toUint8ArrayZeroCopy(): Uint8Array 
+    write(bytes: WriterChunk): this 
+    writeReverse(buf: WriterChunk): this 
+    writeUInt8(value: number): this 
+    writeInt8(value: number): this 
+    writeUInt16LE(value: number): this 
+    writeUInt16BE(value: number): this 
+    writeInt16LE(value: number): this 
+    writeInt16BE(value: number): this 
+    writeUInt32LE(value: number): this 
+    writeUInt32BE(value: number): this 
+    writeInt32LE(value: number): this 
+    writeInt32BE(value: number): this 
+    writeUInt64BEBn(bn: BigNumber): this 
+    writeUInt64LEBn(bn: BigNumber): this 
+    writeUInt64LE(n: number): this 
+    writeVarIntNum(n: number): this 
+    writeVarIntBn(bn: BigNumber): this 
+    reset(): void 
+}
+```
+
+See also: [BigNumber](./primitives.md#class-bignumber), [toArray](./primitives.md#variable-toarray), [toUint8Array](./primitives.md#variable-touint8array)
+
+#### Method getLength
+
+Returns the current length of written data
+
+```ts
+getLength(): number 
+```
+
+#### Method reset
+
+Resets the writer to empty state (reuses the buffer)
+
+```ts
+reset(): void 
+```
+
+#### Method toArray
+
+Legacy compatibility method – returns number[] (Byte[])
+
+```ts
+toArray(): number[] 
+```
+
+#### Method toUint8Array
+
+```ts
+toUint8Array(): Uint8Array 
+```
+
+Returns
+
+the written data as Uint8Array copy of the internal buffer
+
+#### Method toUint8ArrayZeroCopy
+
+```ts
+toUint8ArrayZeroCopy(): Uint8Array 
+```
+
+Returns
+
+the written data as Uint8Array. CAUTION: This is zero-copy subarray of the internal buffer).
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
