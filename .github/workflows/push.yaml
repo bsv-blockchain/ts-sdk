@@ -6,13 +6,11 @@ on:
       - master
   pull_request:
 
-permissions:
-  id-token: write  # Required for OIDC
-  contents: read
-
 jobs:
   test:
     name: Build & Test
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -37,6 +35,9 @@ jobs:
   publish:
     name: Publish
     needs: test
+    permissions:
+      id-token: write  # Required for OIDC
+      contents: read
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:

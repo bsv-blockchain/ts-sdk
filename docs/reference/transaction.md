@@ -1672,10 +1672,11 @@ export default class Transaction {
     toBEEFUint8Array(allowPartial?: boolean): Uint8Array 
     toAtomicBEEF(allowPartial?: boolean): number[] 
     toAtomicBEEFUint8Array(allowPartial?: boolean): Uint8Array 
+    async completeWithWallet(wallet: WalletInterface, actionDescription?: DescriptionString5to50Bytes, originator?: string, options?: CreateActionOptions): Promise<void> 
 }
 ```
 
-See also: [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [Broadcaster](./transaction.md#interface-broadcaster), [ChainTracker](./transaction.md#interface-chaintracker), [FeeModel](./transaction.md#interface-feemodel), [LivePolicy](./transaction.md#class-livepolicy), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput), [Writer](./primitives.md#class-writer), [WriterUint8Array](./primitives.md#class-writeruint8array), [defaultBroadcaster](./transaction.md#function-defaultbroadcaster), [defaultChainTracker](./transaction.md#function-defaultchaintracker), [sign](./compat.md#variable-sign), [toHex](./primitives.md#variable-tohex), [toUint8Array](./primitives.md#variable-touint8array), [verify](./compat.md#variable-verify)
+See also: [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [Broadcaster](./transaction.md#interface-broadcaster), [ChainTracker](./transaction.md#interface-chaintracker), [CreateActionOptions](./wallet.md#interface-createactionoptions), [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [FeeModel](./transaction.md#interface-feemodel), [LivePolicy](./transaction.md#class-livepolicy), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput), [WalletInterface](./wallet.md#interface-walletinterface), [Writer](./primitives.md#class-writer), [WriterUint8Array](./primitives.md#class-writeruint8array), [defaultBroadcaster](./transaction.md#function-defaultbroadcaster), [defaultChainTracker](./transaction.md#function-defaultchaintracker), [sign](./compat.md#variable-sign), [toHex](./primitives.md#variable-tohex), [toUint8Array](./primitives.md#variable-touint8array), [verify](./compat.md#variable-verify)
 
 #### Method addInput
 
@@ -1741,6 +1742,29 @@ Argument Details
 
 + **broadcaster**
   + The Broadcaster instance wwhere the transaction will be sent
+
+#### Method completeWithWallet
+
+Completes the transaction using a wallet interface, which will handle
+signing and transaction finalization. This method converts the current
+transaction into a format that can be processed by the wallet, and then
+updates this transaction object with the result from the wallet.
+
+```ts
+async completeWithWallet(wallet: WalletInterface, actionDescription?: DescriptionString5to50Bytes, originator?: string, options?: CreateActionOptions): Promise<void> 
+```
+See also: [CreateActionOptions](./wallet.md#interface-createactionoptions), [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [WalletInterface](./wallet.md#interface-walletinterface)
+
+Argument Details
+
++ **wallet**
+  + The BRC-100 compliant wallet to use for completing the transaction
++ **actionDescription**
+  + Optional description for the action
++ **originator**
+  + Optional originator domain name
++ **options**
+  + Optional settings for transaction creation (e.g., acceptDelayedBroadcast, trustSelf, noSend, etc.)
 
 #### Method fee
 
@@ -2247,6 +2271,8 @@ The serialized BEEF structure
 
 Argument Details
 
++ **writer**
+  + The writer to serialize to
 + **allowPartial**
   + If true, error will not be thrown if there are any missing sourceTransactions.
 

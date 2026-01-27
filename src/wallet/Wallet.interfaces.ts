@@ -128,16 +128,16 @@ export type OutputTagStringUnder300Bytes = string
 export type LabelStringUnder300Bytes = string
 
 /**
- * @typedef {Byte[]} BEEF
+ * @typedef {Byte[] | Uint8Array} BEEF
  * An array of integers, each ranging from 0 to 255, indicating transaction data in BEEF (BRC-62) format.
  */
-export type BEEF = Byte[]
+export type BEEF = Byte[] | Uint8Array
 
 /**
- * @typedef {Byte[]} AtomicBEEF
+ * @typedef {Byte[] | Uint8Array} AtomicBEEF
  * An array of integers, each ranging from 0 to 255, indicating transaction data in Atomic BEEF (BRC-95) format.
  */
-export type AtomicBEEF = Byte[]
+export type AtomicBEEF = Byte[] | Uint8Array
 
 /**
  * @typedef {string & { minLength: 5, maxLength: 400 }} ProtocolString5To400Bytes
@@ -324,7 +324,7 @@ export interface ReviewActionResult {
   /**
    * Merged beef of competingTxs, valid when status is 'doubleSpend'.
    */
-  competingBeef?: number[]
+  competingBeef?: BEEF
 }
 
 export interface SignableTransaction {

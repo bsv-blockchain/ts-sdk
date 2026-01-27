@@ -323,13 +323,17 @@ describe('verifyNotNull', () => {
   })
 })
 
-describe('toUTF8 strict UTF-8 decoding (TOB-21)', () => {
+describe('toUTF8 UTF-8 decoding', () => {
 
-  it('replaces invalid 2-byte sequences with U+FFFD', () => {
+  it('decodes ASCII bytes', () => {
+    expect(toUTF8([0x48, 0x65, 0x6c, 0x6c, 0x6f])).toBe('Hello')
+  })
+
+  it('replaces invalid 2-byte sequences with U+FFFD and continues decoding', () => {
     // 0xC2 should expect a continuation byte 0x80–0xBF
     const arr = [0xC2, 0x20]   // 0x20 is INVALID continuation
     const str = toUTF8(arr)
-    expect(str).toBe('\uFFFD')
+    expect(str).toBe('\uFFFD ')
   })
 
   it('decodes valid 3-byte sequences', () => {
@@ -337,10 +341,10 @@ describe('toUTF8 strict UTF-8 decoding (TOB-21)', () => {
     expect(toUTF8(euro)).toBe('€')
   })
 
-  it('replaces invalid 3-byte sequences', () => {
+  it('replaces invalid 3-byte sequences with U+FFFD and continues decoding', () => {
     // Middle byte invalid
     const arr = [0xE2, 0x20, 0xAC]
-    expect(toUTF8(arr)).toBe('\uFFFD')
+    expect(toUTF8(arr)).toBe('\uFFFD \uFFFD')
   })
 
   it('decodes valid 4-byte sequences into surrogate pairs', () => {
@@ -348,10 +352,10 @@ describe('toUTF8 strict UTF-8 decoding (TOB-21)', () => {
     expect(toUTF8(smile)).toBe('😀')
   })
 
-  it('replaces invalid 4-byte sequences with U+FFFD', () => {
+  it('replaces invalid 4-byte sequences with U+FFFD and continues decoding', () => {
     // 0x9F is valid, 0x20 is INVALID continuation for byte 3
     const arr = [0xF0, 0x9F, 0x20, 0x80]
-    expect(toUTF8(arr)).toBe('\uFFFD')
+    expect(toUTF8(arr)).toBe('\uFFFD \uFFFD')
   })
 
   it('replaces incomplete UTF-8 sequence at end', () => {
@@ -359,6 +363,25 @@ describe('toUTF8 strict UTF-8 decoding (TOB-21)', () => {
     expect(toUTF8(arr)).toBe('\uFFFD')
   })
 
+  it('replaces overlong sequences with U+FFFD', () => {
+    expect(toUTF8([0xC0, 0xAF])).toBe('\uFFFD\uFFFD')
+  })
+
+  it('replaces UTF-8 encoded surrogates with U+FFFD', () => {
+    expect(toUTF8([0xED, 0xA0, 0x80])).toBe('\uFFFD\uFFFD\uFFFD')
+  })
+
+})
+
+describe("toArray('utf8') UTF-8 encoding", () => {
+  it('round-trips UTF-8 strings', () => {
+    const s = 'Hello € 😀'
+    expect(toUTF8(toArray(s, 'utf8') as number[])).toBe(s)
+  })
+
+  it('replaces lone surrogates with U+FFFD when encoding', () => {
+    expect(toArray('\uD800', 'utf8')).toEqual([0xEF, 0xBF, 0xBD])
+  })
 })
 
 describe('Point.encode infinity handling', () => {

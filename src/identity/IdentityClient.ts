@@ -13,15 +13,10 @@ import {
 } from '../wallet/index.js'
 import { BroadcastFailure, BroadcastResponse, Transaction } from '../transaction/index.js'
 import Certificate from '../auth/certificates/Certificate.js'
-import { VerifiableCertificate } from '../auth/certificates/VerifiableCertificate.js'
 import { PushDrop } from '../script/index.js'
 import { PrivateKey, Utils } from '../primitives/index.js'
-import ProtoWallet from '../wallet/ProtoWallet.js'
 import { LookupResolver, SHIPBroadcaster, TopicBroadcaster, withDoubleSpendRetry } from '../overlay-tools/index.js'
 import { ContactsManager, Contact } from './ContactsManager.js'
-
-// Default SocialCert certifier for fallback resolution when no wallet is available
-const DEFAULT_CERTIFIER = '02cf6cdf466951d8dfc9e7c9367511d0007ed6fba35ed42d425cc412fd6cfd4a17'
 
 /**
  * IdentityClient lets you discover who others are, and let the world know who you are.
@@ -35,7 +30,7 @@ export class IdentityClient {
     private readonly originator?: OriginatorDomainNameStringUnder250Bytes
   ) {
     this.originator = originator
-    this.wallet = wallet ?? new WalletClient('auto', this.originator)
+    this.wallet = wallet ?? new WalletClient()
     this.contactsManager = new ContactsManager(this.wallet, this.originator)
   }
 
@@ -145,33 +140,19 @@ export class IdentityClient {
   ): Promise<DisplayableIdentity[]> {
     if (overrideWithContacts) {
       // Override results with personal contacts if available
-      try {
-        const contacts = await this.contactsManager.getContacts(args.identityKey)
-        if (contacts.length > 0) {
-          return contacts
-        }
-      } catch (e) {
-        // Contacts require wallet - continue to try discovery
+      const contacts = await this.contactsManager.getContacts(args.identityKey)
+      if (contacts.length > 0) {
+        return contacts
       }
     }
 
-    try {
-      const { certificates } = await this.wallet.discoverByIdentityKey(
-        args,
-        this.originator
-      )
-      return certificates.map((cert) => {
-        return IdentityClient.parseIdentity(cert)
-      })
-    } catch (error: unknown) {
-      // Fallback to LookupResolver if no wallet is available
-      const errorMessage = error instanceof Error ? error.message : ''
-      if (errorMessage.includes('No wallet available')) {
-        const certificates = await this.resolveViaLookup({ identityKey: args.identityKey })
-        return certificates.map((cert) => IdentityClient.parseIdentity(cert))
-      }
-      throw error
-    }
+    const { certificates } = await this.wallet.discoverByIdentityKey(
+      args,
+      this.originator
+    )
+    return certificates.map((cert) => {
+      return IdentityClient.parseIdentity(cert)
+    })
   }
 
   /**
@@ -186,131 +167,26 @@ export class IdentityClient {
     overrideWithContacts = true
   ): Promise<DisplayableIdentity[]> {
     // Run both queries in parallel for better performance
-    const contactsPromise = overrideWithContacts
-      ? this.contactsManager.getContacts().catch(() => [] as Contact[])
-      : Promise.resolve([] as Contact[])
+    const [contacts, certificatesResult] = await Promise.all([
+      overrideWithContacts
+        ? this.contactsManager.getContacts()
+        : Promise.resolve([]),
+      this.wallet.discoverByAttributes(args, this.originator)
+    ])
 
-    try {
-      const [contacts, certificatesResult] = await Promise.all([
-        contactsPromise,
-        this.wallet.discoverByAttributes(args, this.originator)
-      ])
+    // Fast lookup by identityKey
+    const contactByKey = new Map<PubKeyHex, Contact>(
+      contacts.map((contact) => [contact.identityKey, contact] as const)
+    )
 
-      // Fast lookup by identityKey
-      const contactByKey = new Map<PubKeyHex, Contact>(
-        contacts.map((contact) => [contact.identityKey, contact] as const)
-      )
+    // Guard if certificates might be absent
+    const certs = certificatesResult?.certificates ?? []
 
-      // Guard if certificates might be absent
-      const certs = certificatesResult?.certificates ?? []
-
-      // Parse certificates and substitute with contacts where available
-      return certs.map(
-        (cert) =>
-          contactByKey.get(cert.subject) ?? IdentityClient.parseIdentity(cert)
-      )
-    } catch (error: unknown) {
-      // Fallback to LookupResolver if no wallet is available
-      const errorMessage = error instanceof Error ? error.message : ''
-      if (errorMessage.includes('No wallet available')) {
-        const certificates = await this.resolveViaLookup({ attributes: args.attributes })
-        return certificates.map((cert) => IdentityClient.parseIdentity(cert))
-      }
-      throw error
-    }
-  }
-
-  /**
-   * Fallback method to resolve identity certificates via LookupResolver when no wallet is available.
-   * Uses the ls_identity overlay with a default SocialCert certifier.
-   *
-   * @param query - Query parameters: either identityKey or attributes
-   * @returns {Promise<IdentityCertificate[]>} Array of identity certificates
-   */
-  private async resolveViaLookup (
-    query: { identityKey?: PubKeyHex, attributes?: Record<string, string> }
-  ): Promise<IdentityCertificate[]> {
-    const resolver = new LookupResolver({ networkPreset: 'mainnet' })
-
-    // Build the lookup query based on what was provided
-    const lookupQuery: Record<string, any> = {
-      certifiers: [DEFAULT_CERTIFIER]
-    }
-
-    if (query.identityKey !== undefined) {
-      lookupQuery.identityKey = query.identityKey
-    } else if (query.attributes !== undefined) {
-      // For attribute search, use the 'any' matcher for flexible matching
-      const attributeValues = Object.values(query.attributes)
-      if (attributeValues.length === 1) {
-        lookupQuery.attributes = { any: attributeValues[0] }
-      } else {
-        lookupQuery.attributes = query.attributes
-      }
-    }
-
-    const lookupResult = await resolver.query({
-      service: 'ls_identity',
-      query: lookupQuery
-    })
-
-    if (lookupResult.type !== 'output-list' || lookupResult.outputs.length === 0) {
-      return []
-    }
-
-    const certificates: IdentityCertificate[] = []
-    const anyoneWallet = new ProtoWallet('anyone')
-
-    for (const output of lookupResult.outputs) {
-      try {
-        const tx = Transaction.fromBEEF(output.beef)
-        const decodedOutput = PushDrop.decode(tx.outputs[output.outputIndex].lockingScript)
-        const certData = JSON.parse(Utils.toUTF8(decodedOutput.fields[0]))
-
-        const verifiableCert = new VerifiableCertificate(
-          certData.type,
-          certData.serialNumber,
-          certData.subject,
-          certData.certifier,
-          certData.revocationOutpoint,
-          certData.fields,
-          certData.keyring,
-          certData.signature
-        )
-
-        // Decrypt fields using 'anyone' wallet for publicly revealed certificates
-        const decryptedFields = await verifiableCert.decryptFields(anyoneWallet)
-
-        // Verify the certificate is valid
-        await verifiableCert.verify()
-
-        // Construct IdentityCertificate with default certifier info
-        const identityCert: IdentityCertificate = {
-          type: certData.type,
-          serialNumber: certData.serialNumber,
-          subject: certData.subject,
-          certifier: certData.certifier,
-          revocationOutpoint: certData.revocationOutpoint,
-          fields: certData.fields,
-          signature: certData.signature,
-          certifierInfo: {
-            name: 'SocialCert',
-            iconUrl: 'https://socialcert.net/favicon.ico',
-            description: 'Social identity verification',
-            trust: 5
-          },
-          publiclyRevealedKeyring: certData.keyring,
-          decryptedFields
-        }
-
-        certificates.push(identityCert)
-      } catch (e) {
-        // Skip invalid certificates and continue processing
-        continue
-      }
-    }
-
-    return certificates
+    // Parse certificates and substitute with contacts where available
+    return certs.map(
+      (cert) =>
+        contactByKey.get(cert.subject) ?? IdentityClient.parseIdentity(cert)
+    )
   }
 
   /**
