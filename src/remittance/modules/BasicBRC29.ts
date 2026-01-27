@@ -256,7 +256,7 @@ export class Brc29RemittanceModule
   ): Promise<{ action: 'accept'; receiptData?: Brc29ReceiptData } | { action: 'terminate'; termination: Termination }> {
     const { wallet, originator } = ctx
     const origin = originator as OriginatorDomainNameStringUnder250Bytes | undefined
-    console.log('acceptSettlement', args)
+    //console.log('acceptSettlement', args)
     try {
       const settlement = ensureValidSettlement(args.settlement)
       const outputIndex = settlement.outputIndex ?? 0
