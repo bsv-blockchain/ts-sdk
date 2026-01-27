@@ -1,8 +1,7 @@
 import { hash256 } from '../primitives/Hash.js'
-import { Reader, Writer, toHex, toArray, verifyNotNull } from '../primitives/utils.js'
+import { Reader, Writer, toHex, toArray, ReaderUint8Array, WriterUint8Array } from '../primitives/utils.js'
 import Transaction from './Transaction.js'
 import { BEEF_V2, TX_DATA_FORMAT } from './Beef.js'
-import { ReaderUint8Array } from '../primitives/ReaderUint8Array.js'
 
 /**
  * A single bitcoin transaction associated with a `Beef` validity proof set.
@@ -16,7 +15,7 @@ import { ReaderUint8Array } from '../primitives/ReaderUint8Array.js'
 export default class BeefTx {
   _bumpIndex?: number
   _tx?: Transaction
-  _rawTx?: Uint8Array           // ← changed to Uint8Array internally
+  _rawTx?: Uint8Array
   _txid?: string
   inputTxids: string[] = []
   /**
@@ -66,7 +65,7 @@ export default class BeefTx {
   }
 
   /**
-   * Legacy compatibility getter — returns number[] (Byte[])
+   * Raw transaction bytes, if available as number[]
    */
   get rawTx (): number[] | undefined {
     if (this._rawTx != null) {
@@ -74,14 +73,14 @@ export default class BeefTx {
     }
     if (this._tx != null) {
       const bytes = this._tx.toUint8Array()
-      this._rawTx = bytes   // cache
+      this._rawTx = bytes // cache
       return Array.from(bytes)
     }
     return undefined
   }
 
   /**
-   * Preferred modern getter — returns Uint8Array (zero-copy where possible)
+   * Raw transaction bytes, if available as Uint8Array
    */
   get rawTxUint8Array (): Uint8Array | undefined {
     if (this._rawTx != null) return this._rawTx
@@ -129,7 +128,7 @@ export default class BeefTx {
       // If we have a proof, or don't have a parsed transaction
       this.inputTxids = []
     } else {
-      const inputTxids: Set<string> = new Set()   // minor perf improvement
+      const inputTxids: Set<string> = new Set() // minor perf improvement
       for (const input of this.tx.inputs) {
         if (input.sourceTXID !== undefined && input.sourceTXID !== null && input.sourceTXID !== '') {
           inputTxids.add(input.sourceTXID)
@@ -139,7 +138,7 @@ export default class BeefTx {
     }
   }
 
-  toWriter (writer: Writer, version: number): void {
+  toWriter (writer: Writer | WriterUint8Array, version: number): void {
     const writeByte = (bb: number): void => {
       writer.writeUInt8(bb)
     }

@@ -1,6 +1,9 @@
 import BigNumber from './BigNumber.js'
 import { Reader } from './utils.js'
 
+/**
+ * Reader for serialized Uint8Array binary data.
+ */
 export class ReaderUint8Array {
   public bin: Uint8Array
   public pos: number
@@ -16,10 +19,16 @@ export class ReaderUint8Array {
     throw new Error('ReaderUint8Array.makeReader: bin must be Uint8Array or number[]')
   }
 
-  constructor (bin: Uint8Array = new Uint8Array(0), pos: number = 0) {
-    this.bin = bin
+  constructor (bin: Uint8Array | number[] = new Uint8Array(0), pos: number = 0) {
+    if (bin instanceof Uint8Array) {
+      this.bin = bin
+    } else if (Array.isArray(bin)) {
+      this.bin = new Uint8Array(bin)
+    } else {
+      throw new Error('ReaderUint8Array constructor: bin must be Uint8Array or number[]')
+    }
     this.pos = pos
-    this.length = bin.length
+    this.length = this.bin.length
   }
 
   public eof (): boolean {

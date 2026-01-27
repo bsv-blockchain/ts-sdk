@@ -9,6 +9,9 @@ const makeContext = (wallet: WalletInterface): ModuleContext => ({
 })
 
 describe('Brc29RemittanceModule', () => {
+  // Prevent console.log output during tests
+  const consoleErrorSpy = jest.spyOn(console, 'log').mockImplementation(() => { })
+
   describe('unsolicited settlements (no invoice)', () => {
     it('builds a settlement artifact for unsolicited payment', async () => {
       const wallet = {
