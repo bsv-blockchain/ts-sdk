@@ -237,12 +237,27 @@ export class AuthFetch {
         // If the server has a resource that requires certificates to be sent before access would be granted,
         // this makes sure the user has a chance to send the certificates before the resource is requested.
         if (peerToUse.pendingCertificateRequests.length > 0) {
-          await new Promise(resolve => {
-            setInterval(() => {
+          const CERTIFICATE_WAIT_TIMEOUT_MS = 30000
+          const CHECK_INTERVAL_MS = 100
+
+          await new Promise<void>((resolve, reject) => {
+            const startTime = Date.now()
+
+            const checkPending = (): void => {
               if (peerToUse.pendingCertificateRequests.length === 0) {
                 resolve()
+                return
               }
-            }, 100) // Check every 100 ms for the user to finish responding
+
+              if (Date.now() - startTime > CERTIFICATE_WAIT_TIMEOUT_MS) {
+                reject(new Error('Timeout waiting for certificate request to complete'))
+                return
+              }
+
+              setTimeout(checkPending, CHECK_INTERVAL_MS)
+            }
+
+            checkPending()
           })
         }
 
