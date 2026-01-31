@@ -250,6 +250,104 @@ describe('ARC Broadcaster', () => {
     }
   })
 
+  it('should return error for DOUBLE_SPEND_ATTEMPTED even with HTTP 200', async () => {
+    const mockFetch = mockedFetch({
+      status: 200,
+      data: {
+        txid: '89100426fc13a55260fa65e621e7591f8b01007af62480e818d0da518723bfd3',
+        txStatus: 'DOUBLE_SPEND_ATTEMPTED',
+        extraInfo: '',
+        competingTxs: ['5e58f06a83343011f77d9109aab08dcc38d89e8cc7bd55da16affa948281d7ed']
+      }
+    })
+
+    const broadcaster = new ARC(URL, {
+      httpClient: new FetchHttpClient(mockFetch)
+    })
+    const response = await broadcaster.broadcast(transaction)
+
+    expect(mockFetch).toHaveBeenCalled()
+    expect(response.status).toBe('error')
+    if (response.status === 'error') {
+      expect(response.code).toBe('DOUBLE_SPEND_ATTEMPTED')
+      expect(response.txid).toBe('89100426fc13a55260fa65e621e7591f8b01007af62480e818d0da518723bfd3')
+      expect(response.more).toEqual({
+        competingTxs: ['5e58f06a83343011f77d9109aab08dcc38d89e8cc7bd55da16affa948281d7ed']
+      })
+    }
+  })
+
+  it('should return error for SEEN_IN_ORPHAN_MEMPOOL even with HTTP 200', async () => {
+    const mockFetch = mockedFetch({
+      status: 200,
+      data: {
+        txid: 'b06cb1059c2bf3debee1e65dc90d0815653325c7cf2584763b90c761c09919db',
+        txStatus: 'success',
+        extraInfo: 'SEEN_IN_ORPHAN_MEMPOOL'
+      }
+    })
+
+    const broadcaster = new ARC(URL, {
+      httpClient: new FetchHttpClient(mockFetch)
+    })
+    const response = await broadcaster.broadcast(transaction)
+
+    expect(mockFetch).toHaveBeenCalled()
+    expect(response.status).toBe('error')
+    if (response.status === 'error') {
+      expect(response.code).toBe('success')
+      expect(response.txid).toBe('b06cb1059c2bf3debee1e65dc90d0815653325c7cf2584763b90c761c09919db')
+      expect(response.description).toContain('ORPHAN')
+    }
+  })
+
+  it('should return error for REJECTED status even with HTTP 200', async () => {
+    const mockFetch = mockedFetch({
+      status: 200,
+      data: {
+        txid: 'abc123',
+        txStatus: 'REJECTED',
+        extraInfo: 'Transaction rejected by network'
+      }
+    })
+
+    const broadcaster = new ARC(URL, {
+      httpClient: new FetchHttpClient(mockFetch)
+    })
+    const response = await broadcaster.broadcast(transaction)
+
+    expect(mockFetch).toHaveBeenCalled()
+    expect(response.status).toBe('error')
+    if (response.status === 'error') {
+      expect(response.code).toBe('REJECTED')
+      expect(response.description).toContain('REJECTED')
+      expect(response.description).toContain('Transaction rejected by network')
+    }
+  })
+
+  it('should still return success for valid txStatus values', async () => {
+    const mockFetch = mockedFetch({
+      status: 200,
+      data: {
+        txid: 'valid_txid',
+        txStatus: 'SEEN_ON_NETWORK',
+        extraInfo: 'Transaction accepted'
+      }
+    })
+
+    const broadcaster = new ARC(URL, {
+      httpClient: new FetchHttpClient(mockFetch)
+    })
+    const response = await broadcaster.broadcast(transaction)
+
+    expect(mockFetch).toHaveBeenCalled()
+    expect(response.status).toBe('success')
+    if (response.status === 'success') {
+      expect(response.txid).toBe('valid_txid')
+      expect(response.message).toBe('SEEN_ON_NETWORK Transaction accepted')
+    }
+  })
+
   function mockedFetch (response: { status: number, data: any }): jest.Mock {
     return jest.fn().mockResolvedValue({
       ok: response.status === 200,

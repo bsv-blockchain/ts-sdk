@@ -149,6 +149,33 @@ export default class ARC implements Broadcaster {
       )
       if (response.ok) {
         const { txid, extraInfo, txStatus, competingTxs } = response.data
+
+        // Check for error txStatus values that ARC returns with HTTP 200
+        // These should be treated as broadcast failures
+        const errorStatuses = [
+          'DOUBLE_SPEND_ATTEMPTED',
+          'REJECTED',
+          'INVALID',
+          'MALFORMED',
+          'MINED_IN_STALE_BLOCK'
+        ]
+
+        const isOrphan = extraInfo?.toUpperCase().includes('ORPHAN') ||
+          txStatus?.toUpperCase().includes('ORPHAN')
+
+        if (errorStatuses.includes(txStatus?.toUpperCase()) || isOrphan) {
+          const failure: BroadcastFailure = {
+            status: 'error',
+            code: txStatus ?? 'UNKNOWN',
+            txid,
+            description: `${txStatus ?? ''} ${extraInfo ?? ''}`.trim()
+          }
+          if (competingTxs != null) {
+            failure.more = { competingTxs }
+          }
+          return failure
+        }
+
         const broadcastRes: BroadcastResponse = {
           status: 'success',
           txid,
