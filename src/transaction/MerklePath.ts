@@ -1,7 +1,8 @@
 
-import { Reader, Writer, toHex, toArray } from '../primitives/utils.js'
+import { Reader, Writer, toHex, toArray, WriterUint8Array } from '../primitives/utils.js'
 import { hash256 } from '../primitives/Hash.js'
 import ChainTracker from './ChainTracker.js'
+import { ReaderUint8Array } from '../primitives/ReaderUint8Array.js'
 
 export interface MerklePathLeaf {
   offset: number
@@ -54,7 +55,7 @@ export default class MerklePath {
   }
 
   static fromReader (
-    reader: Reader,
+    reader: Reader | ReaderUint8Array,
     legalOffsetsOnly: boolean = true
   ): MerklePath {
     const blockHeight = reader.readVarIntNum()
@@ -103,8 +104,8 @@ export default class MerklePath {
    * @param {number[]} bump - The binary array representation of the Merkle Path.
    * @returns {MerklePath} - A new MerklePath instance.
    */
-  static fromBinary (bump: number[]): MerklePath {
-    const reader = new Reader(bump)
+  static fromBinary (bump: number[] | Uint8Array): MerklePath {
+    const reader = new ReaderUint8Array(bump)
     return MerklePath.fromReader(reader)
   }
 
@@ -181,12 +182,11 @@ export default class MerklePath {
   }
 
   /**
-   * Converts the MerklePath to a binary array format.
+   * Serializes the MerklePath to the writer provided.
    *
-   * @returns {number[]} - The binary array representation of the Merkle Path.
+   * @param writer - The writer to which the Merkle Path will be serialized.
    */
-  toBinary (): number[] {
-    const writer = new Writer()
+  toWriter (writer: Writer | WriterUint8Array): void {
     writer.writeVarIntNum(this.blockHeight)
     const treeHeight = this.path.length
     writer.writeUInt8(treeHeight)
@@ -208,7 +208,28 @@ export default class MerklePath {
         }
       }
     }
+  }
+
+  /**
+   * Converts the MerklePath to a binary array format.
+   *
+   * @returns {number[]} - The binary array representation of the Merkle Path.
+   */
+  toBinary (): number[] {
+    const writer = new Writer()
+    this.toWriter(writer)
     return writer.toArray()
+  }
+
+  /**
+   * Converts the MerklePath to a binary array format.
+   *
+   * @returns {Uint8Array} - The binary array representation of the Merkle Path.
+   */
+  toBinaryUint8Array (): Uint8Array {
+    const writer = new WriterUint8Array()
+    this.toWriter(writer)
+    return writer.toUint8Array()
   }
 
   /**
@@ -217,7 +238,7 @@ export default class MerklePath {
    * @returns {string} - The hexadecimal string representation of the Merkle Path.
    */
   toHex (): string {
-    return toHex(this.toBinary())
+    return toHex(this.toBinaryUint8Array())
   }
 
   //

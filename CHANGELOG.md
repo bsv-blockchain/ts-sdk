@@ -5,7 +5,8 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
-- [1.10.1 - 2026-01-08](#)
+- [1.10.2 - 2026-01-21](#1102---2026-01-21)
+- [1.10.1 - 2026-01-08](#1101---2026-01-08)
   - TOB Security Review
 - [1.9.31 - 2025-12-29](#1931---2025-12-29)
 - [1.9.30 - 2025-12-18](#1930---2025-12-18)
@@ -203,6 +204,21 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [1.10.3] - 2026-01-26
+
+- Updates to Transaction, MerklePath, Beef, BeefTx to support Uint8Array serialization.
+
+- Added ReaderUint8Array to Utils
+- Added WriterUint8Array to Utils
+
+---
+
+## [1.10.2] - 2026-01-21
+
+- Added a default fallback for identity resolution when a wallet is not available.
 
 ---
 

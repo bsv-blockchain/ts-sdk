@@ -44,16 +44,17 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | | | |
 | --- | --- | --- |
-| [BasePoint](#class-basepoint) | [PointInFiniteField](#class-pointinfinitefield) | [SHA256HMAC](#class-sha256hmac) |
-| [BigNumber](#class-bignumber) | [Polynomial](#class-polynomial) | [SHA512](#class-sha512) |
-| [Curve](#class-curve) | [PrivateKey](#class-privatekey) | [SHA512HMAC](#class-sha512hmac) |
-| [DRBG](#class-drbg) | [PublicKey](#class-publickey) | [Schnorr](#class-schnorr) |
-| [JacobianPoint](#class-jacobianpoint) | [RIPEMD160](#class-ripemd160) | [Secp256r1](#class-secp256r1) |
-| [K256](#class-k256) | [Reader](#class-reader) | [Signature](#class-signature) |
-| [KeyShares](#class-keyshares) | [ReductionContext](#class-reductioncontext) | [SymmetricKey](#class-symmetrickey) |
-| [Mersenne](#class-mersenne) | [SHA1](#class-sha1) | [TransactionSignature](#class-transactionsignature) |
-| [MontgomoryMethod](#class-montgomorymethod) | [SHA1HMAC](#class-sha1hmac) | [Writer](#class-writer) |
+| [BasePoint](#class-basepoint) | [Polynomial](#class-polynomial) | [SHA512](#class-sha512) |
+| [BigNumber](#class-bignumber) | [PrivateKey](#class-privatekey) | [SHA512HMAC](#class-sha512hmac) |
+| [Curve](#class-curve) | [PublicKey](#class-publickey) | [Schnorr](#class-schnorr) |
+| [DRBG](#class-drbg) | [RIPEMD160](#class-ripemd160) | [Secp256r1](#class-secp256r1) |
+| [JacobianPoint](#class-jacobianpoint) | [Reader](#class-reader) | [Signature](#class-signature) |
+| [K256](#class-k256) | [ReaderUint8Array](#class-readeruint8array) | [SymmetricKey](#class-symmetrickey) |
+| [KeyShares](#class-keyshares) | [ReductionContext](#class-reductioncontext) | [TransactionSignature](#class-transactionsignature) |
+| [Mersenne](#class-mersenne) | [SHA1](#class-sha1) | [Writer](#class-writer) |
+| [MontgomoryMethod](#class-montgomorymethod) | [SHA1HMAC](#class-sha1hmac) | [WriterUint8Array](#class-writeruint8array) |
 | [Point](#class-point) | [SHA256](#class-sha256) |  |
+| [PointInFiniteField](#class-pointinfinitefield) | [SHA256HMAC](#class-sha256hmac) |  |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -3341,6 +3342,43 @@ See also: [BigNumber](./primitives.md#class-bignumber)
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
+### Class: ReaderUint8Array
+
+Reader for serialized Uint8Array binary data.
+
+```ts
+export class ReaderUint8Array {
+    public bin: Uint8Array;
+    public pos: number;
+    static makeReader(bin: Uint8Array | number[], pos: number = 0): Reader | ReaderUint8Array 
+    constructor(bin: Uint8Array | number[] = new Uint8Array(0), pos: number = 0) 
+    public eof(): boolean 
+    public read(len = this.length): Uint8Array 
+    public readReverse(len = this.length): Uint8Array 
+    public readUInt8(): number 
+    public readInt8(): number 
+    public readUInt16BE(): number 
+    public readInt16BE(): number 
+    public readUInt16LE(): number 
+    public readInt16LE(): number 
+    public readUInt32BE(): number 
+    public readInt32BE(): number 
+    public readUInt32LE(): number 
+    public readInt32LE(): number 
+    public readUInt64BEBn(): BigNumber 
+    public readUInt64LEBn(): BigNumber 
+    public readInt64LEBn(): BigNumber 
+    public readVarIntNum(signed: boolean = true): number 
+    public readVarInt(): Uint8Array 
+    public readVarIntBn(): BigNumber 
+}
+```
+
+See also: [BigNumber](./primitives.md#class-bignumber), [Reader](./primitives.md#class-reader)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Class: ReductionContext
 
 SECURITY NOTE:
@@ -4994,7 +5032,91 @@ export class Writer {
 }
 ```
 
-See also: [BigNumber](./primitives.md#class-bignumber), [toArray](./primitives.md#variable-toarray)
+See also: [BigNumber](./primitives.md#class-bignumber), [toArray](./primitives.md#variable-toarray), [toUint8Array](./primitives.md#variable-touint8array)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Class: WriterUint8Array
+
+WriterUint8Array is a utility class for writing binary data into a dynamically
+growing Uint8Array buffer. It provides methods to write various integer types
+and variable-length integers, similar to the Writer class but optimized for
+Uint8Array usage.
+
+```ts
+export class WriterUint8Array {
+    constructor(bufs?: WriterChunk[], initialCapacity: number = 256) 
+    getLength(): number 
+    toUint8Array(): Uint8Array 
+    toArray(): number[] 
+    toUint8ArrayZeroCopy(): Uint8Array 
+    write(bytes: WriterChunk): this 
+    writeReverse(buf: WriterChunk): this 
+    writeUInt8(value: number): this 
+    writeInt8(value: number): this 
+    writeUInt16LE(value: number): this 
+    writeUInt16BE(value: number): this 
+    writeInt16LE(value: number): this 
+    writeInt16BE(value: number): this 
+    writeUInt32LE(value: number): this 
+    writeUInt32BE(value: number): this 
+    writeInt32LE(value: number): this 
+    writeInt32BE(value: number): this 
+    writeUInt64BEBn(bn: BigNumber): this 
+    writeUInt64LEBn(bn: BigNumber): this 
+    writeUInt64LE(n: number): this 
+    writeVarIntNum(n: number): this 
+    writeVarIntBn(bn: BigNumber): this 
+    reset(): void 
+}
+```
+
+See also: [BigNumber](./primitives.md#class-bignumber), [toArray](./primitives.md#variable-toarray), [toUint8Array](./primitives.md#variable-touint8array)
+
+#### Method getLength
+
+Returns the current length of written data
+
+```ts
+getLength(): number 
+```
+
+#### Method reset
+
+Resets the writer to empty state (reuses the buffer)
+
+```ts
+reset(): void 
+```
+
+#### Method toArray
+
+Legacy compatibility method – returns number[] (Byte[])
+
+```ts
+toArray(): number[] 
+```
+
+#### Method toUint8Array
+
+```ts
+toUint8Array(): Uint8Array 
+```
+
+Returns
+
+the written data as Uint8Array copy of the internal buffer
+
+#### Method toUint8ArrayZeroCopy
+
+```ts
+toUint8ArrayZeroCopy(): Uint8Array 
+```
+
+Returns
+
+the written data as Uint8Array. CAUTION: This is zero-copy subarray of the internal buffer).
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -5351,24 +5473,25 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | | | |
 | --- | --- | --- |
-| [BI_EIGHT](#variable-bi_eight) | [biModSqrt](#variable-bimodsqrt) | [modN](#variable-modn) |
-| [BI_FOUR](#variable-bi_four) | [biModSub](#variable-bimodsub) | [multiply](#variable-multiply) |
-| [BI_ONE](#variable-bi_one) | [checkBit](#variable-checkbit) | [rightShift](#variable-rightshift) |
-| [BI_THREE](#variable-bi_three) | [encode](#variable-encode) | [ripemd160](#variable-ripemd160) |
-| [BI_TWO](#variable-bi_two) | [exclusiveOR](#variable-exclusiveor) | [scalarMultiplyWNAF](#variable-scalarmultiplywnaf) |
-| [BI_ZERO](#variable-bi_zero) | [fromBase58](#variable-frombase58) | [sha1](#variable-sha1) |
-| [GX_BIGINT](#variable-gx_bigint) | [fromBase58Check](#variable-frombase58check) | [sha256](#variable-sha256) |
-| [GY_BIGINT](#variable-gy_bigint) | [getBytes](#variable-getbytes) | [sha256hmac](#variable-sha256hmac) |
-| [MASK_256](#variable-mask_256) | [getBytes64](#variable-getbytes64) | [sha512](#variable-sha512) |
-| [N_BIGINT](#variable-n_bigint) | [hash160](#variable-hash160) | [sha512hmac](#variable-sha512hmac) |
-| [P_BIGINT](#variable-p_bigint) | [hash256](#variable-hash256) | [sign](#variable-sign) |
-| [P_PLUS1_DIV4](#variable-p_plus1_div4) | [incrementLeastSignificantThirtyTwoBits](#variable-incrementleastsignificantthirtytwobits) | [toArray](#variable-toarray) |
-| [biMod](#variable-bimod) | [jpAdd](#variable-jpadd) | [toBase58](#variable-tobase58) |
-| [biModAdd](#variable-bimodadd) | [jpDouble](#variable-jpdouble) | [toBase58Check](#variable-tobase58check) |
-| [biModInv](#variable-bimodinv) | [jpNeg](#variable-jpneg) | [toHex](#variable-tohex) |
-| [biModMul](#variable-bimodmul) | [minimallyEncode](#variable-minimallyencode) | [toUTF8](#variable-toutf8) |
-| [biModPow](#variable-bimodpow) | [modInvN](#variable-modinvn) | [verify](#variable-verify) |
-| [biModSqr](#variable-bimodsqr) | [modMulN](#variable-modmuln) | [zero2](#variable-zero2) |
+| [BI_EIGHT](#variable-bi_eight) | [biModSub](#variable-bimodsub) | [rightShift](#variable-rightshift) |
+| [BI_FOUR](#variable-bi_four) | [checkBit](#variable-checkbit) | [ripemd160](#variable-ripemd160) |
+| [BI_ONE](#variable-bi_one) | [encode](#variable-encode) | [scalarMultiplyWNAF](#variable-scalarmultiplywnaf) |
+| [BI_THREE](#variable-bi_three) | [exclusiveOR](#variable-exclusiveor) | [sha1](#variable-sha1) |
+| [BI_TWO](#variable-bi_two) | [fromBase58](#variable-frombase58) | [sha256](#variable-sha256) |
+| [BI_ZERO](#variable-bi_zero) | [fromBase58Check](#variable-frombase58check) | [sha256hmac](#variable-sha256hmac) |
+| [GX_BIGINT](#variable-gx_bigint) | [getBytes](#variable-getbytes) | [sha512](#variable-sha512) |
+| [GY_BIGINT](#variable-gy_bigint) | [getBytes64](#variable-getbytes64) | [sha512hmac](#variable-sha512hmac) |
+| [MASK_256](#variable-mask_256) | [hash160](#variable-hash160) | [sign](#variable-sign) |
+| [N_BIGINT](#variable-n_bigint) | [hash256](#variable-hash256) | [toArray](#variable-toarray) |
+| [P_BIGINT](#variable-p_bigint) | [incrementLeastSignificantThirtyTwoBits](#variable-incrementleastsignificantthirtytwobits) | [toBase58](#variable-tobase58) |
+| [P_PLUS1_DIV4](#variable-p_plus1_div4) | [jpAdd](#variable-jpadd) | [toBase58Check](#variable-tobase58check) |
+| [biMod](#variable-bimod) | [jpDouble](#variable-jpdouble) | [toHex](#variable-tohex) |
+| [biModAdd](#variable-bimodadd) | [jpNeg](#variable-jpneg) | [toUTF8](#variable-toutf8) |
+| [biModInv](#variable-bimodinv) | [minimallyEncode](#variable-minimallyencode) | [toUint8Array](#variable-touint8array) |
+| [biModMul](#variable-bimodmul) | [modInvN](#variable-modinvn) | [verify](#variable-verify) |
+| [biModPow](#variable-bimodpow) | [modMulN](#variable-modmuln) | [zero2](#variable-zero2) |
+| [biModSqr](#variable-bimodsqr) | [modN](#variable-modn) |  |
+| [biModSqrt](#variable-bimodsqrt) | [multiply](#variable-multiply) |  |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -6300,7 +6423,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Variable: toHex
 
 ```ts
-toHex = (msg: number[]): string => {
+toHex = (msg: number[] | Uint8Array): string => {
     if (CAN_USE_BUFFER) {
         return BufferCtor.from(msg).toString("hex");
     }
@@ -6398,6 +6521,21 @@ toUTF8 = (arr: number[]): string => {
     return result;
 }
 ```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Variable: toUint8Array
+
+```ts
+toUint8Array = (msg: any, enc?: "hex" | "utf8" | "base64"): Uint8Array => {
+    if (msg instanceof Uint8Array)
+        return msg;
+    return new Uint8Array(toArray(msg, enc));
+}
+```
+
+See also: [toArray](./primitives.md#variable-toarray)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
