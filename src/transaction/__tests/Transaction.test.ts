@@ -913,7 +913,7 @@ describe('Transaction', () => {
         it(`should pass bitcoin-abc sighash test vector ${i}`, () => {
           const txbuf = toArray(vector[0], 'hex')
           const scriptbuf = toArray(vector[1], 'hex')
-          const subScript = Script.fromBinary(scriptbuf)
+          const subScript = Script.fromBinary(scriptbuf, true)
           const nIn = vector[2] as number
           const nHashType = vector[3] as number
           const sighashBuf = toArray(vector[4], 'hex')
@@ -937,7 +937,8 @@ describe('Transaction', () => {
             subscript: subScript,
             inputSequence: input.sequence ?? 0xffffffff,
             lockTime: tx.lockTime,
-            scope: nHashType
+            scope: nHashType,
+            ignoreChronicle: true
           })
           const hash = hash256(preimage)
           hash.reverse()

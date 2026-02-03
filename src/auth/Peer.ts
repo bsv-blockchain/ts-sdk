@@ -870,6 +870,7 @@ export class Peer {
     if (certificatesRequired && !certificatesValidated) {
       const CERTIFICATE_WAIT_TIMEOUT_MS = 30000
       const sessionNonce = peerSession.sessionNonce
+      if (!sessionNonce) throw new Error('Session nonce is required to wait for certificate validation.')
 
       await new Promise<void>((resolve, reject) => {
         // Set timeout to reject if certificates don't arrive
@@ -933,7 +934,8 @@ export class Peer {
    * @private
    * @param {string} sessionNonce - The session nonce to resolve promises for.
    */
-  private resolveCertificateValidation (sessionNonce: string): void {
+  private resolveCertificateValidation (sessionNonce?: string): void {
+    if (!sessionNonce) throw new Error('Session nonce is required to resolve certificate validation.')
     const promise = this.certificateValidationPromises.get(sessionNonce)
     if (promise != null) {
       promise.resolve()
