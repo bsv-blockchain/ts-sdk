@@ -106,7 +106,7 @@ export default class Script {
    * @example
    * const script = Script.fromHex("76a9...");
    */
-  static fromHex (hex: string, legacyData?: boolean): Script {
+  static fromHex (hex: string): Script {
     if (hex.length === 0) return Script.fromBinary([])
     if (hex.length % 2 !== 0) {
       throw new Error(
@@ -125,6 +125,7 @@ export default class Script {
    * @method fromBinary
    * Static method to construct a Script instance from a binary array.
    * @param bin - The script in binary array format.
+   * @param legacyData - If true, arbitrary data following an OP_RETURN is parsed as a single data chunk.
    * @returns A new Script instance.
    * @example
    * const script = Script.fromBinary([0x76, 0xa9, ...])
