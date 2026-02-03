@@ -55,6 +55,12 @@ export class Peer {
   { callback: (sessionNonce: string) => void, sessionNonce: string }
   > = new Map()
 
+  // Promise-based mechanism for waiting on certificate validation
+  private readonly certificateValidationPromises: Map<
+  string,
+  { resolve: () => void, reject: (error: Error) => void }
+  > = new Map()
+
   // Single shared counter for all callback types
   private callbackIdCounter: number = 0
 
@@ -629,6 +635,9 @@ export class Peer {
       peerSession.lastUpdate = Date.now()
       this.sessionManager.updateSession(peerSession)
 
+      // Resolve any promises waiting for certificate validation
+      this.resolveCertificateValidation(peerSession.sessionNonce)
+
       this.onCertificatesReceivedCallbacks.forEach(cb =>
         cb(message.identityKey, message.certificates as VerifiableCertificate[])
       )
@@ -819,6 +828,9 @@ export class Peer {
     peerSession.lastUpdate = Date.now()
     this.sessionManager.updateSession(peerSession)
 
+    // Resolve any promises waiting for certificate validation
+    this.resolveCertificateValidation(peerSession.sessionNonce)
+
     // Notify any listeners
     this.onCertificatesReceivedCallbacks.forEach(cb => {
       cb(message.identityKey, message.certificates ?? [])
@@ -854,12 +866,37 @@ export class Peer {
     const certificatesRequired = peerSession.certificatesRequired === true
     const certificatesValidated = peerSession.certificatesValidated === true
 
+    // If certificates are required but not yet validated, wait for them with a timeout
     if (certificatesRequired && !certificatesValidated) {
-      throw new Error(
-        `Received general message before certificate validation from peer ${
-          peerSession.peerIdentityKey ?? 'unknown'
-        }`
-      )
+      const CERTIFICATE_WAIT_TIMEOUT_MS = 30000
+      const sessionNonce = peerSession.sessionNonce
+
+      await new Promise<void>((resolve, reject) => {
+        // Set timeout to reject if certificates don't arrive
+        const timeoutId = setTimeout(() => {
+          const promise = this.certificateValidationPromises.get(sessionNonce)
+          if (promise != null) {
+            this.certificateValidationPromises.delete(sessionNonce)
+            reject(new Error(
+              `Timeout waiting for certificate validation from peer ${
+                peerSession.peerIdentityKey ?? 'unknown'
+              }`
+            ))
+          }
+        }, CERTIFICATE_WAIT_TIMEOUT_MS)
+
+        // Store the promise resolvers with timeout cleanup
+        this.certificateValidationPromises.set(sessionNonce, {
+          resolve: () => {
+            clearTimeout(timeoutId)
+            resolve()
+          },
+          reject: (error: Error) => {
+            clearTimeout(timeoutId)
+            reject(error)
+          }
+        })
+      })
     }
 
     const { valid } = await this.wallet.verifySignature({
@@ -887,6 +924,21 @@ export class Peer {
     this.onGeneralMessageReceivedCallbacks.forEach(cb => {
       cb(message.identityKey, message.payload ?? [])
     })
+  }
+
+  /**
+   * Resolves any pending certificate validation promises for the given session nonce.
+   * This should be called when certificates have been successfully validated.
+   *
+   * @private
+   * @param {string} sessionNonce - The session nonce to resolve promises for.
+   */
+  private resolveCertificateValidation (sessionNonce: string): void {
+    const promise = this.certificateValidationPromises.get(sessionNonce)
+    if (promise != null) {
+      promise.resolve()
+      this.certificateValidationPromises.delete(sessionNonce)
+    }
   }
 
   private async getIdentityPublicKey (): Promise<string> {
