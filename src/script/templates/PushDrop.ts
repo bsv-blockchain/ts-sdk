@@ -6,9 +6,8 @@ import {
   Signature,
   PublicKey
 } from '../../primitives/index.js'
-import { WalletInterface } from '../../wallet/Wallet.interfaces.js'
+import { WalletInterface, WalletProtocol } from '../../wallet/Wallet.interfaces.js'
 import { Transaction } from '../../transaction/index.js'
-import { WalletProtocol } from '../../wallet/Wallet.interfaces.js'
 import { verifyNotNull } from '../../primitives/utils.js'
 
 /**
@@ -58,25 +57,41 @@ export default class PushDrop implements ScriptTemplate {
 
   /**
    * Decodes a PushDrop script back into its token fields and the locking public key. If a signature was present, it will be the last field returned.
-   * Warning: Only works with a P2PK lock at the beginning of the script.
    * @param script PushDrop script to decode back into token fields
+   * @param lockPosition Where the locking public key is positioned in the script ('before' = at start, 'after' = at end after DROP operations)
    * @returns An object containing PushDrop token fields and the locking public key. If a signature was included, it will be the last field.
    */
-  static decode(script: LockingScript): {
+  static decode (script: LockingScript, lockPosition: 'before' | 'after' = 'before'): {
     lockingPublicKey: PublicKey
     fields: number[][]
   } {
-    const lockingPublicKey = PublicKey.fromString(
-      Utils.toHex(verifyNotNull(script.chunks[0].data, 'script.chunks[0].data must have value'))
-    )
+    let lockingPublicKey: PublicKey
+    let startIndex: number
+
+    if (lockPosition === 'before') {
+      lockingPublicKey = PublicKey.fromString(
+        Utils.toHex(verifyNotNull(script.chunks[0].data, 'script.chunks[0].data must have value'))
+      )
+      startIndex = 2
+    } else {
+      // lockPosition === 'after'
+      // Find the public key at the end (after the last DROP/2DROP, before OP_CHECKSIG)
+      const lastChunkIndex = script.chunks.length - 1
+      if (script.chunks[lastChunkIndex].op !== OP.OP_CHECKSIG) {
+        throw new Error('Expected OP_CHECKSIG at the end of the script')
+      }
+      lockingPublicKey = PublicKey.fromString(
+        Utils.toHex(verifyNotNull(script.chunks[lastChunkIndex - 1].data, 'public key chunk data must have value'))
+      )
+      startIndex = 0
+    }
 
     const fields: number[][] = []
-    for (let i = 2; i < script.chunks.length; i++) {
-      const nextOpcode = script.chunks[i + 1]?.op // ✅ Prevent accessing `op` from `undefined`
-      let chunk: number[] = script.chunks[i].data ?? [] // ✅ Ensure `chunk` is always `number[]`
+    for (let i = startIndex; i < script.chunks.length; i++) {
+      const nextOpcode = script.chunks[i + 1]?.op
+      let chunk: number[] = script.chunks[i].data ?? []
 
       if (chunk.length === 0) {
-        // ✅ Only modify `chunk` if it was empty
         if (script.chunks[i].op >= 80 && script.chunks[i].op <= 95) {
           chunk = [script.chunks[i].op - 80]
         } else if (script.chunks[i].op === 0) {
@@ -105,7 +120,7 @@ export default class PushDrop implements ScriptTemplate {
    * @param {WalletInterface} wallet - The wallet interface used for creating signatures and accessing public keys.
    * @param {string} originator — The originator to use with Wallet requests
    */
-  constructor(wallet: WalletInterface, originator?: string) {
+  constructor (wallet: WalletInterface, originator?: string) {
     this.wallet = wallet
     this.originator = originator
   }
@@ -121,7 +136,7 @@ export default class PushDrop implements ScriptTemplate {
    * @param {boolean} [includeSignature=true] - Flag indicating if a signature should be included in the script (default yes).
    * @returns {Promise<LockingScript>} The generated PushDrop locking script.
    */
-  async lock(
+  async lock (
     fields: number[][],
     protocolID: WalletProtocol,
     keyID: string,
@@ -184,7 +199,7 @@ export default class PushDrop implements ScriptTemplate {
    * @param {boolean} [anyoneCanPay=false] - Specifies if the anyone-can-pay flag is set.
    * @returns {Object} An object containing functions to sign the transaction and estimate the script length.
    */
-  unlock(
+  unlock (
     protocolID: WalletProtocol,
     keyID: string,
     counterparty: string,
@@ -193,9 +208,9 @@ export default class PushDrop implements ScriptTemplate {
     sourceSatoshis?: number,
     lockingScript?: LockingScript
   ): {
-    sign: (tx: Transaction, inputIndex: number) => Promise<UnlockingScript>
-    estimateLength: () => Promise<73>
-  } {
+      sign: (tx: Transaction, inputIndex: number) => Promise<UnlockingScript>
+      estimateLength: () => Promise<73>
+    } {
     return {
       sign: async (
         tx: Transaction,
