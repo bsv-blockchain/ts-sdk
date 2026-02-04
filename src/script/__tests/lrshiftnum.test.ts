@@ -144,8 +144,8 @@ const rshiftnumValidScripts: [string, string[]][] = [
   ['OP_1 OP_1 OP_RSHIFTNUM', // 1 >> 1 -> 0
     ['']],
 
-  ['OP_1NEGATE OP_1 OP_RSHIFTNUM', // -1 >> 1 -> -1    THIS IS DIFFERENT FROM C++ IMPLEMENTATION WHICH MAY YIELD 0
-    ['81']], // Note: Changes size of the data
+  ['OP_1NEGATE OP_1 OP_RSHIFTNUM', // -1 >> 1 -> 0
+    ['']],
 ]
 
 function executeScriptCode(script: Script | string, expectedStack: string[]): boolean {

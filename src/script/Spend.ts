@@ -480,7 +480,12 @@ export default class Spend {
             this.scriptEvaluationError('OP_RSHIFTNUM bits to shift must not be negative.')
           }
           const value = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()).toBigInt()
-          const resultBn = new BigNumber(value >> bits)
+          let resultBn: BigNumber
+          if (value < 0) {
+            resultBn = new BigNumber(-(-value >> bits))
+          } else {
+            resultBn = new BigNumber(value >> bits)
+          }
           this.pushStack(resultBn.toScriptNum())
           break
         }
