@@ -327,11 +327,11 @@ export default class TransactionSignature extends Signature {
       return TransactionSignature.formatBip143(params)
     }
 
-    if (!hasForkId || hasChronicle) {
+    if (!hasForkId || (hasForkId && hasChronicle)) {
       return TransactionSignature.formatOTDA(params)
     }
 
-    return EMPTY_SCRIPT
+    return new Uint8Array(0)
   }
 
   // The format used in a tx
