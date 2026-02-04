@@ -2,62 +2,62 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/performance/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/auth/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/compat/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/identity/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/kvstore/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/messages/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/overlay-tools/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/primitives/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/registry/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/script/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/storage/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/totp/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/transaction/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
     <url>
          <loc>https://bsv-blockchain.github.io/ts-sdk/reference/wallet/</loc>
-         <lastmod>2026-02-03</lastmod>
+         <lastmod>2026-02-04</lastmod>
     </url>
 </urlset>
