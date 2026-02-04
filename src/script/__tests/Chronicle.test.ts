@@ -93,7 +93,7 @@ describe('Chronicle Tests', () => {
           log += `${i+1} OTDA ${okOTDA} ${!okOTDA ? ret : ''}\n`
       }
     }
-    console.log(log)
+    //console.log(log)
     //expect(log).toBe('')
   })
 
