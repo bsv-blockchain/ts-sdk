@@ -17,10 +17,6 @@ import TransactionOutput from '../transaction/TransactionOutput.js'
 const maxScriptElementSize = 1024 * 1024 * 1024
 const maxMultisigKeyCount = Math.pow(2, 31) - 1
 const maxMultisigKeyCountBigInt = BigInt(maxMultisigKeyCount)
-const requireMinimalPush = true
-const requirePushOnlyUnlockingScripts = true
-const requireLowSSignatures = true
-const requireCleanStack = true
 
 // --- Optimization: Pre-computed script numbers ---
 const SCRIPTNUM_NEG_1 = Object.freeze(new BigNumber(-1).toScriptNum())
@@ -145,9 +141,9 @@ export default class Spend {
   memoryLimit: number
   stackMem: number
   altStackMem: number
-  private sigHashCache: SignatureHashCache
-
   isRelaxedOverride: boolean
+
+  private sigHashCache: SignatureHashCache
 
   /**
    * @constructor
@@ -308,7 +304,7 @@ export default class Spend {
     }
     try {
       const sig = TransactionSignature.fromChecksigFormat(buf as number[]) // This can throw for stricter DER rules
-      if (!this.isRelaxed() && requireLowSSignatures && !sig.hasLowS()) {
+      if (!this.isRelaxed() && !sig.hasLowS()) {
         this.scriptEvaluationError('The signature must have a low S value.')
         return false
       }
@@ -409,7 +405,7 @@ export default class Spend {
     const isScriptExecuting = !this.ifStack.includes(false)
 
     if (isScriptExecuting && currentOpcode >= 0 && currentOpcode <= OP.OP_PUSHDATA4) {
-      if (!this.isRelaxed() && requireMinimalPush && !isChunkMinimalPushHelper(operation)) {
+      if (!this.isRelaxed() && !isChunkMinimalPushHelper(operation)) {
         this.scriptEvaluationError(`This data is not minimally-encoded. (PC: ${this.programCounter})`) // Error thrown
       }
       this.pushStack(Array.isArray(operation.data) ? operation.data : [])
@@ -428,8 +424,8 @@ export default class Spend {
           break
         case OP.OP_SUBSTR: {
           if (this.stack.length < 3) this.scriptEvaluationError('OP_SUBSTR requires at least three items to be on the stack.')
-          const len = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush).toNumber()
-          const offset = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush).toNumber()
+          const len = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()).toNumber()
+          const offset = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()).toNumber()
           buf = this.popStack()
           const size = buf.length
 
@@ -442,7 +438,7 @@ export default class Spend {
         }
         case OP.OP_LEFT: {
           if (this.stack.length < 2) this.scriptEvaluationError('OP_LEFT requires at least two items to be on the stack.')
-          const len = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush).toNumber()
+          const len = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()).toNumber()
           buf = this.popStack()
           const size = buf.length
 
@@ -455,7 +451,7 @@ export default class Spend {
         }
         case OP.OP_RIGHT: {
           if (this.stack.length < 2) this.scriptEvaluationError('OP_RIGHT requires at least two items to be on the stack.')
-          const len = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush).toNumber()
+          const len = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()).toNumber()
           buf = this.popStack()
           const size = buf.length
 
@@ -468,22 +464,22 @@ export default class Spend {
         }
         case OP.OP_LSHIFTNUM: {
           if (this.stack.length < 2) this.scriptEvaluationError('OP_LSHIFTNUM requires at least two items to be on the stack.')
-          const bits = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush).toBigInt()
+          const bits = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()).toBigInt()
           if (bits < 0) {
-            this.scriptEvaluationError(`OP_LSHIFTNUM bits to shift must not be negative.`)
+            this.scriptEvaluationError('OP_LSHIFTNUM bits to shift must not be negative.')
           }
-          const value = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush).toBigInt()
+          const value = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()).toBigInt()
           const resultBn = new BigNumber(value << bits)
           this.pushStack(resultBn.toScriptNum())
           break
         }
         case OP.OP_RSHIFTNUM: {
           if (this.stack.length < 2) this.scriptEvaluationError('OP_RSHIFTNUM requires at least two items to be on the stack.')
-          const bits = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush).toBigInt()
+          const bits = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()).toBigInt()
           if (bits < 0) {
-            this.scriptEvaluationError(`OP_RSHIFTNUM bits to shift must not be negative.`)
+            this.scriptEvaluationError('OP_RSHIFTNUM bits to shift must not be negative.')
           }
-          const value = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush).toBigInt()
+          const value = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()).toBigInt()
           const resultBn = new BigNumber(value >> bits)
           this.pushStack(resultBn.toScriptNum())
           break
@@ -653,7 +649,7 @@ export default class Spend {
         case OP.OP_PICK:
         case OP.OP_ROLL: {
           if (this.stack.length < 2) this.scriptEvaluationError(`${OP[currentOpcode] as string} requires at least two items to be on the stack.`)
-          bn = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed && requireMinimalPush)
+          bn = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed())
           const nBigInt = bn.toBigInt()
           if (nBigInt < 0n || nBigInt >= BigInt(this.stack.length)) {
             this.scriptEvaluationError(`${OP[currentOpcode] as string} requires the top stack element to be 0 or a positive number less than the current size of the stack.`)
@@ -726,7 +722,7 @@ export default class Spend {
         case OP.OP_LSHIFT:
         case OP.OP_RSHIFT: {
           if (this.stack.length < 2) this.scriptEvaluationError(`${OP[currentOpcode] as string} requires at least two items to be on the stack.`)
-          bn2 = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush) // n (shift amount)
+          bn2 = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()) // n (shift amount)
           buf1 = this.popStack() // value to shift
           const shiftBits = bn2.toBigInt()
           if (shiftBits < 0n) this.scriptEvaluationError(`${OP[currentOpcode] as string} requires the top item on the stack not to be negative.`)
@@ -760,7 +756,7 @@ export default class Spend {
         case OP.OP_NEGATE: case OP.OP_ABS:
         case OP.OP_NOT: case OP.OP_0NOTEQUAL:
           if (this.stack.length < 1) this.scriptEvaluationError(`${OP[currentOpcode] as string} requires at least one item to be on the stack.`)
-          bn = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush)
+          bn = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed())
           switch (currentOpcode) {
             case OP.OP_1ADD: bn = bn.add(new BigNumber(1)); break
             case OP.OP_1SUB: bn = bn.sub(new BigNumber(1)); break
@@ -782,8 +778,8 @@ export default class Spend {
           if (this.stack.length < 2) this.scriptEvaluationError(`${OP[currentOpcode] as string} requires at least two items to be on the stack.`)
           buf2 = this.popStack()
           buf1 = this.popStack()
-          bn2 = BigNumber.fromScriptNum(buf2, !this.isRelaxed() && requireMinimalPush)
-          bn1 = BigNumber.fromScriptNum(buf1, !this.isRelaxed() && requireMinimalPush)
+          bn2 = BigNumber.fromScriptNum(buf2, !this.isRelaxed())
+          bn1 = BigNumber.fromScriptNum(buf1, !this.isRelaxed())
           let predictedLen = 0
           switch (currentOpcode) {
             case OP.OP_MUL:
@@ -829,9 +825,9 @@ export default class Spend {
         }
         case OP.OP_WITHIN:
           if (this.stack.length < 3) this.scriptEvaluationError('OP_WITHIN requires at least three items to be on the stack.')
-          bn3 = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush) // max
-          bn2 = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush) // min
-          bn1 = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush) // x
+          bn3 = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()) // max
+          bn2 = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()) // min
+          bn1 = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()) // x
           fValue = bn1.cmp(bn2) >= 0 && bn1.cmp(bn3) < 0
           this.pushStack(fValue ? [1] : [])
           break
@@ -894,7 +890,7 @@ export default class Spend {
             this.scriptEvaluationError(`${OP[currentOpcode] as string} requires at least 1 item for nKeys.`)
           }
 
-          const nKeysCountBN = BigNumber.fromScriptNum(this.stackTop(-i), !this.isRelaxed &&requireMinimalPush)
+          const nKeysCountBN = BigNumber.fromScriptNum(this.stackTop(-i), !this.isRelaxed())
           const nKeysCountBigInt = nKeysCountBN.toBigInt()
           if (nKeysCountBigInt < 0n || nKeysCountBigInt > maxMultisigKeyCountBigInt) {
             this.scriptEvaluationError(`${OP[currentOpcode] as string} requires a key count between 0 and ${maxMultisigKeyCount}.`)
@@ -908,7 +904,7 @@ export default class Spend {
             this.scriptEvaluationError(`${OP[currentOpcode] as string} stack too small for nKeys and keys. Need ${i}, have ${this.stack.length}.`)
           }
 
-          const nSigsCountBN = BigNumber.fromScriptNum(this.stackTop(-i), !this.isRelaxed &&requireMinimalPush)
+          const nSigsCountBN = BigNumber.fromScriptNum(this.stackTop(-i), !this.isRelaxed())
           const nSigsCountBigInt = nSigsCountBN.toBigInt()
           if (nSigsCountBigInt < 0n || nSigsCountBigInt > BigInt(nKeysCount)) {
             this.scriptEvaluationError(`${OP[currentOpcode] as string} requires the number of signatures to be no greater than the number of keys.`)
@@ -1008,7 +1004,7 @@ export default class Spend {
           const posBuf = this.popStack()
           const dataToSplit = this.popStack()
 
-          const splitIndexBigInt = BigNumber.fromScriptNum(posBuf, !this.isRelaxed && requireMinimalPush).toBigInt()
+          const splitIndexBigInt = BigNumber.fromScriptNum(posBuf, !this.isRelaxed()).toBigInt()
           if (splitIndexBigInt < 0n || splitIndexBigInt > BigInt(dataToSplit.length)) {
             this.scriptEvaluationError('OP_SPLIT requires the first stack item to be a non-negative number less than or equal to the size of the second-from-top stack item.')
           }
@@ -1021,7 +1017,7 @@ export default class Spend {
         case OP.OP_NUM2BIN: {
           if (this.stack.length < 2) this.scriptEvaluationError('OP_NUM2BIN requires at least two items to be on the stack.')
 
-          const sizeBigInt = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed && requireMinimalPush).toBigInt()
+          const sizeBigInt = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()).toBigInt()
           if (sizeBigInt > BigInt(maxScriptElementSize) || sizeBigInt < 0n) { // size can be 0
             this.scriptEvaluationError(`It's not currently possible to push data larger than ${maxScriptElementSize} bytes or negative size.`)
           }
@@ -1091,7 +1087,7 @@ export default class Spend {
    * }
    */
   validate (): boolean {
-    if (!this.isRelaxed() && requirePushOnlyUnlockingScripts && !this.unlockingScript.isPushOnly()) {
+    if (!this.isRelaxed() && !this.unlockingScript.isPushOnly()) {
       this.scriptEvaluationError(
         'Unlocking scripts can only contain push operations, and no other opcodes.'
       )
@@ -1112,7 +1108,7 @@ export default class Spend {
       )
     }
 
-    if (!this.isRelaxed() && requireCleanStack) {
+    if (!this.isRelaxed()) {
       if (this.stack.length !== 1) {
         this.scriptEvaluationError(
           `The clean stack rule requires exactly one item to be on the stack after script execution, found ${this.stack.length}.`

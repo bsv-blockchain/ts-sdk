@@ -51,7 +51,6 @@ export default class TransactionSignature extends Signature {
    * @returns preimage as a byte array
    */
   static formatOTDA (params: TransactionSignatureFormatParams): Uint8Array {
-
     const isAnyoneCanPay = (params.scope & TransactionSignature.SIGHASH_ANYONECANPAY) === TransactionSignature.SIGHASH_ANYONECANPAY
     const isSingle = (params.scope & 31) === TransactionSignature.SIGHASH_SINGLE
     const isNone = (params.scope & 31) === TransactionSignature.SIGHASH_NONE
@@ -318,8 +317,7 @@ export default class TransactionSignature extends Signature {
     return Array.from(this.formatBytes(params))
   }
 
-  static formatBytes(params: TransactionSignatureFormatParams): Uint8Array {
-
+  static formatBytes (params: TransactionSignatureFormatParams): Uint8Array {
     const hasForkId = (params.scope & TransactionSignature.SIGHASH_FORKID) !== 0
     const hasChronicle = params.ignoreChronicle !== true && (params.scope & TransactionSignature.SIGHASH_CHRONICLE) !== 0
 
