@@ -5,7 +5,12 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
-- [2.0.0 - 2026-01-01](#200---2026-01-01)
+- [2.0.0 - 2026-02-04](#200---2026-02-04)
+- [1.10.4 - 2026-02-04](#1104---2026-02-04)
+- [1.10.3 - 2026-01-26](#1103---2026-01-26)
+- [1.10.2 - 2026-01-21](#1102---2026-01-21)
+- [1.10.1 - 2026-01-08](#1101---2026-01-08)
+  - TOB Security Review
 - [1.9.31 - 2025-12-29](#1931---2025-12-29)
 - [1.9.30 - 2025-12-18](#1930---2025-12-18)
 - [1.9.29 - 2025-12-12](#1929---2025-12-12)
@@ -205,7 +210,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ---
 
-## [2.0.0] - 2026-01-01
+## [2.0.0] - 2026-02-04
 
 ### Added
 
@@ -235,6 +240,15 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 - The session nonce was not being used correctly in the initial response message. Specifically the base64 string nonces were being concatenated as strings prior to decode, which sometimes lead to only reading the first of the two values because of a terminating "=" character in the first nonce. Reported by Freddie in https://github.com/bsv-blockchain/ts-sdk/security/advisories/GHSA-vjpq-xx5g-qvmm
+
+---
+
+## [1.10.4] - 2026-02-04
+
+### Fixed
+
+- Fixed TypeScript compilation errors in `Peer.ts` where optional `sessionNonce` property was passed to methods expecting non-nullable strings.
+- Fixed test for certificate gating to properly prevent auto-response during certificate validation.
 
 ---
 
