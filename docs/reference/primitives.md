@@ -4940,9 +4940,12 @@ export default class TransactionSignature extends Signature {
     public static readonly SIGHASH_ALL = 1;
     public static readonly SIGHASH_NONE = 2;
     public static readonly SIGHASH_SINGLE = 3;
+    public static readonly SIGHASH_CHRONICLE = 32;
     public static readonly SIGHASH_FORKID = 64;
     public static readonly SIGHASH_ANYONECANPAY = 128;
     scope: number;
+    static formatOTDA(params: TransactionSignatureFormatParams): Uint8Array 
+    static formatBip143(params: TransactionSignatureFormatParams): Uint8Array 
     static format(params: TransactionSignatureFormatParams): number[] 
     static formatBytes(params: TransactionSignatureFormatParams): Uint8Array 
     static fromChecksigFormat(buf: number[]): TransactionSignature 
@@ -4969,12 +4972,12 @@ Argument Details
 + **params.cache**
   + Optional cache storing previously computed `hashPrevouts`, `hashSequence`, or `hashOutputs*` values; it will be populated if present.
 
-#### Method formatBytes
+#### Method formatBip143
 
 Formats the same SIGHASH preimage bytes as `format`, supporting the optional cache for hash reuse.
 
 ```ts
-static formatBytes(params: TransactionSignatureFormatParams): Uint8Array 
+static formatBip143(params: TransactionSignatureFormatParams): Uint8Array 
 ```
 
 Returns
@@ -4987,6 +4990,18 @@ Argument Details
   + Context for the signing operation.
 + **params.cache**
   + Optional `SignatureHashCache` that may already contain hashed prefixes and is populated during formatting.
+
+#### Method formatOTDA
+
+Implements the original bitcoin transaction signature digest preimage algorithm (OTDA).
+
+```ts
+static formatOTDA(params: TransactionSignatureFormatParams): Uint8Array 
+```
+
+Returns
+
+preimage as a byte array
 
 #### Method hasLowS
 
@@ -5010,6 +5025,7 @@ export class Writer {
     getLength(): number 
     toUint8Array(): Uint8Array 
     toArray(): number[] 
+    toHex(): string 
     write(buf: WriterChunk): this 
     writeReverse(buf: number[]): this 
     writeUInt8(n: number): this 
@@ -5032,7 +5048,7 @@ export class Writer {
 }
 ```
 
-See also: [BigNumber](./primitives.md#class-bignumber), [toArray](./primitives.md#variable-toarray), [toUint8Array](./primitives.md#variable-touint8array)
+See also: [BigNumber](./primitives.md#class-bignumber), [toArray](./primitives.md#variable-toarray), [toHex](./primitives.md#variable-tohex), [toUint8Array](./primitives.md#variable-touint8array)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
