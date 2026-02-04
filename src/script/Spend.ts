@@ -469,6 +469,28 @@ export default class Spend {
           this.pushStack(buf.slice(size - len, len))
           break
         }
+        case OP.OP_LSHIFTNUM: {
+          if (this.stack.length < 2) this.scriptEvaluationError('OP_LSHIFTNUM requires at least two items to be on the stack.')
+          const bits = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush).toBigInt()
+          if (bits < 0) {
+            this.scriptEvaluationError(`OP_LSHIFTNUM bits to shift must not be negative.`)
+          }
+          const value = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush).toBigInt()
+          const resultBn = new BigNumber(value << bits)
+          this.pushStack(resultBn.toScriptNum())
+          break
+        }
+        case OP.OP_RSHIFTNUM: {
+          if (this.stack.length < 2) this.scriptEvaluationError('OP_RSHIFTNUM requires at least two items to be on the stack.')
+          const bits = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush).toBigInt()
+          if (bits < 0) {
+            this.scriptEvaluationError(`OP_RSHIFTNUM bits to shift must not be negative.`)
+          }
+          const value = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed() && requireMinimalPush).toBigInt()
+          const resultBn = new BigNumber(value >> bits)
+          this.pushStack(resultBn.toScriptNum())
+          break
+        }
 
         case OP.OP_1NEGATE: this.pushStackCopy(SCRIPTNUM_NEG_1); break
         case OP.OP_0: this.pushStackCopy(SCRIPTNUMS_0_TO_16[0]); break
