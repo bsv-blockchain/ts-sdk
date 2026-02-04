@@ -186,53 +186,7 @@ export function base64ToArray (msg: string): number[] {
  * @returns An array of numbers, each representing a byte in the UTF-8 encoded string.
  */
 function utf8ToArray (str: string): number[] {
-  const result: number[] = []
-
-  for (let i = 0; i < str.length; i++) {
-    const cp = str.codePointAt(i)
-    if (cp === undefined) {
-      // Should never be out of range.
-      throw new Error(`Index out of range: ${i}`)
-    }
-    let codePoint = cp
-
-    if (codePoint > 0xFFFF) {
-      // Valid surrogate pair => skip the next code unit because codePointAt
-      // has already combined them into a single code point.
-      i++
-    } else {
-      // Check if codePoint is a lone (unpaired) high surrogate or low surrogate.
-      if (codePoint >= 0xD800 && codePoint <= 0xDFFF) {
-        // Replace with the replacement character (U+FFFD).
-        codePoint = 0xFFFD
-      }
-    }
-
-    // Encode according to the UTF-8 standard
-    if (codePoint <= 0x7F) {
-      result.push(codePoint)
-    } else if (codePoint <= 0x7FF) {
-      result.push(
-        0xC0 | (codePoint >> 6),
-        0x80 | (codePoint & 0x3F)
-      )
-    } else if (codePoint <= 0xFFFF) {
-      result.push(
-        0xE0 | (codePoint >> 12),
-        0x80 | ((codePoint >> 6) & 0x3F),
-        0x80 | (codePoint & 0x3F)
-      )
-    } else {
-      result.push(
-        0xF0 | (codePoint >> 18),
-        0x80 | ((codePoint >> 12) & 0x3F),
-        0x80 | ((codePoint >> 6) & 0x3F),
-        0x80 | (codePoint & 0x3F)
-      )
-    }
-  }
-
-  return result
+  return Array.from(new TextEncoder().encode(str))
 }
 
 /**
@@ -241,86 +195,7 @@ function utf8ToArray (str: string): number[] {
  * @returns {string} - The UTF-8 encoded string.
  */
 export const toUTF8 = (arr: number[]): string => {
-  let result = ''
-  const replacementChar = '\uFFFD'
-  for (let i = 0; i < arr.length; i++) {
-    const byte1 = arr[i]
-    if (byte1 <= 0x7f) {
-      result += String.fromCharCode(byte1)
-      continue
-    }
-    const emitReplacement = (): void => {
-      result += replacementChar
-    }
-    if (byte1 >= 0xc0 && byte1 <= 0xdf) {
-      if (i + 1 >= arr.length) {
-        emitReplacement()
-        continue
-      }
-      const byte2 = arr[i + 1]
-      if ((byte2 & 0xc0) !== 0x80) {
-        emitReplacement()
-        i += 1
-        continue
-      }
-      const codePoint = ((byte1 & 0x1f) << 6) | (byte2 & 0x3f)
-      result += String.fromCharCode(codePoint)
-      i += 1
-      continue
-    }
-    if (byte1 >= 0xe0 && byte1 <= 0xef) {
-      if (i + 2 >= arr.length) {
-        emitReplacement()
-        continue
-      }
-      const byte2 = arr[i + 1]
-      const byte3 = arr[i + 2]
-      if ((byte2 & 0xc0) !== 0x80 || (byte3 & 0xc0) !== 0x80) {
-        emitReplacement()
-        i += 2
-        continue
-      }
-      const codePoint =
-        ((byte1 & 0x0f) << 12) |
-        ((byte2 & 0x3f) << 6) |
-        (byte3 & 0x3f)
-
-      result += String.fromCharCode(codePoint)
-      i += 2
-      continue
-    }
-    if (byte1 >= 0xf0 && byte1 <= 0xf7) {
-      if (i + 3 >= arr.length) {
-        emitReplacement()
-        continue
-      }
-      const byte2 = arr[i + 1]
-      const byte3 = arr[i + 2]
-      const byte4 = arr[i + 3]
-      if (
-        (byte2 & 0xc0) !== 0x80 ||
-        (byte3 & 0xc0) !== 0x80 ||
-        (byte4 & 0xc0) !== 0x80
-      ) {
-        emitReplacement()
-        i += 3
-        continue
-      }
-      const codePoint =
-        ((byte1 & 0x07) << 18) |
-        ((byte2 & 0x3f) << 12) |
-        ((byte3 & 0x3f) << 6) |
-        (byte4 & 0x3f)
-      const offset = codePoint - 0x10000
-      const highSurrogate = 0xd800 + (offset >> 10)
-      const lowSurrogate = 0xdc00 + (offset & 0x3ff)
-      result += String.fromCharCode(highSurrogate, lowSurrogate)
-      i += 3
-      continue
-    }
-    emitReplacement()
-  }
-  return result
+  return new TextDecoder().decode(new Uint8Array(arr))
 }
 
 /**
@@ -546,6 +421,10 @@ export class Writer {
     return ret
   }
 
+  toHex (): string {
+    return this.toArray().map((n) => n.toString(16).padStart(2, '0')).join('')
+  }
+
   write (buf: WriterChunk): this {
     this.bufs.push(buf)
     this.length += buf.length
@@ -639,8 +518,13 @@ export class Writer {
   }
 
   writeUInt64LE (n: number): this {
-    const buf = new BigNumber(n).toArray('be', 8)
-    this.writeReverse(buf)
+    if (n === -1) {
+      // This value is used as a dummy satoshis value when serializing OTDA placeholder output for SIGHASH_SINGLE
+      this.write(new Array(8).fill(0xff))
+    } else {
+      const buf = new BigNumber(n).toArray('be', 8)
+      this.writeReverse(buf)
+    }
     return this
   }
 

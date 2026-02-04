@@ -90,6 +90,13 @@
       "firstHeadingLevel": 1,
       "noDetailsSummary": true,
       "filenameSubString": "kvstore"
+    },
+    {
+      "inputFilename": "src/remittance/index.ts",
+      "outputFilename": "docs/reference/remittance.md",
+      "firstHeadingLevel": 1,
+      "noDetailsSummary": true,
+      "filenameSubString": "remittance"
     }
   ]
 }

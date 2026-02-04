@@ -15,7 +15,7 @@ import { BEEF_V2, TX_DATA_FORMAT } from './Beef.js'
 export default class BeefTx {
   _bumpIndex?: number
   _tx?: Transaction
-  _rawTx?: Uint8Array // ← changed to Uint8Array internally
+  _rawTx?: Uint8Array
   _txid?: string
   inputTxids: string[] = []
   /**
@@ -65,7 +65,7 @@ export default class BeefTx {
   }
 
   /**
-   * Legacy compatibility getter — returns number[] (Byte[])
+   * Raw transaction bytes, if available as number[]
    */
   get rawTx (): number[] | undefined {
     if (this._rawTx != null) {
@@ -80,7 +80,7 @@ export default class BeefTx {
   }
 
   /**
-   * Preferred modern getter — returns Uint8Array (zero-copy where possible)
+   * Raw transaction bytes, if available as Uint8Array
    */
   get rawTxUint8Array (): Uint8Array | undefined {
     if (this._rawTx != null) return this._rawTx
