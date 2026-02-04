@@ -892,6 +892,10 @@ export class Peer {
             ))
           }
         }, CERTIFICATE_WAIT_TIMEOUT_MS)
+        // Ensure the timer doesn't prevent process exit during tests
+        if (typeof timeoutId === 'object' && 'unref' in timeoutId) {
+          timeoutId.unref()
+        }
 
         // Store the promise resolvers with timeout cleanup
         this.certificateValidationPromises.set(sessionNonce, {

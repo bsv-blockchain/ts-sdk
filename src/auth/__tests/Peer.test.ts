@@ -221,6 +221,42 @@ describe('Peer class mutual authentication and certificate exchange', () => {
     walletB = new CompletedProtoWallet(bobPrivKey)
   })
 
+  afterEach(() => {
+    // Clean up any pending certificate validation promises to prevent hanging tests
+    if (alice != null) {
+      const aliceAny = alice as any
+      if (aliceAny.certificateValidationPromises != null) {
+        aliceAny.certificateValidationPromises.forEach(
+          (promiseHandlers: { resolve: () => void, reject: (error: Error) => void }) => {
+            promiseHandlers.reject(new Error('Test cleanup'))
+          }
+        )
+        aliceAny.certificateValidationPromises.clear()
+      }
+      // Clear all listener callbacks to prevent memory leaks
+      aliceAny.onGeneralMessageReceivedCallbacks?.clear()
+      aliceAny.onCertificatesReceivedCallbacks?.clear()
+      aliceAny.onCertificateRequestReceivedCallbacks?.clear()
+      aliceAny.onInitialResponseReceivedCallbacks?.clear()
+    }
+    if (bob != null) {
+      const bobAny = bob as any
+      if (bobAny.certificateValidationPromises != null) {
+        bobAny.certificateValidationPromises.forEach(
+          (promiseHandlers: { resolve: () => void, reject: (error: Error) => void }) => {
+            promiseHandlers.reject(new Error('Test cleanup'))
+          }
+        )
+        bobAny.certificateValidationPromises.clear()
+      }
+      // Clear all listener callbacks to prevent memory leaks
+      bobAny.onGeneralMessageReceivedCallbacks?.clear()
+      bobAny.onCertificatesReceivedCallbacks?.clear()
+      bobAny.onCertificateRequestReceivedCallbacks?.clear()
+      bobAny.onInitialResponseReceivedCallbacks?.clear()
+    }
+  })
+
   it('Neither Alice nor Bob request certificates, mutual authentication completes successfully', async () => {
     setupPeers(
       false,
