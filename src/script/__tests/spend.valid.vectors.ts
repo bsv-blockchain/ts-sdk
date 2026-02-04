@@ -1,7 +1,7 @@
 export const chronicle = [
   [
     '51',
-    'b0b1b2b6b7b8b95187',
+    'b0b1b2b8b95187',
     'test'
   ],
 ]
