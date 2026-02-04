@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [1.10.4 - 2026-02-04](#1104---2026-02-04)
+- [1.10.3 - 2026-01-26](#1103---2026-01-26)
 - [1.10.2 - 2026-01-21](#1102---2026-01-21)
 - [1.10.1 - 2026-01-08](#1101---2026-01-08)
   - TOB Security Review
@@ -204,6 +206,15 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [1.10.4] - 2026-02-04
+
+### Fixed
+
+- Fixed TypeScript compilation errors in `Peer.ts` where optional `sessionNonce` property was passed to methods expecting non-nullable strings.
+- Fixed test for certificate gating to properly prevent auto-response during certificate validation.
 
 ---
 
