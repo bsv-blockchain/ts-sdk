@@ -221,11 +221,8 @@ export default class Spend {
   }
 
   private isRelaxed (): boolean {
-    if (this.context === 'LockingScript') { return true }
-
     return this.isRelaxedOverride ||
-      // TODO: This remains to be approved by the Chronicle team.
-      (this.transactionVersion & 0x8000000) !== 0
+      (this.transactionVersion > 1)
   }
 
   reset (): void {
