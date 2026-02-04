@@ -894,12 +894,18 @@ describe('Peer class mutual authentication and certificate exchange', () => {
 
       setupPeers(false, true) // Bob requires certs
 
+      // Prevent Alice from auto-sending certificate response
+      // This keeps Bob in "certs required but not validated" state
+      alice.listenForCertificatesRequested(() => {
+        // Intentionally do nothing (no auto-response)
+      })
+
       let received = false
       bob.listenForGeneralMessages(() => {
         received = true
       })
 
-      // Send message — error is thrown internally
+      // Send message — Bob will wait for certificates that never arrive
       try {
         await alice.toPeer(Utils.toArray('Hello Bob!'), bobPubKey)
       } catch {
@@ -909,7 +915,7 @@ describe('Peer class mutual authentication and certificate exchange', () => {
       // Allow transport handlers to run
       await new Promise(r => setTimeout(r, 50))
 
-      // Message must NOT be delivered
+      // Message must NOT be delivered since certificates haven't been validated
       expect(received).toBe(false)
     })
 

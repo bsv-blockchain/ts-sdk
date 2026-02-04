@@ -636,7 +636,9 @@ export class Peer {
       this.sessionManager.updateSession(peerSession)
 
       // Resolve any promises waiting for certificate validation
-      this.resolveCertificateValidation(peerSession.sessionNonce)
+      if (peerSession.sessionNonce != null) {
+        this.resolveCertificateValidation(peerSession.sessionNonce)
+      }
 
       this.onCertificatesReceivedCallbacks.forEach(cb =>
         cb(message.identityKey, message.certificates as VerifiableCertificate[])
@@ -829,7 +831,9 @@ export class Peer {
     this.sessionManager.updateSession(peerSession)
 
     // Resolve any promises waiting for certificate validation
-    this.resolveCertificateValidation(peerSession.sessionNonce)
+    if (peerSession.sessionNonce != null) {
+      this.resolveCertificateValidation(peerSession.sessionNonce)
+    }
 
     // Notify any listeners
     this.onCertificatesReceivedCallbacks.forEach(cb => {
@@ -870,6 +874,10 @@ export class Peer {
     if (certificatesRequired && !certificatesValidated) {
       const CERTIFICATE_WAIT_TIMEOUT_MS = 30000
       const sessionNonce = peerSession.sessionNonce
+
+      if (sessionNonce == null) {
+        throw new Error('Session nonce is required for certificate validation')
+      }
 
       await new Promise<void>((resolve, reject) => {
         // Set timeout to reject if certificates don't arrive
