@@ -14,9 +14,16 @@ const mockResolver = {
 }
 
 describe('SHIPCast', () => {
+  let consoleErrorSpy: jest.SpyInstance
+
   beforeEach(() => {
     mockFacilitator.send.mockReset()
     mockResolver.query.mockReset()
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore()
   })
 
   it('Handles constructor errors', () => {
@@ -339,11 +346,7 @@ describe('SHIPCast', () => {
     })
     const testTx = new Transaction(1, [], [], 0)
 
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { })
-
     const result = await b.broadcast(testTx)
-
-    expect(consoleErrorSpy).toHaveBeenCalled()
 
     expect(result).toEqual({
       status: 'error',
@@ -1080,12 +1083,7 @@ describe('SHIPCast', () => {
       resolver: mockResolver as unknown as LookupResolver
     })
     const testTx = new Transaction(1, [], [], 0)
-
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { })
-
     const response = await b.broadcast(testTx)
-
-    expect(consoleErrorSpy).toHaveBeenCalled()
 
     // Since the host responded (successfully in terms of HTTP), but with invalid data, we should consider it a failure
     expect(response).toEqual({

@@ -50,6 +50,8 @@ nav:
   - Home: index.md
   - WalletClient QuickStart: https://fast.brc.dev
   - Swagger BRC-100 Interface: swagger/index.html
+  - Guides:
+    - Remittance Getting Started: remittance-getting-started.md
   - Reference:
     - Wallet: reference/wallet.md
     - Primitives: reference/primitives.md
@@ -61,8 +63,8 @@ nav:
     - Registry: reference/registry.md
     - Storage: reference/storage.md
     - KV Store: reference/kvstore.md
+    - Remittance: reference/remittance.md
     - Messages: reference/messages.md
     - TOTP: reference/totp.md
     - Compatibility: reference/compat.md
   - Performance: performance.md
-

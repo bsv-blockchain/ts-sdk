@@ -114,14 +114,12 @@ export class Peer {
    *
    * @param {number[]} message - The message payload to send.
    * @param {string} [identityKey] - The identity public key of the peer. If not provided, uses lastInteractedWithPeer (if any).
-   * @param {number} [maxWaitTime] - optional max wait time in ms
    * @returns {Promise<void>}
    * @throws Will throw an error if the message fails to send.
    */
   async toPeer (
     message: number[],
-    identityKey?: string,
-    maxWaitTime?: number
+    identityKey?: string
   ): Promise<void> {
     if (
       this.autoPersistLastSession &&
@@ -131,7 +129,7 @@ export class Peer {
       identityKey = this.lastInteractedWithPeer
     }
 
-    const peerSession = await this.getAuthenticatedSession(identityKey, maxWaitTime)
+    const peerSession = await this.getAuthenticatedSession(identityKey)
 
     if (peerSession.peerIdentityKey == null) {
       throw new Error('Peer identity is not established')
@@ -179,14 +177,12 @@ export class Peer {
    *
    * @param {RequestedCertificateSet} certificatesToRequest - Specifies the certifiers and types of certificates required from the peer.
    * @param {string} [identityKey] - The identity public key of the peer. If not provided, the current or last session identity is used.
-   * @param {number} [maxWaitTime=10000] - Maximum time in milliseconds to wait for the peer session to be authenticated.
    * @returns {Promise<void>} Resolves if the certificate request message is successfully sent.
    * @throws Will throw an error if the peer session is not authenticated or if sending the request fails.
    */
   async requestCertificates (
     certificatesToRequest: RequestedCertificateSet,
-    identityKey?: string,
-    maxWaitTime = 10000
+    identityKey?: string
   ): Promise<void> {
     if (
       this.autoPersistLastSession &&
@@ -196,10 +192,7 @@ export class Peer {
       identityKey = this.lastInteractedWithPeer
     }
 
-    const peerSession = await this.getAuthenticatedSession(
-      identityKey,
-      maxWaitTime
-    )
+    const peerSession = await this.getAuthenticatedSession(identityKey)
 
     // Prepare the message
     const requestNonce = Utils.toBase64(Random(32))
@@ -241,12 +234,10 @@ export class Peer {
    * - If `identityKey` is not provided, but we have a `lastInteractedWithPeer`, we try that key.
    *
    * @param {string} [identityKey] - The identity public key of the peer.
-   * @param {number} [maxWaitTime] - The maximum time in milliseconds to wait for the handshake.
    * @returns {Promise<PeerSession>} - A promise that resolves with an authenticated `PeerSession`.
    */
   async getAuthenticatedSession (
-    identityKey?: string,
-    maxWaitTime?: number
+    identityKey?: string
   ): Promise<PeerSession> {
     if (this.transport === undefined) {
       throw new Error('Peer transport is not connected!')
@@ -260,7 +251,7 @@ export class Peer {
     // If that session doesn't exist or isn't authenticated, initiate handshake
     if ((peerSession == null) || !peerSession.isAuthenticated) {
       // This will create a brand-new session
-      const sessionNonce = await this.initiateHandshake(identityKey, maxWaitTime)
+      const sessionNonce = await this.initiateHandshake(identityKey)
       // Now retrieve it by the sessionNonce
       peerSession = this.sessionManager.getSession(sessionNonce)
       if ((peerSession == null) || !peerSession.isAuthenticated) {
@@ -348,12 +339,10 @@ export class Peer {
    *
    * @private
    * @param {string} [identityKey] - The identity public key of the peer.
-   * @param {number} [maxWaitTime=10000] - how long to wait for handshake
    * @returns {Promise<string>} A promise that resolves to the session nonce.
    */
   private async initiateHandshake (
-    identityKey?: string,
-    maxWaitTime = 10000
+    identityKey?: string
   ): Promise<string> {
     const sessionNonce = await createNonce(this.wallet, undefined, this.originator)
 
@@ -379,7 +368,7 @@ export class Peer {
     }
 
     await this.transport.send(initialRequest)
-    return await this.waitForInitialResponse(sessionNonce, maxWaitTime)
+    return await this.waitForInitialResponse(sessionNonce)
   }
 
   /**
@@ -389,20 +378,13 @@ export class Peer {
    * @returns {Promise<string>} A promise that resolves with the session nonce when the initial response is received.
    */
   private async waitForInitialResponse (
-    sessionNonce: string,
-    maxWaitTime = 10000
+    sessionNonce: string
   ): Promise<string> {
-    return await new Promise((resolve, reject) => {
+    return await new Promise(resolve => {
       const callbackID = this.listenForInitialResponse(sessionNonce, nonce => {
-        clearTimeout(timeoutHandle)
         this.stopListeningForInitialResponses(callbackID)
         resolve(nonce)
       })
-
-      const timeoutHandle = setTimeout(() => {
-        this.stopListeningForInitialResponses(callbackID)
-        reject(new Error('Initial response timed out.'))
-      }, maxWaitTime)
     })
   }
 
@@ -551,7 +533,10 @@ export class Peer {
     }
 
     const { signature } = await this.wallet.createSignature({
-      data: Peer.base64ToBytes(message.initialNonce + sessionNonce),
+      data: [
+        ...Peer.base64ToBytes(message.initialNonce),
+        ...Peer.base64ToBytes(sessionNonce)
+      ],
       protocolID: [2, 'auth message signature'],
       keyID: `${message.initialNonce} ${sessionNonce}`,
       counterparty: message.identityKey
@@ -907,6 +892,10 @@ export class Peer {
             ))
           }
         }, CERTIFICATE_WAIT_TIMEOUT_MS)
+        // Ensure the timer doesn't prevent process exit during tests
+        if (typeof timeoutId === 'object' && 'unref' in timeoutId) {
+          timeoutId.unref()
+        }
 
         // Store the promise resolvers with timeout cleanup
         this.certificateValidationPromises.set(sessionNonce, {

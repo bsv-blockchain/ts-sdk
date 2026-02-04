@@ -213,7 +213,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 export default class PushDrop implements ScriptTemplate {
     wallet: WalletInterface;
     originator?: string;
-    static decode(script: LockingScript): {
+    static decode(script: LockingScript, lockPosition: "before" | "after" = "before"): {
         lockingPublicKey: PublicKey;
         fields: number[][];
     } 
@@ -247,10 +247,9 @@ Argument Details
 #### Method decode
 
 Decodes a PushDrop script back into its token fields and the locking public key. If a signature was present, it will be the last field returned.
-Warning: Only works with a P2PK lock at the beginning of the script.
 
 ```ts
-static decode(script: LockingScript): {
+static decode(script: LockingScript, lockPosition: "before" | "after" = "before"): {
     lockingPublicKey: PublicKey;
     fields: number[][];
 } 
@@ -265,6 +264,8 @@ Argument Details
 
 + **script**
   + PushDrop script to decode back into token fields
++ **lockPosition**
+  + Where the locking public key is positioned in the script ('before' = at start, 'after' = at end after DROP operations)
 
 #### Method lock
 
@@ -783,6 +784,7 @@ export default class Spend {
     memoryLimit: number;
     stackMem: number;
     altStackMem: number;
+    isRelaxedOverride: boolean;
     constructor(params: {
         sourceTXID: string;
         sourceOutputIndex: number;
@@ -796,6 +798,7 @@ export default class Spend {
         inputIndex: number;
         lockTime: number;
         memoryLimit?: number;
+        isRelaxed?: boolean;
     }) 
     reset(): void 
     step(): boolean 
@@ -821,6 +824,7 @@ constructor(params: {
     inputIndex: number;
     lockTime: number;
     memoryLimit?: number;
+    isRelaxed?: boolean;
 }) 
 ```
 See also: [LockingScript](./script.md#class-lockingscript), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput), [UnlockingScript](./script.md#class-unlockingscript)
@@ -851,6 +855,10 @@ The outputs of the current transaction.
   + The sequence number of this input.
 + **params.lockTime**
   + The lock time of the transaction.
++ **params.memoryLimit**
+  + Optional control over script interpreter memory usage.
++ **params.isRelaxed**
+  + Optional. If true, disables all the unlocking script maleability restrictions consitent with Chronicle release. Maleability restrictions are neve appliced to locking scripts.
 
 Example
 

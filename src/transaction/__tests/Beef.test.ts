@@ -466,6 +466,8 @@ describe('Beef tests', () => {
     const t2 = Transaction.fromAtomicBEEF(atomic)
     const beef2 = t2.toAtomicBEEF()
     expect(atomic).toEqual(beef2)
+    const atomic2 = beef.toUint8ArrayAtomic(tx.id('hex'))
+    expect(atomic).toEqual(Array.from(atomic2))
   })
   test('9_sortTxs', async () => {
     {

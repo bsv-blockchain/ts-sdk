@@ -356,11 +356,13 @@ export default class Script {
   findAndDelete (script: Script): Script {
     this.invalidateSerializationCaches()
     const buf = script.toHex()
-    for (let i = 0; i < this.chunks.length; i++) {
+    for (let i = 0; i < this.chunks.length;) {
       const script2 = new Script([this.chunks[i]])
       const buf2 = script2.toHex()
       if (buf === buf2) {
         this.chunks.splice(i, 1)
+      } else {
+        i++
       }
     }
     return this
