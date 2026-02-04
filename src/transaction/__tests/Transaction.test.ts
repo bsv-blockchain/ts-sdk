@@ -1,7 +1,7 @@
 
 import BigNumber from '../../primitives/BigNumber'
 import TransactionSignature from '../../primitives/TransactionSignature'
-import { toHex, toArray, Writer } from '../../primitives/utils'
+import { toHex, toArray, Writer, Reader } from '../../primitives/utils'
 import Script from '../../script/Script'
 import UnlockingScript from '../../script/UnlockingScript'
 import LockingScript from '../../script/LockingScript'
@@ -21,6 +21,8 @@ import validTransactions from './tx.valid.vectors'
 import bigTX from './bigtx.vectors'
 import { BroadcastResponse } from '../../transaction/Broadcaster'
 import { WalletInterface, CreateActionArgs, CreateActionResult } from '../../wallet/Wallet.interfaces'
+import ScriptChunk from '../../script/ScriptChunk'
+import OP from '../../script/OP'
 
 const BRC62Hex =
   '0100beef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000000'
@@ -905,6 +907,83 @@ describe('Transaction', () => {
       })
     })
 
+    function scriptFromLegacyData(bin: number[]): Script {
+      bin = [...bin]
+      const chunks: ScriptChunk[] = []
+
+      let inConditionalBlock: number = 0
+
+      const br = new Reader(bin)
+      while (!br.eof()) {
+        const op = br.readUInt8()
+
+        // if OP_RETURN and not in a conditional block, do not parse the rest of the data,
+        // rather just return the last chunk as data without prefixing with data length.
+        if (op === OP.OP_RETURN && inConditionalBlock === 0) {
+          chunks.push({
+            op,
+            data: br.read()
+          })
+          break
+        }
+
+        if (op === OP.OP_IF || op === OP.OP_NOTIF || op === OP.OP_VERIF || op === OP.OP_VERNOTIF) {
+          inConditionalBlock++
+        } else if (op === OP.OP_ENDIF) {
+          inConditionalBlock--
+        }
+
+        let len = 0
+        // eslint-disable-next-line @typescript-eslint/no-shadow
+        let data: number[] = []
+        if (op > 0 && op < OP.OP_PUSHDATA1) {
+          len = op
+          chunks.push({
+            data: br.read(len),
+            op
+          })
+        } else if (op === OP.OP_PUSHDATA1) {
+          try {
+            len = br.readUInt8()
+            data = br.read(len)
+          } catch {
+            br.read()
+          }
+          chunks.push({
+            data,
+            op
+          })
+        } else if (op === OP.OP_PUSHDATA2) {
+          try {
+            len = br.readUInt16LE()
+            data = br.read(len)
+          } catch {
+            br.read()
+          }
+          chunks.push({
+            data,
+            op
+          })
+        } else if (op === OP.OP_PUSHDATA4) {
+          try {
+            len = br.readUInt32LE()
+            data = br.read(len)
+          } catch {
+            br.read()
+          }
+          chunks.push({
+            data,
+            op
+          })
+        } else {
+          chunks.push({
+            op
+          })
+        }
+      }
+      return new Script(chunks)
+    }
+
     describe('vectors: sighash and serialization', () => {
       sighashVectors.forEach((vector, i) => {
         if (i === 0) {
@@ -913,7 +992,7 @@ describe('Transaction', () => {
         it(`should pass bitcoin-abc sighash test vector ${i}`, () => {
           const txbuf = toArray(vector[0], 'hex')
           const scriptbuf = toArray(vector[1], 'hex')
-          const subScript = Script.fromBinary(scriptbuf, true)
+          const subScript = scriptFromLegacyData(scriptbuf)
           const nIn = vector[2] as number
           const nHashType = vector[3] as number
           const sighashBuf = toArray(vector[4], 'hex')

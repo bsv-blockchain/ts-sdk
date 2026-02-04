@@ -125,7 +125,6 @@ export default class Script {
    * @method fromBinary
    * Static method to construct a Script instance from a binary array.
    * @param bin - The script in binary array format.
-   * @param legacyData - If true, arbitrary data following an OP_RETURN is parsed as a single data chunk.
    * @returns A new Script instance.
    * @example
    * const script = Script.fromBinary([0x76, 0xa9, ...])
