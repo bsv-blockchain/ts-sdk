@@ -355,11 +355,74 @@ export default class Script {
    */
   findAndDelete (script: Script): Script {
     this.invalidateSerializationCaches()
-    const buf = script.toHex()
+    const targetBytes = script.toUint8Array()
+    const targetLen = targetBytes.length
+    if (targetLen === 0) return this
+
+    const targetOp = targetBytes[0] ?? 0
+
+    const matchesChunk = (chunk: ScriptChunk): boolean => {
+      if (chunk.op !== targetOp) return false
+      const dataArr = chunk.data ?? []
+      const dataLen = dataArr.length
+
+      if (dataLen === 0) {
+        return targetLen === 1
+      }
+
+      if (chunk.op === OP.OP_RETURN) {
+        if (targetLen !== 1 + dataLen) return false
+        for (let j = 0; j < dataLen; j++) {
+          if (targetBytes[1 + j] !== dataArr[j]) return false
+        }
+        return true
+      }
+
+      if (chunk.op < OP.OP_PUSHDATA1) {
+        if (targetLen !== 1 + dataLen) return false
+        for (let j = 0; j < dataLen; j++) {
+          if (targetBytes[1 + j] !== dataArr[j]) return false
+        }
+        return true
+      }
+
+      if (chunk.op === OP.OP_PUSHDATA1) {
+        if (targetLen !== 2 + dataLen) return false
+        if (targetBytes[1] !== (dataLen & 0xff)) return false
+        for (let j = 0; j < dataLen; j++) {
+          if (targetBytes[2 + j] !== dataArr[j]) return false
+        }
+        return true
+      }
+
+      if (chunk.op === OP.OP_PUSHDATA2) {
+        if (targetLen !== 3 + dataLen) return false
+        if (targetBytes[1] !== (dataLen & 0xff)) return false
+        if (targetBytes[2] !== ((dataLen >> 8) & 0xff)) return false
+        for (let j = 0; j < dataLen; j++) {
+          if (targetBytes[3 + j] !== dataArr[j]) return false
+        }
+        return true
+      }
+
+      if (chunk.op === OP.OP_PUSHDATA4) {
+        if (targetLen !== 5 + dataLen) return false
+        const size = dataLen >>> 0
+        if (targetBytes[1] !== (size & 0xff)) return false
+        if (targetBytes[2] !== ((size >> 8) & 0xff)) return false
+        if (targetBytes[3] !== ((size >> 16) & 0xff)) return false
+        if (targetBytes[4] !== ((size >> 24) & 0xff)) return false
+        for (let j = 0; j < dataLen; j++) {
+          if (targetBytes[5 + j] !== dataArr[j]) return false
+        }
+        return true
+      }
+
+      return false
+    }
+
     for (let i = 0; i < this.chunks.length;) {
-      const script2 = new Script([this.chunks[i]])
-      const buf2 = script2.toHex()
-      if (buf === buf2) {
+      if (matchesChunk(this.chunks[i])) {
         this.chunks.splice(i, 1)
       } else {
         i++

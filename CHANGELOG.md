@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [2.0.1 - 2026-02-04](#201---2026-02-04)
 - [2.0.0 - 2026-02-04](#200---2026-02-04)
 - [1.10.4 - 2026-02-04](#1104---2026-02-04)
 - [1.10.3 - 2026-01-26](#1103---2026-01-26)
@@ -209,6 +210,13 @@ All notable changes to this project will be documented in this file. The format 
 ### Security
 
 ---
+
+## [2.0.1] - 2026-02-04
+
+### Changed
+- Optimized `Script.findAndDelete` to avoid per-chunk script serialization.
+- Expanded `findAndDelete` benchmarks to cover mixed scripts with varied sizes and match ratios.
+- Added tests for `findAndDelete` covering repeated matches, `OP_RETURN` data, and `PUSHDATA2` payloads.
 
 ## [2.0.0] - 2026-02-04
 

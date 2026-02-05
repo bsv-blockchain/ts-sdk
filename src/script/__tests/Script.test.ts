@@ -354,12 +354,45 @@ describe('Script', () => {
   })
 
   describe('#findAndDelete', () => {
-    it('should find and delete this buffer', () => {
-      expect(
-        Script.fromASM('OP_RETURN f0f0')
-          .findAndDelete(Script.fromASM('f0f0'))
-          .toASM()
-      ).toEqual('OP_RETURN')
+    it('should delete all matching single-chunk scripts', () => {
+      const target = new Script().writeBin([0xf0, 0xf0])
+      const script = new Script()
+        .writeOpCode(OP.OP_RETURN)
+        .writeBin([0xf0, 0xf0])
+        .writeOpCode(OP.OP_1)
+        .writeBin([0xf0, 0xf0])
+
+      expect(script.findAndDelete(target).toASM()).toEqual('OP_RETURN OP_1')
+    })
+
+    it('should match OP_RETURN chunks with data', () => {
+      const target = new Script([{ op: OP.OP_RETURN, data: [0x01, 0x02, 0x03] }])
+      const script = new Script([
+        { op: OP.OP_RETURN, data: [0x01, 0x02, 0x03] },
+        { op: OP.OP_1 }
+      ])
+
+      expect(script.findAndDelete(target).toASM()).toEqual('OP_1')
+    })
+
+    it('should handle PUSHDATA2 payloads', () => {
+      const data = Array.from({ length: 300 }, (_, i) => i & 0xff)
+      const other = data.slice()
+      other[0] = (other[0] + 1) & 0xff
+
+      const target = new Script().writeBin(data)
+      const script = new Script().writeBin(other).writeBin(data).writeOpCode(OP.OP_1)
+
+      script.findAndDelete(target)
+      expect(script.chunks).toHaveLength(2)
+      expect(script.chunks[0].data).toEqual(other)
+      expect(script.chunks[1].op).toEqual(OP.OP_1)
+    })
+
+    it('should not delete when the target has multiple chunks', () => {
+      const script = Script.fromASM('OP_1')
+      const target = Script.fromASM('OP_1 OP_2')
+      expect(script.findAndDelete(target).toASM()).toEqual('OP_1')
     })
   })
 
