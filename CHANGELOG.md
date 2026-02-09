@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [2.0.2 - 2026-02-09](#202---2026-02-09)
 - [2.0.1 - 2026-02-04](#201---2026-02-04)
 - [2.0.0 - 2026-02-04](#200---2026-02-04)
 - [1.10.4 - 2026-02-04](#1104---2026-02-04)
@@ -208,6 +209,13 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [2.0.2] - 2026-02-09
+
+### Changed
+- Prioritize Cicada over JSON substrate in WalletClient.
 
 ---
 
