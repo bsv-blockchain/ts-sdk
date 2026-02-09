@@ -15,6 +15,7 @@ import { defaultBroadcaster } from './broadcasters/DefaultBroadcaster.js'
 import { defaultChainTracker } from './chaintrackers/DefaultChainTracker.js'
 import { Beef, BEEF_V1 } from './Beef.js'
 import P2PKH from '../script/templates/P2PKH.js'
+import type { WalletInterface, DescriptionString5to50Bytes, CreateActionOptions } from '../wallet/Wallet.interfaces.js'
 
 /**
  * Represents a complete Bitcoin transaction. This class encapsulates all the details
