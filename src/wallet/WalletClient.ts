@@ -119,13 +119,13 @@ export default class WalletClient implements WalletInterface {
       }
     }
 
-    // Try fast substrates first
+    // Try all substrates concurrently, select first available by priority order
     const fastAttempts = [
       attemptSubstrate(() => new WindowCWISubstrate()),
+      attemptSubstrate(() => new WalletWireTransceiver(new HTTPWalletWire(this.originator))),
       attemptSubstrate(() => new HTTPWalletJSON(this.originator, 'https://localhost:2121')),
       attemptSubstrate(() => new HTTPWalletJSON(this.originator)),
-      attemptSubstrate(() => new ReactNativeWebView(this.originator)),
-      attemptSubstrate(() => new WalletWireTransceiver(new HTTPWalletWire(this.originator)))
+      attemptSubstrate(() => new ReactNativeWebView(this.originator))
     ]
 
     const fastResults = await Promise.allSettled(fastAttempts)
