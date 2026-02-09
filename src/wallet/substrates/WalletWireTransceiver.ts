@@ -1686,7 +1686,7 @@ export default class WalletWireTransceiver implements WalletInterface {
           const fieldKey = Utils.toUTF8(resultReader.read(fieldKeyLength))
           const fieldValueLength = resultReader.readVarIntNum()
           keyringForVerifier[fieldKey] = Utils.toBase64(
-              resultReader.read(fieldValueLength)
+            resultReader.read(fieldValueLength)
           )
         }
       }
