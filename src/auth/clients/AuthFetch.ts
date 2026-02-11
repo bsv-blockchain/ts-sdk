@@ -20,6 +20,13 @@ interface SimplifiedFetchRequestOptions {
   retryCounter?: number
   paymentContext?: PaymentRetryContext
   paymentRetryAttempts?: number
+  /**
+   * How to send payment data. Default: 'auto'.
+   * - 'header': Always use x-bsv-payment header (may fail for large txs)
+   * - 'body': Always use request body
+   * - 'auto': Use header for small payments, body for large ones (>6KB)
+   */
+  paymentTransport?: 'header' | 'body' | 'auto'
 }
 
 interface AuthPeer {
@@ -547,17 +554,36 @@ export class AuthFetch {
     const headersWithPayment: Record<string, string> = {
       ...(config.headers ?? {})
     }
-    headersWithPayment['x-bsv-payment'] = JSON.stringify({
+
+    // Build payment JSON
+    const paymentJson = JSON.stringify({
       derivationPrefix: paymentContext.derivationPrefix,
       derivationSuffix: paymentContext.derivationSuffix,
       transaction: paymentContext.transactionBase64
     })
 
+    // Determine transport mode for payment
+    const HEADER_SIZE_THRESHOLD = 6144 // 6KB - safe for most proxies
+    const transportMode = config.paymentTransport ?? 'auto'
+    const useBodyTransport = transportMode === 'body' ||
+      (transportMode === 'auto' && paymentJson.length > HEADER_SIZE_THRESHOLD)
+
     const nextConfig: SimplifiedFetchRequestOptions = {
       ...config,
-      headers: headersWithPayment,
       paymentContext
     }
+
+    if (useBodyTransport) {
+      // Signal server to read payment from body
+      headersWithPayment['x-bsv-payment'] = 'body'
+      nextConfig.body = paymentJson
+      headersWithPayment['content-type'] = 'application/json'
+    } else {
+      // Small enough for header (backward compatible)
+      headersWithPayment['x-bsv-payment'] = paymentJson
+    }
+
+    nextConfig.headers = headersWithPayment
 
     if (typeof nextConfig.retryCounter !== 'number') {
       nextConfig.retryCounter = 3
