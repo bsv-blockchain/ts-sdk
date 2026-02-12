@@ -264,8 +264,8 @@ describe('IdentityClient', () => {
 
       expect(identities).toHaveLength(1)
       expect(identities[0].name).toBe('Alice Smith (Personal Contact)') // Contact should be returned, not discovered identity
-      // Wallet method should not be called when contact is found
-      expect(walletMock.discoverByIdentityKey).not.toHaveBeenCalled()
+      // Both calls fire in parallel, but contacts take priority in the result
+      expect(walletMock.discoverByIdentityKey).toHaveBeenCalled()
     })
   })
 
