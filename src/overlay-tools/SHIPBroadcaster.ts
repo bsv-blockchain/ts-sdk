@@ -133,6 +133,11 @@ export default class TopicBroadcaster implements Broadcaster {
   private readonly requireAcknowledgmentFromSpecificHostsForTopics: Record<string, 'all' | 'any' | string[]>
   private readonly networkPreset: 'mainnet' | 'testnet' | 'local'
 
+  // Cache for findInterestedHosts to avoid repeated SHIP tracker lookups
+  private interestedHostsCache: { hosts: Record<string, Set<string>>, expiresAt: number } | null = null
+  private interestedHostsInFlight: Promise<Record<string, Set<string>>> | null = null
+  private readonly interestedHostsTtlMs: number
+
   /**
    * Constructs an instance of the SHIP broadcaster.
    *
@@ -156,6 +161,7 @@ export default class TopicBroadcaster implements Broadcaster {
       config.requireAcknowledgmentFromAnyHostForTopics ?? 'all'
     this.requireAcknowledgmentFromSpecificHostsForTopics =
       config.requireAcknowledgmentFromSpecificHostsForTopics ?? {}
+    this.interestedHostsTtlMs = 5 * 60 * 1000 // 5 minutes
   }
 
   /**
@@ -461,10 +467,33 @@ export default class TopicBroadcaster implements Broadcaster {
       }
       return { 'http://localhost:8080': resultSet }
     }
-    // TODO: cache the list of interested hosts to avoid spamming SHIP trackers.
-    // TODO: Monetize the operation of the SHIP tracker system.
-    // TODO: Cache ship/slap lookup with expiry (every 5min)
 
+    // Return cached result if still valid
+    const now = Date.now()
+    if (this.interestedHostsCache != null && this.interestedHostsCache.expiresAt > now) {
+      return this.interestedHostsCache.hosts
+    }
+
+    // Deduplicate concurrent requests
+    if (this.interestedHostsInFlight != null) {
+      return await this.interestedHostsInFlight
+    }
+
+    this.interestedHostsInFlight = this.fetchInterestedHosts()
+    try {
+      const hosts = await this.interestedHostsInFlight
+      this.interestedHostsCache = { hosts, expiresAt: Date.now() + this.interestedHostsTtlMs }
+      return hosts
+    } finally {
+      this.interestedHostsInFlight = null
+    }
+  }
+
+  /**
+   * Performs the actual SHIP lookup to discover interested hosts.
+   * @private
+   */
+  private async fetchInterestedHosts (): Promise<Record<string, Set<string>>> {
     // Find all SHIP advertisements for the topics we care about
     const results: Record<string, Set<string>> = {}
     const answer = await this.resolver.query(
@@ -488,7 +517,6 @@ export default class TopicBroadcaster implements Broadcaster {
           !this.topics.includes(parsed.topicOrService) ||
           parsed.protocol !== 'SHIP'
         ) {
-          // This should make us think a LOT less highly of this SHIP tracker if it ever happens...
           continue
         }
         if (results[parsed.domain] === undefined) {

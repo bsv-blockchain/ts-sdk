@@ -138,19 +138,21 @@ export class IdentityClient {
     args: DiscoverByIdentityKeyArgs,
     overrideWithContacts = true
   ): Promise<DisplayableIdentity[]> {
-    if (overrideWithContacts) {
-      // Override results with personal contacts if available
-      const contacts = await this.contactsManager.getContacts(args.identityKey)
-      if (contacts.length > 0) {
-        return contacts
-      }
+    // Run both queries in parallel for better performance
+    const [contacts, certificatesResult] = await Promise.all([
+      overrideWithContacts
+        ? this.contactsManager.getContacts(args.identityKey)
+        : Promise.resolve([]),
+      this.wallet.discoverByIdentityKey(args, this.originator)
+    ])
+
+    // Override results with personal contacts if available
+    if (contacts.length > 0) {
+      return contacts
     }
 
-    const { certificates } = await this.wallet.discoverByIdentityKey(
-      args,
-      this.originator
-    )
-    return certificates.map((cert) => {
+    const certs = certificatesResult?.certificates ?? []
+    return certs.map((cert) => {
       return IdentityClient.parseIdentity(cert)
     })
   }

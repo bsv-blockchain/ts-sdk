@@ -264,7 +264,6 @@ export default class LookupResolver {
       competentHosts = await this.getCompetentHostsCached(question.service)
     }
     if (this.additionalHosts[question.service]?.length > 0) {
-      // preserve order: resolved hosts first, then additional (unique)
       const extra = this.additionalHosts[question.service]
       const seen = new Set(competentHosts)
       for (const h of extra) if (!seen.has(h)) competentHosts.push(h)
@@ -283,28 +282,47 @@ export default class LookupResolver {
       throw new Error(`All competent hosts for ${question.service} are temporarily unavailable due to backoff.`)
     }
 
-    // Fire all hosts with per-host timeout, harvest successful output-list responses
-    const hostResponses = await Promise.allSettled(
-      rankedHosts.map(async (host) => {
-        return await this.lookupHostWithTracking(host, question, timeout)
-      })
-    )
+    // Fire all hosts; resolve as soon as we have results from any host,
+    // then allow a short grace window for additional hosts to contribute.
+    const GRACE_MS = 200
+    const answers: LookupAnswer[] = await new Promise<LookupAnswer[]>((resolve) => {
+      const collected: LookupAnswer[] = []
+      let pending = rankedHosts.length
+      let graceTimer: ReturnType<typeof setTimeout> | null = null
+
+      const tryResolve = (): void => {
+        if (graceTimer !== null) clearTimeout(graceTimer)
+        resolve(collected)
+      }
+
+      for (const host of rankedHosts) {
+        this.lookupHostWithTracking(host, question, timeout)
+          .then((answer) => {
+            if (answer?.type === 'output-list' && Array.isArray(answer.outputs) && answer.outputs.length > 0) {
+              collected.push(answer)
+              // First valid response: start a grace window for others
+              if (collected.length === 1 && pending > 1) {
+                graceTimer = setTimeout(tryResolve, GRACE_MS)
+              }
+            }
+          })
+          .catch(() => { /* host failed; tracked by lookupHostWithTracking */ })
+          .finally(() => {
+            pending--
+            if (pending === 0) tryResolve()
+          })
+      }
+    })
 
     const outputsMap = new Map<string, { beef: number[], context?: number[], outputIndex: number }>()
 
     // Memo key helper for tx parsing
     const beefKey = (beef: number[]): string => {
       if (typeof beef !== 'object') return '' // The invalid BEEF has an empty key.
-      // A fast and deterministic key for memoization; avoids large JSON strings
-      // since beef is an array of integers, join is safe and compact.
       return beef.join(',')
     }
 
-    for (const result of hostResponses) {
-      if (result.status !== 'fulfilled') continue
-      const response = result.value
-      if (response?.type !== 'output-list' || !Array.isArray(response.outputs)) continue
-
+    for (const response of answers) {
       for (const output of response.outputs) {
         const keyForBeef = beefKey(output.beef)
         let memo = this.txMemo.get(keyForBeef)
@@ -313,7 +331,6 @@ export default class LookupResolver {
           try {
             const txId = Transaction.fromBEEF(output.beef).id('hex')
             memo = { txId, expiresAt: now + this.txMemoTtlMs }
-            // prune opportunistically if the map gets too large (cheap heuristic)
             if (this.txMemo.size > 4096) this.evictOldest(this.txMemo)
             this.txMemo.set(keyForBeef, memo)
           } catch {
@@ -322,7 +339,6 @@ export default class LookupResolver {
         }
 
         const uniqKey = `${memo.txId}.${output.outputIndex}`
-        // last-writer wins is fine here; outputs are identical if uniqKey matches
         outputsMap.set(uniqKey, output)
       }
     }
@@ -392,7 +408,32 @@ export default class LookupResolver {
   }
 
   /**
+   * Extracts competent host domains from a SLAP tracker response.
+   */
+  private extractHostsFromAnswer (answer: LookupAnswer, service: string): string[] {
+    const hosts: string[] = []
+    if (answer.type !== 'output-list') return hosts
+    for (const output of answer.outputs) {
+      try {
+        const tx = Transaction.fromBEEF(output.beef)
+        const script = tx.outputs[output.outputIndex]?.lockingScript
+        if (typeof script !== 'object' || script === null) continue
+        const parsed = OverlayAdminTokenTemplate.decode(script)
+        if (parsed.topicOrService !== service || parsed.protocol !== 'SLAP') continue
+        if (typeof parsed.domain === 'string' && parsed.domain.length > 0) {
+          hosts.push(parsed.domain)
+        }
+      } catch {
+        continue
+      }
+    }
+    return hosts
+  }
+
+  /**
    * Returns a list of competent hosts for a given lookup service.
+   * Resolves as soon as the first SLAP tracker responds with valid hosts.
+   * Remaining trackers continue in the background for reputation tracking.
    * @param service Service for which competent hosts are to be returned
    * @returns Array of hosts competent for resolving queries
    */
@@ -402,43 +443,39 @@ export default class LookupResolver {
       query: { service }
     }
 
-    // Query all SLAP trackers; tolerate failures.
     const trackerHosts = this.prepareHostsForQuery(
       this.slapTrackers,
       'SLAP trackers'
     )
     if (trackerHosts.length === 0) return []
 
-    const trackerResponses = await Promise.allSettled(
-      trackerHosts.map(async (tracker) =>
-        await this.lookupHostWithTracking(tracker, query, MAX_TRACKER_WAIT_TIME)
-      )
-    )
+    // Fire all trackers, resolve as soon as any returns valid hosts.
+    // Remaining trackers continue in the background for reputation tracking.
+    return await new Promise<string[]>((resolve) => {
+      const allHosts = new Set<string>()
+      let resolved = false
+      let pending = trackerHosts.length
 
-    const hosts = new Set<string>()
-
-    for (const result of trackerResponses) {
-      if (result.status !== 'fulfilled') continue
-      const answer = result.value
-      if (answer.type !== 'output-list') continue
-
-      for (const output of answer.outputs) {
-        try {
-          const tx = Transaction.fromBEEF(output.beef)
-          const script = tx.outputs[output.outputIndex]?.lockingScript
-          if (typeof script !== 'object' || script === null) continue
-          const parsed = OverlayAdminTokenTemplate.decode(script)
-          if (parsed.topicOrService !== service || parsed.protocol !== 'SLAP') continue
-          if (typeof parsed.domain === 'string' && parsed.domain.length > 0) {
-            hosts.add(parsed.domain)
-          }
-        } catch {
-          continue
-        }
+      for (const tracker of trackerHosts) {
+        this.lookupHostWithTracking(tracker, query, MAX_TRACKER_WAIT_TIME)
+          .then((answer) => {
+            const hosts = this.extractHostsFromAnswer(answer, service)
+            for (const h of hosts) allHosts.add(h)
+            if (!resolved && allHosts.size > 0) {
+              resolved = true
+              resolve([...allHosts])
+            }
+          })
+          .catch(() => { /* tracker failed; tracked by lookupHostWithTracking */ })
+          .finally(() => {
+            pending--
+            if (pending === 0 && !resolved) {
+              resolved = true
+              resolve([...allHosts])
+            }
+          })
       }
-    }
-
-    return [...hosts]
+    })
   }
 
   /** Evict an arbitrary “oldest” entry from a Map (iteration order). */

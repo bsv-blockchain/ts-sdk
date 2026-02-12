@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [2.0.3 - 2026-02-12](#203---2026-02-12)
 - [2.0.2 - 2026-02-09](#202---2026-02-09)
 - [2.0.1 - 2026-02-04](#201---2026-02-04)
 - [2.0.0 - 2026-02-04](#200---2026-02-04)
@@ -209,6 +210,17 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [2.0.3] - 2026-02-12
+
+### Changed
+- LookupResolver: First-responder SLAP resolution — resolve as soon as any tracker returns valid hosts
+- LookupResolver: Grace window (200ms) for host queries — prevents slow hosts from blocking lookups
+- ContactsManager: Parallelized `wallet.decrypt` calls via `Promise.allSettled`
+- IdentityClient: Parallelized contacts + overlay discovery in `resolveByIdentityKey` via `Promise.all`
+- TopicBroadcaster: Added 5-minute cache with concurrent request deduplication for SHIP host lookups
 
 ---
 
