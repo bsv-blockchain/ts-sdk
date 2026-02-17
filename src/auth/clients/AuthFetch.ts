@@ -137,7 +137,9 @@ export class AuthFetch {
                 verifier,
                 this.originator
               )
-              await this.peers[baseURL].peer.sendCertificateResponse(verifier, certificatesToInclude)
+              if (certificatesToInclude.length > 0) {
+                await this.peers[baseURL].peer.sendCertificateResponse(verifier, certificatesToInclude)
+              }
             } finally {
               // Give the backend 500 ms to process the certificates we just sent, before releasing the queue entry
               await new Promise(resolve => setTimeout(resolve, 500))
@@ -330,20 +332,38 @@ export class AuthFetch {
     }
 
     // Return a promise that resolves when certificates are received
+    const CERTIFICATE_REQUEST_TIMEOUT_MS = 30000
     return await new Promise<VerifiableCertificate[]>((async (resolve, reject) => {
+      let settled = false
+
+      const cleanup = (): void => {
+        settled = true
+        clearTimeout(timer)
+        peerToUse.peer.stopListeningForCertificatesReceived(callbackId)
+      }
+
       // Set up the listener before making the request
       const callbackId = peerToUse.peer.listenForCertificatesReceived((_senderPublicKey: string, certs: VerifiableCertificate[]) => {
-        peerToUse.peer.stopListeningForCertificatesReceived(callbackId)
+        if (settled) return
+        cleanup()
         this.certificatesReceived.push(...certs)
         resolve(certs)
       })
+
+      const timer = setTimeout(() => {
+        if (settled) return
+        cleanup()
+        reject(new Error(`sendCertificateRequest timed out after ${CERTIFICATE_REQUEST_TIMEOUT_MS}ms waiting for certificate response from ${baseURL}`))
+      }, CERTIFICATE_REQUEST_TIMEOUT_MS)
 
       try {
         // Initiate the certificate request
         await peerToUse.peer.requestCertificates(certificatesToRequest, peerToUse.identityKey)
       } catch (err) {
-        peerToUse.peer.stopListeningForCertificatesReceived(callbackId)
-        reject(err)
+        if (!settled) {
+          cleanup()
+          reject(err)
+        }
       }
     }) as Function)
   }

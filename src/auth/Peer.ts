@@ -670,10 +670,16 @@ export class Peer {
           message.identityKey,
           this.originator
         )
-        await this.sendCertificateResponse(
-          message.identityKey,
-          verifiableCertificates
-        )
+        // Only send if we actually have certificates to provide.
+        // An empty certificateResponse has no value and can race with a
+        // subsequent certificateRequest that shares the same initialNonce,
+        // causing the server to mis-route non-general handle responses.
+        if (verifiableCertificates.length > 0) {
+          await this.sendCertificateResponse(
+            message.identityKey,
+            verifiableCertificates
+          )
+        }
       }
     }
   }
@@ -813,21 +819,23 @@ export class Peer {
       )
     }
 
-    // We also handle optional validation if there's a requestedCertificates field
-    await validateCertificates(
-      this.wallet,
-      message,
-      message.requestedCertificates,
-      this.originator
-    )
+    // Validate certificates only if they were actually provided
+    if (Array.isArray(message.certificates) && message.certificates.length > 0) {
+      await validateCertificates(
+        this.wallet,
+        message,
+        message.requestedCertificates,
+        this.originator
+      )
 
-    peerSession.certificatesValidated = true
-    peerSession.lastUpdate = Date.now()
-    this.sessionManager.updateSession(peerSession)
+      peerSession.certificatesValidated = true
+      peerSession.lastUpdate = Date.now()
+      this.sessionManager.updateSession(peerSession)
 
-    // Resolve any promises waiting for certificate validation
-    if (peerSession.sessionNonce != null) {
-      this.resolveCertificateValidation(peerSession.sessionNonce)
+      // Resolve any promises waiting for certificate validation
+      if (peerSession.sessionNonce != null) {
+        this.resolveCertificateValidation(peerSession.sessionNonce)
+      }
     }
 
     // Notify any listeners
