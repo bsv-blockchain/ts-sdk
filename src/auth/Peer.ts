@@ -136,7 +136,7 @@ export class Peer {
     }
 
     if (peerSession.certificatesRequired === true &&
-        peerSession.certificatesValidated !== true) {
+      peerSession.certificatesValidated !== true) {
       throw new Error(
         'Cannot send general message before certificate validation is complete'
       )
@@ -450,33 +450,28 @@ export class Peer {
       )
     }
 
-    try {
-      switch (message.messageType) {
-        case 'initialRequest':
-          await this.processInitialRequest(message)
-          break
-        case 'initialResponse':
-          await this.processInitialResponse(message)
-          break
-        case 'certificateRequest':
-          await this.processCertificateRequest(message)
-          break
-        case 'certificateResponse':
-          await this.processCertificateResponse(message)
-          break
-        case 'general':
-          await this.processGeneralMessage(message)
-          break
-        default:
-          throw new Error(
-            `Unknown message type of ${String(message.messageType)} from ${String(
-              message.identityKey
-            )}`
-          )
-      }
-    } catch (err) {
-      // Swallow protocol violations so transport does not crash the process
-      // (Message is intentionally rejected)
+    switch (message.messageType) {
+      case 'initialRequest':
+        await this.processInitialRequest(message)
+        break
+      case 'initialResponse':
+        await this.processInitialResponse(message)
+        break
+      case 'certificateRequest':
+        await this.processCertificateRequest(message)
+        break
+      case 'certificateResponse':
+        await this.processCertificateResponse(message)
+        break
+      case 'general':
+        await this.processGeneralMessage(message)
+        break
+      default:
+        throw new Error(
+          `Unknown message type of ${String(message.messageType)} from ${String(
+            message.identityKey
+          )}`
+        )
     }
   }
 
@@ -886,8 +881,7 @@ export class Peer {
           if (promise != null) {
             this.certificateValidationPromises.delete(sessionNonce)
             reject(new Error(
-              `Timeout waiting for certificate validation from peer ${
-                peerSession.peerIdentityKey ?? 'unknown'
+              `Timeout waiting for certificate validation from peer ${peerSession.peerIdentityKey ?? 'unknown'
               }`
             ))
           }

@@ -263,7 +263,15 @@ export class AuthFetch {
 
         // Send the request, now that all listeners are set up
         await peerToUse.peer.toPeer(writer.toArray(), peerToUse.identityKey).catch(async error => {
-          if (error.message.includes('Session not found for nonce')) {
+          const isStaleSession =
+            error.message.includes('Session not found for nonce') ||
+            (error.message.includes('without valid BSV authentication') &&
+              peerToUse.identityKey != null &&
+              (error as any).details?.status === 401)
+          if (isStaleSession) {
+            // Stale session: server no longer recognises the session nonce
+            // (e.g. after a server restart). Clear the cached peer so a fresh
+            // handshake is performed on retry.
             delete this.peers[baseURL]
             config.retryCounter ??= 3
             const response = await this.fetch(url, config)
@@ -594,7 +602,7 @@ export class AuthFetch {
     }
   }
 
-  private isPaymentContextCompatible (
+  private isPaymentContextCompatible(
     context: PaymentRetryContext,
     satoshisRequired: number,
     serverIdentityKey: string,
@@ -607,7 +615,7 @@ export class AuthFetch {
     )
   }
 
-  private async createPaymentContext (
+  private async createPaymentContext(
     url: string,
     config: SimplifiedFetchRequestOptions,
     satoshisRequired: number,
@@ -652,7 +660,7 @@ export class AuthFetch {
     }
   }
 
-  private getMaxPaymentAttempts (config: SimplifiedFetchRequestOptions): number {
+  private getMaxPaymentAttempts(config: SimplifiedFetchRequestOptions): number {
     const attempts = typeof config.paymentRetryAttempts === 'number' ? config.paymentRetryAttempts : undefined
     if (typeof attempts === 'number' && attempts > 0) {
       return Math.floor(attempts)
@@ -660,7 +668,7 @@ export class AuthFetch {
     return 3
   }
 
-  private buildPaymentRequestSummary (
+  private buildPaymentRequestSummary(
     url: string,
     config: SimplifiedFetchRequestOptions
   ): PaymentRetryContext['requestSummary'] {
@@ -677,7 +685,7 @@ export class AuthFetch {
     }
   }
 
-  private describeRequestBodyForLogging (body: any): { type: string, byteLength: number } {
+  private describeRequestBodyForLogging(body: any): { type: string, byteLength: number } {
     if (body == null) {
       return { type: 'none', byteLength: 0 }
     }
@@ -733,7 +741,7 @@ export class AuthFetch {
     return { type: typeof body, byteLength: 0 }
   }
 
-  private composePaymentLogDetails (url: string, context: PaymentRetryContext): Record<string, any> {
+  private composePaymentLogDetails(url: string, context: PaymentRetryContext): Record<string, any> {
     return {
       url,
       request: context.requestSummary,
@@ -753,7 +761,7 @@ export class AuthFetch {
     }
   }
 
-  private logPaymentAttempt (
+  private logPaymentAttempt(
     level: 'info' | 'warn' | 'error',
     message: string,
     details: Record<string, any>
@@ -772,7 +780,7 @@ export class AuthFetch {
     }
   }
 
-  private createPaymentErrorEntry (attempt: number, error: unknown): PaymentErrorLogEntry {
+  private createPaymentErrorEntry(attempt: number, error: unknown): PaymentErrorLogEntry {
     const entry: PaymentErrorLogEntry = {
       attempt,
       timestamp: new Date().toISOString(),
@@ -790,20 +798,20 @@ export class AuthFetch {
     return entry
   }
 
-  private getPaymentRetryDelay (attempt: number): number {
+  private getPaymentRetryDelay(attempt: number): number {
     const baseDelay = 250
     const multiplier = Math.min(attempt, 5)
     return baseDelay * multiplier
   }
 
-  private async wait (ms: number): Promise<void> {
+  private async wait(ms: number): Promise<void> {
     if (ms <= 0) {
       return
     }
     await new Promise(resolve => setTimeout(resolve, ms))
   }
 
-  private buildPaymentFailureError (
+  private buildPaymentFailureError(
     url: string,
     context: PaymentRetryContext,
     lastError: unknown
@@ -828,10 +836,10 @@ export class AuthFetch {
       errors: context.errors
     }
 
-    ;(error as any).details = failureDetails
+      ; (error as any).details = failureDetails
 
     if (lastError instanceof Error) {
-      ;(error as any).cause = lastError
+      ; (error as any).cause = lastError
     }
 
     return error
