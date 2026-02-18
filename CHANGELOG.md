@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [2.0.4 - 2026-02-17](#204---2026-02-17)
 - [2.0.3 - 2026-02-12](#203---2026-02-12)
 - [2.0.2 - 2026-02-09](#202---2026-02-09)
 - [2.0.1 - 2026-02-04](#201---2026-02-04)
@@ -210,6 +211,17 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [2.0.4] - 2026-02-17
+
+### Fixed
+- Fix authenticated requests hanging on stale sessions — `Peer.handleIncomingMessage` no longer swallows errors, allowing proper HTTP error responses and client-side recovery.
+- Tighten `AuthFetch` retry to HTTP 401 only (was `< 500`), preventing unsafe retries of non-idempotent requests after 500 errors.
+- Skip sending empty `certificateResponse` messages that raced with `certificateRequest` on the same nonce key, corrupting server-side handle routing.
+- Allow empty certificate lists in `Peer.processCertificateResponse` without throwing.
+- Add 30-second timeout to `AuthFetch.sendCertificateRequest` with listener cleanup.
 
 ---
 
