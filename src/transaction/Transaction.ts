@@ -1300,12 +1300,14 @@ export default class Transaction {
    * @param subscript - The subscript to use for the preimage (optional)
    * @returns The formatted preimage
    */
-  preimage(inputIndex: number, signatureScope?: number = TransactionSignature.SIGHASH_FORKID | TransactionSignature.SIGHASH_ALL, subscript?: LockingScript): number[] {
+  preimage(inputIndex?: number, signatureScope?: number, subscript?: LockingScript): number[] {
+    if (inputIndex === undefined) inputIndex = 0
+    if (signatureScope === undefined) signatureScope = TransactionSignature.SIGHASH_FORKID | TransactionSignature.SIGHASH_ALL
     if (inputIndex < 0 || inputIndex >= this.inputs.length) {
       throw new Error('Invalid input index')
     }
     const flags = signatureScope & 0xf0
-    if (flags ) {
+    if (flags !== 224 && flags !== 192 && flags !== 64) {
       throw new Error('FORKID must be set')
     }
     const coverage = signatureScope & 0x0f
