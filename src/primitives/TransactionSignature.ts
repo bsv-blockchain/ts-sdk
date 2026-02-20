@@ -35,7 +35,7 @@ interface TransactionSignatureFormatParams {
 
 const EMPTY_SCRIPT = new Uint8Array(0)
 
-export class TransactionSignature extends Signature {
+export default class TransactionSignature extends Signature {
   public static readonly SIGHASH_ALL = 0x00000001
   public static readonly SIGHASH_NONE = 0x00000002
   public static readonly SIGHASH_SINGLE = 0x00000003
