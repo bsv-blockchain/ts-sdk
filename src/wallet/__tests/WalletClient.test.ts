@@ -28,4 +28,45 @@ describe('WalletClient', () => {
     args.outputs[0].lockingScript = '1234'
     testArgs(args, 'outputDescription')
   })
+
+  it('1 validates optional createAction reference', async () => {
+    const wallet = new WalletClient('auto', '0.WalletClient.test')
+    await expect(
+      wallet.createAction({
+        description: '12345',
+        reference: 'not-base64'
+      })
+    ).rejects.toMatchObject({
+      name: 'WERR_INVALID_PARAMETER',
+      parameter: 'reference'
+    })
+  })
+
+  it('2 validates optional listActions reference', async () => {
+    const wallet = new WalletClient('auto', '0.WalletClient.test')
+    await expect(
+      wallet.listActions({
+        labels: [],
+        reference: 'not-base64'
+      })
+    ).rejects.toMatchObject({
+      name: 'WERR_INVALID_PARAMETER',
+      parameter: 'reference'
+    })
+  })
+
+  it('3 validates optional internalizeAction reference', async () => {
+    const wallet = new WalletClient('auto', '0.WalletClient.test')
+    await expect(
+      wallet.internalizeAction({
+        tx: [],
+        outputs: [],
+        description: '12345',
+        reference: 'not-base64'
+      })
+    ).rejects.toMatchObject({
+      name: 'WERR_INVALID_PARAMETER',
+      parameter: 'reference'
+    })
+  })
 })
