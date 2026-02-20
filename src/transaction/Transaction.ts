@@ -1300,7 +1300,7 @@ export default class Transaction {
    * @param subscript - The subscript to use for the preimage (optional)
    * @returns The formatted preimage
    */
-  preimage(inputIndex?: number, signatureScope?: number, subscript?: LockingScript): number[] {
+  preimage (inputIndex?: number, signatureScope?: number, subscript?: LockingScript): number[] {
     if (inputIndex === undefined) inputIndex = 0
     if (signatureScope === undefined) signatureScope = TransactionSignature.SIGHASH_FORKID | TransactionSignature.SIGHASH_ALL
     if (inputIndex < 0 || inputIndex >= this.inputs.length) {
@@ -1315,7 +1315,7 @@ export default class Transaction {
       throw new Error('Invalid signature coverage, must be all, none or single')
     }
     const input = this.inputs[inputIndex]
-    if (!input.sourceTransaction) {
+    if (input.sourceTransaction == null) {
       throw new Error('Source transaction is required')
     }
     const output = input.sourceTransaction.outputs[input.sourceOutputIndex]

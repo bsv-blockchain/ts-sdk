@@ -1673,10 +1673,11 @@ export default class Transaction {
     toAtomicBEEF(allowPartial?: boolean): number[] 
     toAtomicBEEFUint8Array(allowPartial?: boolean): Uint8Array 
     async completeWithWallet(wallet: WalletInterface, actionDescription?: DescriptionString5to50Bytes, originator?: string, options?: CreateActionOptions): Promise<void> 
+    preimage(inputIndex?: number, signatureScope?: number, subscript?: LockingScript): number[] 
 }
 ```
 
-See also: [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [Broadcaster](./transaction.md#interface-broadcaster), [ChainTracker](./transaction.md#interface-chaintracker), [CreateActionOptions](./wallet.md#interface-createactionoptions), [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [FeeModel](./transaction.md#interface-feemodel), [LivePolicy](./transaction.md#class-livepolicy), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput), [WalletInterface](./wallet.md#interface-walletinterface), [Writer](./primitives.md#class-writer), [WriterUint8Array](./primitives.md#class-writeruint8array), [defaultBroadcaster](./transaction.md#function-defaultbroadcaster), [defaultChainTracker](./transaction.md#function-defaultchaintracker), [sign](./compat.md#variable-sign), [toHex](./primitives.md#variable-tohex), [toUint8Array](./primitives.md#variable-touint8array), [verify](./compat.md#variable-verify)
+See also: [BroadcastFailure](./transaction.md#interface-broadcastfailure), [BroadcastResponse](./transaction.md#interface-broadcastresponse), [Broadcaster](./transaction.md#interface-broadcaster), [ChainTracker](./transaction.md#interface-chaintracker), [CreateActionOptions](./wallet.md#interface-createactionoptions), [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [FeeModel](./transaction.md#interface-feemodel), [LivePolicy](./transaction.md#class-livepolicy), [LockingScript](./script.md#class-lockingscript), [MerklePath](./transaction.md#class-merklepath), [Reader](./primitives.md#class-reader), [ReaderUint8Array](./primitives.md#class-readeruint8array), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput), [WalletInterface](./wallet.md#interface-walletinterface), [Writer](./primitives.md#class-writer), [WriterUint8Array](./primitives.md#class-writeruint8array), [defaultBroadcaster](./transaction.md#function-defaultbroadcaster), [defaultChainTracker](./transaction.md#function-defaultchaintracker), [sign](./compat.md#variable-sign), [toHex](./primitives.md#variable-tohex), [toUint8Array](./primitives.md#variable-touint8array), [verify](./compat.md#variable-verify)
 
 #### Method addInput
 
@@ -2032,6 +2033,28 @@ Argument Details
 
 + **bin**
   + binary transaction data
+
+#### Method preimage
+
+Returns the formatted preimage of a transaction for the requested input index, signature scope (default SIGHASH_FORKID | SIGHASH_ALL), and optional subscript.
+
+```ts
+preimage(inputIndex?: number, signatureScope?: number, subscript?: LockingScript): number[] 
+```
+See also: [LockingScript](./script.md#class-lockingscript)
+
+Returns
+
+The formatted preimage
+
+Argument Details
+
++ **inputIndex**
+  + The index of the input to generate the preimage for
++ **signatureScope**
+  + The signature scope to use for the preimage
++ **subscript**
+  + The subscript to use for the preimage (optional)
 
 #### Method sign
 
