@@ -302,15 +302,12 @@ export default class WalletWireProcessor implements WalletWire {
           }
 
           // Deserialize optional reference
+          args.reference = undefined
           if (!paramsReader.eof()) {
             const referenceLength = paramsReader.readVarIntNum()
             if (referenceLength >= 0) {
               args.reference = Utils.toBase64(paramsReader.read(referenceLength))
-            } else {
-              args.reference = undefined
             }
-          } else {
-            args.reference = undefined
           }
 
           // Call the method
@@ -595,15 +592,12 @@ export default class WalletWireProcessor implements WalletWire {
           }
 
           // Deserialize optional reference
+          args.reference = undefined
           if (!paramsReader.eof()) {
             const referenceLength = paramsReader.readVarIntNum()
             if (referenceLength >= 0) {
               args.reference = Utils.toBase64(paramsReader.read(referenceLength))
-            } else {
-              args.reference = undefined
             }
-          } else {
-            args.reference = undefined
           }
 
           // Call the method
@@ -913,15 +907,12 @@ export default class WalletWireProcessor implements WalletWire {
           }
 
           // Deserialize optional reference
+          args.reference = undefined
           if (!paramsReader.eof()) {
             const referenceLength = paramsReader.readVarIntNum()
             if (referenceLength >= 0) {
               args.reference = Utils.toBase64(paramsReader.read(referenceLength))
-            } else {
-              args.reference = undefined
             }
-          } else {
-            args.reference = undefined
           }
 
           // Call the method
