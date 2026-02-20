@@ -74,6 +74,7 @@ export default class WindowCWISubstrate implements WalletInterface {
       lockTime?: PositiveIntegerOrZero
       version?: PositiveIntegerOrZero
       labels?: LabelStringUnder300Bytes[]
+      reference?: Base64String
       options?: {
         signAndProcess?: BooleanDefaultTrue
         acceptDelayedBroadcast?: BooleanDefaultTrue
@@ -146,6 +147,7 @@ export default class WindowCWISubstrate implements WalletInterface {
       includeOutputLockingScripts?: BooleanDefaultFalse
       limit?: PositiveIntegerDefault10Max10000
       offset?: PositiveIntegerOrZero
+      reference?: Base64String
     },
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<{
@@ -209,6 +211,7 @@ export default class WindowCWISubstrate implements WalletInterface {
       }>
       description: DescriptionString5to50Bytes
       labels?: LabelStringUnder300Bytes[]
+      reference?: Base64String
     },
     originator?: OriginatorDomainNameStringUnder250Bytes
   ): Promise<{ accepted: true }> {

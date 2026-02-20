@@ -105,6 +105,7 @@ export default class XDMSubstrate implements WalletInterface {
     lockTime?: PositiveIntegerOrZero
     version?: PositiveIntegerOrZero
     labels?: LabelStringUnder300Bytes[]
+    reference?: Base64String
     options?: {
       signAndProcess?: BooleanDefaultTrue
       acceptDelayedBroadcast?: BooleanDefaultTrue
@@ -170,6 +171,7 @@ export default class XDMSubstrate implements WalletInterface {
     includeOutputLockingScripts?: BooleanDefaultFalse
     limit?: PositiveIntegerDefault10Max10000
     offset?: PositiveIntegerOrZero
+    reference?: Base64String
   }): Promise<{
     totalActions: PositiveIntegerOrZero
     actions: Array<{
@@ -229,6 +231,7 @@ export default class XDMSubstrate implements WalletInterface {
     }>
     description: DescriptionString5to50Bytes
     labels?: LabelStringUnder300Bytes[]
+    reference?: Base64String
   }): Promise<{ accepted: true }> {
     return await this.invoke('internalizeAction', args)
   }
