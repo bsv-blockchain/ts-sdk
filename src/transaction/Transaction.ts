@@ -1319,7 +1319,7 @@ export default class Transaction {
       throw new Error('Source transaction is required')
     }
     const output = input.sourceTransaction.outputs[input.sourceOutputIndex]
-    if (!output) {
+    if (output == null) {
       throw new Error(`Source transaction's output at index ${input.sourceOutputIndex} is required`)
     }
     const otherInputs = this.inputs.filter((_, index) => index !== inputIndex)
