@@ -15,6 +15,7 @@ import { defaultBroadcaster } from './broadcasters/DefaultBroadcaster.js'
 import { defaultChainTracker } from './chaintrackers/DefaultChainTracker.js'
 import { Beef, BEEF_V1 } from './Beef.js'
 import P2PKH from '../script/templates/P2PKH.js'
+import TransactionSignature from '../primitives/TransactionSignature.js'
 
 /**
  * Represents a complete Bitcoin transaction. This class encapsulates all the details
@@ -1290,5 +1291,50 @@ export default class Transaction {
       ...this.metadata,
       ...newTransaction.metadata
     }
+  }
+
+  /**
+   * Returns the formatted preimage of a transaction for the requested input index, signature scope (default SIGHASH_FORKID | SIGHASH_ALL), and optional subscript.
+   * @param inputIndex - The index of the input to generate the preimage for
+   * @param signatureScope - The signature scope to use for the preimage
+   * @param subscript - The subscript to use for the preimage (optional)
+   * @returns The formatted preimage
+   */
+  preimage (inputIndex?: number, signatureScope?: number, subscript?: LockingScript): number[] {
+    if (inputIndex === undefined) inputIndex = 0
+    if (signatureScope === undefined) signatureScope = TransactionSignature.SIGHASH_FORKID | TransactionSignature.SIGHASH_ALL
+    if (inputIndex < 0 || inputIndex >= this.inputs.length) {
+      throw new Error('Invalid input index')
+    }
+    const flags = signatureScope & 0xf0
+    if (flags !== 224 && flags !== 192 && flags !== 64) {
+      throw new Error('FORKID must be set')
+    }
+    const coverage = signatureScope & 0x0f
+    if (coverage < 1 || coverage > 3) {
+      throw new Error('Invalid signature coverage, must be all, none or single')
+    }
+    const input = this.inputs[inputIndex]
+    if (input.sourceTransaction == null) {
+      throw new Error('Source transaction is required')
+    }
+    const output = input.sourceTransaction.outputs[input.sourceOutputIndex]
+    if (output == null) {
+      throw new Error(`Source transaction's output at index ${input.sourceOutputIndex} is required`)
+    }
+    const otherInputs = this.inputs.filter((_, index) => index !== inputIndex)
+    return TransactionSignature.format({
+      sourceTXID: input.sourceTXID ?? input.sourceTransaction.id('hex'),
+      sourceOutputIndex: input.sourceOutputIndex,
+      sourceSatoshis: output.satoshis,
+      transactionVersion: this.version,
+      otherInputs,
+      inputIndex,
+      outputs: this.outputs,
+      inputSequence: input.sequence ?? 0xffffffff,
+      subscript: subscript ?? output.lockingScript,
+      lockTime: this.lockTime,
+      scope: signatureScope
+    })
   }
 }
