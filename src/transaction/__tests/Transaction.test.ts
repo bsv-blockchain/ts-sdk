@@ -2054,4 +2054,174 @@ describe('Transaction', () => {
       await expect(tx.verify('scripts only', new SatoshisPerKilobyte(1), 35)).resolves.toBe(true)
     })
   })
+
+  describe('#preimage', () => {
+    let sourceTx: Transaction
+    let spendTx: Transaction
+    let privateKey: PrivateKey
+    let publicKey: any
+    let publicKeyHash: number[]
+    let p2pkh: P2PKH
+
+    beforeEach(() => {
+      privateKey = new PrivateKey(1)
+      publicKey = new Curve().g.mul(privateKey)
+      publicKeyHash = hash160(publicKey.encode(true))
+      p2pkh = new P2PKH()
+      sourceTx = new Transaction(
+        1,
+        [],
+        [
+          {
+            lockingScript: p2pkh.lock(publicKeyHash),
+            satoshis: 4000
+          }
+        ],
+        0
+      )
+      spendTx = new Transaction(
+        1,
+        [
+          {
+            sourceTransaction: sourceTx,
+            sourceOutputIndex: 0,
+            unlockingScript: new UnlockingScript(),
+            sequence: 0xffffffff
+          }
+        ],
+        [
+          {
+            satoshis: 1000,
+            lockingScript: p2pkh.lock(publicKeyHash)
+          },
+          {
+            lockingScript: p2pkh.lock(publicKeyHash),
+            change: true
+          }
+        ],
+        0
+      )
+    })
+
+    it('should generate preimage with default parameters', () => {
+      const preimage = spendTx.preimage()
+      expect(Array.isArray(preimage)).toBe(true)
+      expect(preimage.length).toBeGreaterThan(0)
+      expect(typeof preimage[0]).toBe('number')
+    })
+
+    it('should generate preimage with custom inputIndex', () => {
+      // Add another input to test inputIndex > 0
+      const sourceTx2 = new Transaction(
+        1,
+        [],
+        [
+          {
+            lockingScript: p2pkh.lock(publicKeyHash),
+            satoshis: 2000
+          }
+        ],
+        0
+      )
+      spendTx.addInput({
+        sourceTransaction: sourceTx2,
+        sourceOutputIndex: 0,
+        unlockingScript: new UnlockingScript(),
+        sequence: 0xffffffff
+      })
+
+      const preimage0 = spendTx.preimage(0)
+      const preimage1 = spendTx.preimage(1)
+      expect(Array.isArray(preimage0)).toBe(true)
+      expect(Array.isArray(preimage1)).toBe(true)
+      expect(preimage0).not.toEqual(preimage1)
+    })
+
+    it('should generate preimage with custom signatureScope', () => {
+      const defaultPreimage = spendTx.preimage()
+      const customPreimage = spendTx.preimage(0, TransactionSignature.SIGHASH_FORKID | TransactionSignature.SIGHASH_NONE)
+      expect(Array.isArray(customPreimage)).toBe(true)
+      expect(customPreimage).not.toEqual(defaultPreimage)
+    })
+
+    it('should generate preimage with custom subscript', () => {
+      const customScript = LockingScript.fromASM(
+        'OP_CHECKSIG'
+      )
+      const preimage = spendTx.preimage(0, undefined, customScript)
+      expect(Array.isArray(preimage)).toBe(true)
+    })
+
+    it('should throw error for invalid input index (negative)', () => {
+      expect(() => {
+        spendTx.preimage(-1)
+      }).toThrow('Invalid input index')
+    })
+
+    it('should throw error for invalid input index (out of bounds)', () => {
+      expect(() => {
+        spendTx.preimage(1)
+      }).toThrow('Invalid input index')
+    })
+
+    it('should throw error when sourceTransaction is missing', () => {
+      const txWithoutSource = new Transaction(
+        1,
+        [
+          {
+            sourceTXID: '00'.repeat(32),
+            sourceOutputIndex: 0,
+            unlockingScript: new UnlockingScript(),
+            sequence: 0xffffffff
+          }
+        ],
+        [
+          {
+            satoshis: 1000,
+            lockingScript: p2pkh.lock(publicKeyHash)
+          }
+        ],
+        0
+      )
+      expect(() => {
+        txWithoutSource.preimage()
+      }).toThrow('Source transaction is required')
+    })
+
+    it('should throw error when source transaction output is missing', () => {
+      const tx = new Transaction(
+        1,
+        [
+          {
+            sourceTransaction: new Transaction(1, [], [], 0), // No outputs
+            sourceOutputIndex: 0,
+            unlockingScript: new UnlockingScript(),
+            sequence: 0xffffffff
+          }
+        ],
+        [
+          {
+            satoshis: 1000,
+            lockingScript: p2pkh.lock(publicKeyHash)
+          }
+        ],
+        0
+      )
+      expect(() => {
+        tx.preimage()
+      }).toThrow('Source transaction\'s output at index 0 is required')
+    })
+
+    it('should throw error when FORKID is not set in signatureScope', () => {
+      expect(() => {
+        spendTx.preimage(0, TransactionSignature.SIGHASH_ALL)
+      }).toThrow('FORKID must be set')
+    })
+
+    it('should throw error for invalid signature coverage', () => {
+      expect(() => {
+        spendTx.preimage(0, TransactionSignature.SIGHASH_FORKID | 0x04) // Invalid coverage
+      }).toThrow('Invalid signature coverage, must be all, none or single')
+    })
+  })
 })
