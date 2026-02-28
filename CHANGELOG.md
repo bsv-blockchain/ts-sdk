@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [2.0.5 - 2026-02-27](#205---2026-02-27)
 - [2.0.4 - 2026-02-17](#204---2026-02-17)
 - [2.0.3 - 2026-02-12](#203---2026-02-12)
 - [2.0.2 - 2026-02-09](#202---2026-02-09)
@@ -211,6 +212,14 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [2.0.5] - 2026-02-27
+
+### Fixed
+- LookupResolver: Reduced the post-first-response grace window for overlay host aggregation from 200ms to 80ms to improve lookup latency.
+- Overlay lookup path: Removed remaining fixed post-first-response delay bottlenecks; only request timeouts and host backoff remain.
 
 ---
 

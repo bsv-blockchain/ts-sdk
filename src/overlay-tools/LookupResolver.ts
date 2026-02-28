@@ -284,7 +284,7 @@ export default class LookupResolver {
 
     // Fire all hosts; resolve as soon as we have results from any host,
     // then allow a short grace window for additional hosts to contribute.
-    const GRACE_MS = 200
+    const GRACE_MS = 80
     const answers: LookupAnswer[] = await new Promise<LookupAnswer[]>((resolve) => {
       const collected: LookupAnswer[] = []
       let pending = rankedHosts.length
