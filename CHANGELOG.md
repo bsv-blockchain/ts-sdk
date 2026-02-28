@@ -203,6 +203,8 @@ All notable changes to this project will be documented in this file. The format 
 ### Added
 
 ### Changed
+- LookupResolver: Reduced the post-first-response grace window for overlay host aggregation from 200ms to 80ms to improve lookup latency.
+- Overlay lookup path: Removed remaining fixed post-first-response delay bottlenecks; only request timeouts and host backoff remain.
 
 ### Deprecated
 
