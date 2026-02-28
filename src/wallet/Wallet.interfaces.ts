@@ -349,6 +349,7 @@ export interface CreateActionResult {
  * @param {PositiveInteger} [version] - Optional transaction version specifier.
  * @param {LabelStringUnder300Bytes[]} [labels] - Optional labels providing additional categorization for the transaction.
  * @param {CreateActionOptions} [options] - Optional settings modifying transaction processing behavior.
+ * @param {Base64String} [reference] - Optional reference for correlating related actions.
  */
 export interface CreateActionArgs {
   description: DescriptionString5to50Bytes
@@ -359,6 +360,7 @@ export interface CreateActionArgs {
   version?: PositiveIntegerOrZero
   labels?: LabelStringUnder300Bytes[]
   options?: CreateActionOptions
+  reference?: Base64String
 }
 
 /**
@@ -430,6 +432,7 @@ export type AcquireCertificateResult = WalletCertificate
  * @param {PositiveIntegerDefault10Max10000} [limit] - The maximum number of transactions to retrieve.
  * @param {PositiveIntegerOrZero} [offset] - Number of transactions to skip before starting to return the results.
  * @param {BooleanDefaultTrue} [seekPermission] — Whether to seek permission from the user for this operation if required. Default true, will return an error rather than proceed if set to false.
+ * @param {Base64String} [reference] - Optional reference for correlating related actions.
  */
 export interface ListActionsArgs {
   labels: LabelStringUnder300Bytes[]
@@ -443,6 +446,7 @@ export interface ListActionsArgs {
   limit?: PositiveIntegerDefault10Max10000
   offset?: PositiveIntegerOrZero
   seekPermission?: BooleanDefaultTrue
+  reference?: Base64String
 }
 
 export interface WalletActionInput {
@@ -540,6 +544,7 @@ export interface InternalizeOutput {
  * @param {DescriptionString5to50Bytes} description - Human-readable description of the transaction being internalized.
  * @param {LabelStringUnder300Bytes[]} [labels] - Optional labels associated with this transaction.
  * @param {BooleanDefaultTrue} [seekPermission] — Whether to seek permission from the user for this operation if required. Default true, will return an error rather than proceed if set to false.
+ * @param {Base64String} [reference] - Optional reference for correlating related actions.
  */
 export interface InternalizeActionArgs {
   tx: AtomicBEEF
@@ -547,6 +552,7 @@ export interface InternalizeActionArgs {
   description: DescriptionString5to50Bytes
   labels?: LabelStringUnder300Bytes[]
   seekPermission?: BooleanDefaultTrue
+  reference?: Base64String
 }
 
 export interface InternalizeActionResult {

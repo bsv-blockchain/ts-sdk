@@ -504,6 +504,7 @@ export interface ValidCreateActionArgs extends ValidProcessActionArgs {
   // true if transaction creation completion will require a `signAction` call.
   isSignAction: boolean
   randomVals?: number[]
+  reference?: Base64String
   /**
    * If true, signableTransactions will include sourceTransaction for each input,
    * including those that do not require signature and those that were also contained
@@ -536,6 +537,7 @@ export function validateCreateActionArgs (args: CreateActionArgs, logger?: Walle
     version: defaultOne(args.version),
     labels: defaultEmpty(args.labels?.map(l => validateLabel(l))),
     options: validateCreateActionOptions(args.options),
+    reference: validateOptionalBase64String(args.reference, 'reference'),
     logger,
     isSendWith: false,
     isDelayed: false,
@@ -693,6 +695,7 @@ export interface ValidInternalizeActionArgs extends ValidWalletSignerArgs {
   description: DescriptionString5to2000Bytes
   labels: LabelStringUnder300Bytes[]
   seekPermission: BooleanDefaultTrue
+  reference?: Base64String
 }
 
 /**
@@ -725,7 +728,8 @@ export function validateInternalizeActionArgs (args: InternalizeActionArgs): Val
     outputs: args.outputs.map(o => validateInternalizeOutput(o)),
     description: validateStringLength(args.description, 'description', 5, 2000),
     labels: (args.labels != null ? args.labels : []).map(t => validateLabel(t)),
-    seekPermission: defaultTrue(args.seekPermission)
+    seekPermission: defaultTrue(args.seekPermission),
+    reference: validateOptionalBase64String(args.reference, 'reference')
   }
 
   try {
@@ -1154,6 +1158,7 @@ export interface ValidListActionsArgs extends ValidWalletSignerArgs {
   limit: PositiveIntegerDefault10Max10000
   offset: PositiveIntegerOrZero
   seekPermission: BooleanDefaultTrue
+  reference?: Base64String
 }
 
 /**
@@ -1186,7 +1191,8 @@ export function validateListActionsArgs (args: ListActionsArgs): ValidListAction
     includeOutputLockingScripts: defaultFalse(args.includeOutputLockingScripts),
     limit: validateInteger(args.limit, 'limit', 10, 1, 10000),
     offset: validateInteger(args.offset, 'offset', 0, 0),
-    seekPermission: defaultTrue(args.seekPermission)
+    seekPermission: defaultTrue(args.seekPermission),
+    reference: validateOptionalBase64String(args.reference, 'reference')
   }
 
   return vargs

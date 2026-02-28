@@ -301,6 +301,15 @@ export default class WalletWireProcessor implements WalletWire {
             args.options = undefined
           }
 
+          // Deserialize optional reference
+          args.reference = undefined
+          if (!paramsReader.eof()) {
+            const referenceLength = paramsReader.readVarIntNum()
+            if (referenceLength >= 0) {
+              args.reference = Utils.toBase64(paramsReader.read(referenceLength))
+            }
+          }
+
           // Call the method
           const createActionResult = await this.wallet.createAction(
             args,
@@ -580,6 +589,15 @@ export default class WalletWireProcessor implements WalletWire {
             args.seekPermission = seekPermission === 1
           } else {
             args.seekPermission = undefined
+          }
+
+          // Deserialize optional reference
+          args.reference = undefined
+          if (!paramsReader.eof()) {
+            const referenceLength = paramsReader.readVarIntNum()
+            if (referenceLength >= 0) {
+              args.reference = Utils.toBase64(paramsReader.read(referenceLength))
+            }
           }
 
           // Call the method
@@ -886,6 +904,15 @@ export default class WalletWireProcessor implements WalletWire {
             args.seekPermission = seekPermission === 1
           } else {
             args.seekPermission = undefined
+          }
+
+          // Deserialize optional reference
+          args.reference = undefined
+          if (!paramsReader.eof()) {
+            const referenceLength = paramsReader.readVarIntNum()
+            if (referenceLength >= 0) {
+              args.reference = Utils.toBase64(paramsReader.read(referenceLength))
+            }
           }
 
           // Call the method
