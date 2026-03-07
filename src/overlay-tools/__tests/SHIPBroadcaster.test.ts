@@ -19,7 +19,7 @@ describe('SHIPCast', () => {
   beforeEach(() => {
     mockFacilitator.send.mockReset()
     mockResolver.query.mockReset()
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { })
   })
 
   afterEach(() => {
@@ -190,7 +190,7 @@ describe('SHIPCast', () => {
     })
     mockFacilitator.send.mockClear()
 
-    // Resolver returns the wrong type of data
+    // Resolver returns the wrong type of data — new broadcaster so cache is empty
     mockResolver.query.mockReturnValueOnce({
       type: 'invalid',
       bogus: true,
@@ -198,19 +198,27 @@ describe('SHIPCast', () => {
         different: 'structure'
       }
     })
-    await expect(async () => await b.broadcast(testTx)).rejects.toThrow(
+    const b2 = new SHIPCast(['tm_foo'], {
+      facilitator: mockFacilitator,
+      resolver: mockResolver as unknown as LookupResolver
+    })
+    await expect(async () => await b2.broadcast(testTx)).rejects.toThrow(
       'SHIP answer is not an output list.'
     )
     expect(mockFacilitator.send).not.toHaveBeenCalled()
 
-    // Resolver returns the wrong output structure
+    // Resolver returns the wrong output structure — new broadcaster so cache is empty
     mockResolver.query.mockReturnValueOnce({
       type: 'output-list',
       outputs: {
         different: 'structure'
       }
     })
-    await expect(async () => await b.broadcast(testTx)).rejects.toThrow(
+    const b3 = new SHIPCast(['tm_foo'], {
+      facilitator: mockFacilitator,
+      resolver: mockResolver as unknown as LookupResolver
+    })
+    await expect(async () => await b3.broadcast(testTx)).rejects.toThrow(
       'answer.outputs is not iterable'
     )
     expect(mockFacilitator.send).not.toHaveBeenCalled()
@@ -237,7 +245,11 @@ describe('SHIPCast', () => {
         }
       ]
     })
-    response = await b.broadcast(testTx)
+    const b4 = new SHIPCast(['tm_foo'], {
+      facilitator: mockFacilitator,
+      resolver: mockResolver as unknown as LookupResolver
+    })
+    response = await b4.broadcast(testTx)
     expect(response).toEqual({
       status: 'success',
       txid: testTx.id('hex'),

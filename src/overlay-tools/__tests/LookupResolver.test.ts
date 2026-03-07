@@ -367,7 +367,7 @@ describe('LookupResolver', () => {
     ])
   })
 
-  it('should handle multiple SLAP trackers and aggregate results from multiple hosts', async () => {
+  it('should handle multiple SLAP trackers and resolve with first responder hosts', async () => {
     const slapHostKey1 = new PrivateKey(42)
     const slapWallet1 = new CompletedProtoWallet(slapHostKey1)
     const slapLib1 = new OverlayAdminTokenTemplate(slapWallet1)
@@ -408,7 +408,7 @@ describe('LookupResolver', () => {
       0
     )
 
-    // SLAP trackers return hosts
+    // SLAP trackers return hosts — first responder wins
     mockFacilitator.lookup
       .mockReturnValueOnce({
         type: 'output-list',
@@ -429,7 +429,7 @@ describe('LookupResolver', () => {
         ]
       })
 
-    // Hosts respond to the query
+    // Only the first-resolved tracker's host gets queried
     mockFacilitator.lookup
       .mockReturnValueOnce({
         type: 'output-list',
@@ -437,15 +437,6 @@ describe('LookupResolver', () => {
           {
             beef: sampleBeef3,
             outputIndex: 0
-          }
-        ]
-      })
-      .mockReturnValueOnce({
-        type: 'output-list',
-        outputs: [
-          {
-            beef: sampleBeef4,
-            outputIndex: 1
           }
         ]
       })
@@ -460,55 +451,45 @@ describe('LookupResolver', () => {
       query: { test: 1 }
     })
 
+    // Only the first tracker's host results are returned
     expect(res).toEqual({
       type: 'output-list',
       outputs: [
-        { beef: sampleBeef3, outputIndex: 0 },
-        { beef: sampleBeef4, outputIndex: 1 }
+        { beef: sampleBeef3, outputIndex: 0 }
       ]
     })
 
-    expect(mockFacilitator.lookup.mock.calls).toEqual([
-      [
-        'https://mock.slap1',
-        {
-          service: 'ls_slap',
-          query: {
-            service: 'ls_foo'
-          }
-        },
-        5000
-      ],
-      [
-        'https://mock.slap2',
-        {
-          service: 'ls_slap',
-          query: {
-            service: 'ls_foo'
-          }
-        },
-        5000
-      ],
-      [
-        'https://slaphost1.com',
-        {
-          service: 'ls_foo',
-          query: {
-            test: 1
-          }
-        },
-        undefined
-      ],
-      [
-        'https://slaphost2.com',
-        {
-          service: 'ls_foo',
-          query: {
-            test: 1
-          }
-        },
-        undefined
-      ]
+    // Both SLAP trackers are queried, but only the first host is used for the actual query
+    expect(mockFacilitator.lookup.mock.calls.length).toBeGreaterThanOrEqual(3)
+    expect(mockFacilitator.lookup.mock.calls[0]).toEqual([
+      'https://mock.slap1',
+      {
+        service: 'ls_slap',
+        query: {
+          service: 'ls_foo'
+        }
+      },
+      5000
+    ])
+    expect(mockFacilitator.lookup.mock.calls[1]).toEqual([
+      'https://mock.slap2',
+      {
+        service: 'ls_slap',
+        query: {
+          service: 'ls_foo'
+        }
+      },
+      5000
+    ])
+    expect(mockFacilitator.lookup.mock.calls[2]).toEqual([
+      'https://slaphost1.com',
+      {
+        service: 'ls_foo',
+        query: {
+          test: 1
+        }
+      },
+      undefined
     ])
   })
 

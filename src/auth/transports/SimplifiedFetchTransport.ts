@@ -3,7 +3,7 @@
 import { AuthMessage, RequestedCertificateSet, Transport } from '../types.js'
 import * as Utils from '../../primitives/utils.js'
 
-const defaultFetch: typeof fetch = 
+const defaultFetch: typeof fetch =
   typeof globalThis !== 'undefined' && typeof globalThis.fetch === 'function'
     ? globalThis.fetch.bind(globalThis)
     : fetch
@@ -22,7 +22,7 @@ export class SimplifiedFetchTransport implements Transport {
    * @param baseUrl - The base URL for all HTTP requests made by this transport.
    * @param fetchClient - A fetch implementation to use for HTTP requests (default: global fetch).
    */
-  constructor (baseUrl: string, fetchClient = defaultFetch) {
+  constructor(baseUrl: string, fetchClient = defaultFetch) {
     if (typeof fetchClient !== 'function') {
       throw new Error(
         'SimplifiedFetchTransport requires a fetch implementation. ' +
@@ -44,7 +44,7 @@ export class SimplifiedFetchTransport implements Transport {
    *
    * @throws Will throw an error if no listener has been registered via `onData`.
    */
-  async send (message: AuthMessage): Promise<void> {
+  async send(message: AuthMessage): Promise<void> {
     if (this.onDataCallback == null) {
       throw new Error('Listen before you start speaking. God gave you two ears and one mouth for a reason.')
     }
@@ -240,24 +240,27 @@ export class SimplifiedFetchTransport implements Transport {
    * @param callback - A function to invoke when an incoming AuthMessage is received.
    * @returns A promise that resolves once the callback is set.
    */
-  async onData (callback: (message: AuthMessage) => Promise<void>): Promise<void> {
+  async onData(callback: (message: AuthMessage) => Promise<void>): Promise<void> {
     this.onDataCallback = (m) => {
-      void callback(m)
+      void callback(m).catch(() => {
+        // Errors from handleIncomingMessage on the client side are not
+        // actionable here — prevent unhandled promise rejections.
+      })
     }
   }
 
-  private createNetworkError (url: string, originalError: unknown): Error {
+  private createNetworkError(url: string, originalError: unknown): Error {
     const baseMessage = `Network error while sending authenticated request to ${url}`
     if (originalError instanceof Error) {
       const error = new Error(`${baseMessage}: ${originalError.message}`)
       error.stack = originalError.stack
-      ;(error as any).cause = originalError
+        ; (error as any).cause = originalError
       return error
     }
     return new Error(`${baseMessage}: ${String(originalError)}`)
   }
 
-  private createUnauthenticatedResponseError (
+  private createUnauthenticatedResponseError(
     url: string,
     response: Response,
     bodyBytes: number[],
@@ -277,17 +280,17 @@ export class SimplifiedFetchTransport implements Transport {
     }
 
     const error = new Error(parts.join(' - '))
-    ;(error as any).details = {
-      url,
-      status: response.status,
-      statusText: response.statusText,
-      missingHeaders,
-      bodyPreview
-    }
+      ; (error as any).details = {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        missingHeaders,
+        bodyPreview
+      }
     return error
   }
 
-  private createMalformedHeaderError (
+  private createMalformedHeaderError(
     url: string,
     headerName: string,
     headerValue: string,
@@ -297,13 +300,13 @@ export class SimplifiedFetchTransport implements Transport {
     if (cause instanceof Error) {
       const error = new Error(`${errorMessage}. ${cause.message}`)
       error.stack = cause.stack
-      ;(error as any).cause = cause
+        ; (error as any).cause = cause
       return error
     }
     return new Error(`${errorMessage}. ${String(cause)}`)
   }
 
-  private getBodyPreview (bodyBytes: number[], contentType: string | null): string | undefined {
+  private getBodyPreview(bodyBytes: number[], contentType: string | null): string | undefined {
     if (bodyBytes.length === 0) {
       return undefined
     }
@@ -333,7 +336,7 @@ export class SimplifiedFetchTransport implements Transport {
     return preview
   }
 
-  private isTextualContent (contentType: string | null, sample: number[]): boolean {
+  private isTextualContent(contentType: string | null, sample: number[]): boolean {
     if (sample.length === 0) {
       return false
     }
@@ -367,7 +370,7 @@ export class SimplifiedFetchTransport implements Transport {
     return (printableCount / sample.length) > 0.8
   }
 
-  private formatBinaryPreview (bytes: number[], truncated: boolean): string {
+  private formatBinaryPreview(bytes: number[], truncated: boolean): string {
     const hex = bytes.map(byte => byte.toString(16).padStart(2, '0')).join('')
     return `0x${hex}${truncated ? '…' : ''}`
   }
@@ -379,7 +382,7 @@ export class SimplifiedFetchTransport implements Transport {
    * @returns An object representing the deserialized request, including the method,
    *          URL postfix (path and query string), headers, body, and request ID.
    */
-  deserializeRequestPayload (payload: number[]): {
+  deserializeRequestPayload(payload: number[]): {
     method: string
     urlPostfix: string
     headers: Record<string, string>

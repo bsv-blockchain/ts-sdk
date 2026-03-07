@@ -40,13 +40,18 @@ class LocalTransport implements Transport {
   }
 
   async onData(
-    callback: (message: AuthMessage) => void
+    callback: (message: AuthMessage) => Promise<void>
   ): Promise<void> {
-    this.onDataCallback = callback
+    this.onDataCallback = (m) => {
+      void (callback(m) as Promise<void>).catch(() => {
+        // Match real transport behaviour: catch errors from handleIncomingMessage
+        // to prevent unhandled promise rejections in tests.
+      })
+    }
   }
 }
 
-function waitForNextGeneralMessage (
+function waitForNextGeneralMessage(
   peer: Peer,
   handler?: (senderPublicKey: string, payload: number[]) => void
 ): Promise<void> {
@@ -385,8 +390,8 @@ describe('Peer class mutual authentication and certificate exchange', () => {
   describe('propagateTransportError', () => {
     const createPeerInstance = (): Peer => {
       const transport: Transport = {
-        send: jest.fn(async (_message: AuthMessage) => {}),
-        onData: async () => {}
+        send: jest.fn(async (_message: AuthMessage) => { }),
+        onData: async () => { }
       }
       return new Peer({} as WalletInterface, transport)
     }
@@ -409,7 +414,7 @@ describe('Peer class mutual authentication and certificate exchange', () => {
     it('preserves existing details when appending peer identity', () => {
       const peer = createPeerInstance()
       const originalError = new Error('existing details')
-      ;(originalError as any).details = { status: 503 }
+        ; (originalError as any).details = { status: 503 }
 
       let thrown: Error | undefined
       try {
@@ -745,14 +750,14 @@ describe('Peer class mutual authentication and certificate exchange', () => {
     test('Should trigger "Failed to send message to peer" error with network failure', async () => {
       // Create a mock fetch that always fails
       const failingFetch = (jest.fn() as any).mockRejectedValue(new Error('Network connection failed'))
-      
+
       // Create a transport that will fail
       const transport = new SimplifiedFetchTransport('http://localhost:9999', failingFetch)
-      
+
       // Create a peer with the failing transport
       const wallet = new CompletedProtoWallet(privKey)
       const peer = new Peer(wallet, transport)
-      
+
       // Register a dummy onData callback (required before sending)
       await transport.onData(async (message) => {
         // This won't be called due to network failure
@@ -777,12 +782,12 @@ describe('Peer class mutual authentication and certificate exchange', () => {
           }, 100)
         })
       })
-      
+
       const transport = new SimplifiedFetchTransport('http://localhost:9999', timeoutFetch)
       const wallet = new CompletedProtoWallet(privKey)
       const peer = new Peer(wallet, transport)
-      
-      await transport.onData(async (message) => {})
+
+      await transport.onData(async (message) => { })
 
       try {
         await peer.toPeer([5, 6, 7, 8], '03def789abc123')
@@ -800,12 +805,12 @@ describe('Peer class mutual authentication and certificate exchange', () => {
         errno: -3008,
         message: 'getaddrinfo ENOTFOUND nonexistent.domain'
       })
-      
+
       const transport = new SimplifiedFetchTransport('http://nonexistent.domain:3000', dnsFetch)
       const wallet = new CompletedProtoWallet(privKey)
       const peer = new Peer(wallet, transport)
-      
-      await transport.onData(async (message) => {})
+
+      await transport.onData(async (message) => { })
 
       try {
         await peer.toPeer([9, 10, 11, 12], '03xyz987fed654')
@@ -819,12 +824,12 @@ describe('Peer class mutual authentication and certificate exchange', () => {
     test('Should trigger error during certificate request send', async () => {
       // Create a failing fetch
       const failingFetch = (jest.fn() as any).mockRejectedValue(new Error('Connection reset by peer'))
-      
+
       const transport = new SimplifiedFetchTransport('http://localhost:9999', failingFetch)
       const wallet = new CompletedProtoWallet(privKey)
       const peer = new Peer(wallet, transport)
-      
-      await transport.onData(async (message) => {})
+
+      await transport.onData(async (message) => { })
 
       try {
         // Try to send a certificate request - this should also trigger the error
@@ -842,12 +847,12 @@ describe('Peer class mutual authentication and certificate exchange', () => {
     test('Should trigger error during certificate response send', async () => {
       // Create a failing fetch
       const failingFetch = (jest.fn() as any).mockRejectedValue(new Error('Socket hang up'))
-      
+
       const transport = new SimplifiedFetchTransport('http://localhost:9999', failingFetch)
       const wallet = new CompletedProtoWallet(privKey)
       const peer = new Peer(wallet, transport)
-      
-      await transport.onData(async (message) => {})
+
+      await transport.onData(async (message) => { })
 
       try {
         // Try to send a certificate response - this should also trigger the error
@@ -864,12 +869,12 @@ describe('Peer class mutual authentication and certificate exchange', () => {
       const customError = new Error('Custom transport error')
       customError.stack = 'Custom stack trace'
       const failingFetch = (jest.fn() as any).mockRejectedValue(customError)
-      
+
       const transport = new SimplifiedFetchTransport('http://localhost:9999', failingFetch)
       const wallet = new CompletedProtoWallet(privKey)
       const peer = new Peer(wallet, transport)
-      
-      await transport.onData(async (message) => {})
+
+      await transport.onData(async (message) => { })
 
       try {
         await peer.toPeer([13, 14, 15, 16], '03peer123456')
@@ -886,12 +891,12 @@ describe('Peer class mutual authentication and certificate exchange', () => {
     test('Should handle non-Error transport failures', async () => {
       // Create a fetch that throws a non-Error object
       const failingFetch = (jest.fn() as any).mockRejectedValue('String error message')
-      
+
       const transport = new SimplifiedFetchTransport('http://localhost:9999', failingFetch)
       const wallet = new CompletedProtoWallet(privKey)
       const peer = new Peer(wallet, transport)
-      
-      await transport.onData(async (message) => {})
+
+      await transport.onData(async (message) => { })
 
       try {
         await peer.toPeer([17, 18, 19, 20], '03peer789abc')
@@ -906,12 +911,12 @@ describe('Peer class mutual authentication and certificate exchange', () => {
     test('Should handle undefined peer identity gracefully', async () => {
       // Create a failing fetch
       const failingFetch = (jest.fn() as any).mockRejectedValue('Network failure')
-      
+
       const transport = new SimplifiedFetchTransport('http://localhost:9999', failingFetch)
       const wallet = new CompletedProtoWallet(privKey)
       const peer = new Peer(wallet, transport)
-      
-      await transport.onData(async (message) => {})
+
+      await transport.onData(async (message) => { })
 
       try {
         // Try to send to an undefined peer (this might happen in some edge cases)

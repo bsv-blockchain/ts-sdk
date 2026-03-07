@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [2.0.5 - 2026-02-27](#205---2026-02-27)
+- [2.0.4 - 2026-02-17](#204---2026-02-17)
+- [2.0.3 - 2026-02-12](#203---2026-02-12)
 - [2.0.2 - 2026-02-09](#202---2026-02-09)
 - [2.0.1 - 2026-02-04](#201---2026-02-04)
 - [2.0.0 - 2026-02-04](#200---2026-02-04)
@@ -209,6 +212,44 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [2.0.6] - 2026-03-07
+
+### Fixed
+
+output tag normalization across createAction and listOutputs.
+
+---
+
+## [2.0.5] - 2026-02-27
+
+### Fixed
+- LookupResolver: Reduced the post-first-response grace window for overlay host aggregation from 200ms to 80ms to improve lookup latency.
+- Overlay lookup path: Removed remaining fixed post-first-response delay bottlenecks; only request timeouts and host backoff remain.
+
+---
+
+## [2.0.4] - 2026-02-17
+
+### Fixed
+- Fix authenticated requests hanging on stale sessions — `Peer.handleIncomingMessage` no longer swallows errors, allowing proper HTTP error responses and client-side recovery.
+- Tighten `AuthFetch` retry to HTTP 401 only (was `< 500`), preventing unsafe retries of non-idempotent requests after 500 errors.
+- Skip sending empty `certificateResponse` messages that raced with `certificateRequest` on the same nonce key, corrupting server-side handle routing.
+- Allow empty certificate lists in `Peer.processCertificateResponse` without throwing.
+- Add 30-second timeout to `AuthFetch.sendCertificateRequest` with listener cleanup.
+
+---
+
+## [2.0.3] - 2026-02-12
+
+### Changed
+- LookupResolver: First-responder SLAP resolution — resolve as soon as any tracker returns valid hosts
+- LookupResolver: Grace window (200ms) for host queries — prevents slow hosts from blocking lookups
+- ContactsManager: Parallelized `wallet.decrypt` calls via `Promise.allSettled`
+- IdentityClient: Parallelized contacts + overlay discovery in `resolveByIdentityKey` via `Promise.all`
+- TopicBroadcaster: Added 5-minute cache with concurrent request deduplication for SHIP host lookups
 
 ---
 
