@@ -215,6 +215,14 @@ All notable changes to this project will be documented in this file. The format 
 
 ---
 
+## [2.0.6] - 2026-03-07
+
+### Fixed
+
+output tag normalization across createAction and listOutputs.
+
+---
+
 ## [2.0.5] - 2026-02-27
 
 ### Fixed
