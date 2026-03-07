@@ -1126,7 +1126,7 @@ export function validateListOutputsArgs (args: ListOutputsArgs): ValidListOutput
 
   const vargs: ValidListOutputsArgs = {
     basket: validateStringLength(args.basket, 'basket', 1, 300),
-    tags: (args.tags != null ? args.tags : []).map(t => validateStringLength(t, 'tag', 1, 300)),
+    tags: (args.tags != null ? args.tags : []).map(t => validateTag(t)),
     tagQueryMode,
     includeLockingScripts: args.include === 'locking scripts',
     includeTransactions: args.include === 'entire transactions',
