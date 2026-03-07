@@ -260,3 +260,100 @@ describe('AuthFetch payment handling', () => {
     expect(paymentContext.errors).toHaveLength(2)
   })
 })
+
+describe('AuthFetch certificate request handling', () => {
+  const requestedCertificates = {
+    certifiers: ['certifier-key'],
+    types: { 'certificate-type': ['firstName'] }
+  }
+
+  test('sendCertificateRequest resolves and cleans up listener when certificates are received', async () => {
+    const wallet = createWalletStub()
+    const authFetch = new AuthFetch(wallet as any)
+
+    let certificatesListener: ((senderPublicKey: string, certs: any[]) => void) | undefined
+    const stopListeningForCertificatesReceived = jest.fn()
+    const requestCertificates = jest.fn(async () => {
+      certificatesListener?.('server-identity', [{ serialNumber: 'abc123' } as any])
+    })
+
+    const peerStub = {
+      listenForCertificatesReceived: jest.fn((listener: (senderPublicKey: string, certs: any[]) => void) => {
+        certificatesListener = listener
+        return 7
+      }),
+      stopListeningForCertificatesReceived,
+      requestCertificates
+    }
+
+    ; (authFetch as any).peers['https://api.example.com'] = {
+      peer: peerStub,
+      pendingCertificateRequests: []
+    }
+
+    const certs = await authFetch.sendCertificateRequest('https://api.example.com', requestedCertificates as any)
+    expect(certs).toHaveLength(1)
+    expect(requestCertificates).toHaveBeenCalledWith(requestedCertificates, undefined)
+    expect(stopListeningForCertificatesReceived).toHaveBeenCalledWith(7)
+  })
+
+  test('sendCertificateRequest rejects and cleans up listener when requestCertificates throws', async () => {
+    const wallet = createWalletStub()
+    const authFetch = new AuthFetch(wallet as any)
+    const requestError = new Error('request failed')
+
+    const stopListeningForCertificatesReceived = jest.fn()
+    const requestCertificates = jest.fn(async () => {
+      throw requestError
+    })
+
+    const peerStub = {
+      listenForCertificatesReceived: jest.fn(() => 9),
+      stopListeningForCertificatesReceived,
+      requestCertificates
+    }
+
+    ; (authFetch as any).peers['https://api.example.com'] = {
+      peer: peerStub,
+      pendingCertificateRequests: []
+    }
+
+    await expect(
+      authFetch.sendCertificateRequest('https://api.example.com', requestedCertificates as any)
+    ).rejects.toThrow('request failed')
+    expect(stopListeningForCertificatesReceived).toHaveBeenCalledWith(9)
+  })
+
+  test('sendCertificateRequest times out and cleans up listener when no certificate response arrives', async () => {
+    jest.useFakeTimers()
+    try {
+      const wallet = createWalletStub()
+      const authFetch = new AuthFetch(wallet as any)
+
+      const stopListeningForCertificatesReceived = jest.fn()
+      const requestCertificates = jest.fn(async () => {})
+
+      const peerStub = {
+        listenForCertificatesReceived: jest.fn(() => 11),
+        stopListeningForCertificatesReceived,
+        requestCertificates
+      }
+
+      ; (authFetch as any).peers['https://api.example.com'] = {
+        peer: peerStub,
+        pendingCertificateRequests: []
+      }
+
+      const pending = authFetch.sendCertificateRequest('https://api.example.com', requestedCertificates as any)
+      const timeoutAssertion = expect(pending).rejects.toThrow(
+        'sendCertificateRequest timed out after 30000ms waiting for certificate response from https://api.example.com'
+      )
+      await jest.advanceTimersByTimeAsync(30000)
+
+      await timeoutAssertion
+      expect(stopListeningForCertificatesReceived).toHaveBeenCalledWith(11)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+})

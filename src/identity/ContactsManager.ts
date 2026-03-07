@@ -88,33 +88,45 @@ export class ContactsManager {
       return []
     }
 
-    const contacts: Contact[] = []
+    // Pre-process outputs synchronously to extract decode data, then decrypt in parallel
+    const decryptTasks: Array<{ keyID: string, ciphertext: number[] }> = []
 
-    // Process each contact output
     for (const output of outputs.outputs) {
       try {
         if (output.lockingScript == null) continue
-
-        // Decode the PushDrop data
         const decoded = PushDrop.decode(LockingScript.fromHex(output.lockingScript))
         if (output.customInstructions == null) continue
         const keyID = JSON.parse(output.customInstructions).keyID
-
-        // Decrypt the contact data
-        const { plaintext } = await this.wallet.decrypt({
-          ciphertext: decoded.fields[0],
-          protocolID: CONTACT_PROTOCOL_ID,
-          keyID,
-          counterparty: 'self'
-        }, this.originator)
-
-        // Parse the contact data
-        const contactData: Contact = JSON.parse(Utils.toUTF8(plaintext))
-
-        contacts.push(contactData)
+        decryptTasks.push({ keyID, ciphertext: decoded.fields[0] })
       } catch (error) {
         console.warn('ContactsManager: Failed to decode contact output:', error)
-        // Skip this contact and continue with others
+      }
+    }
+
+    // Decrypt all contacts in parallel — each call is a network round-trip over localhost
+    const decryptResults = await Promise.allSettled(
+      decryptTasks.map(async task =>
+        await this.wallet.decrypt({
+          ciphertext: task.ciphertext,
+          protocolID: CONTACT_PROTOCOL_ID,
+          keyID: task.keyID,
+          counterparty: 'self'
+        }, this.originator)
+      )
+    )
+
+    const contacts: Contact[] = []
+    for (let i = 0; i < decryptResults.length; i++) {
+      const result = decryptResults[i]
+      if (result.status === 'fulfilled') {
+        try {
+          const contactData: Contact = JSON.parse(Utils.toUTF8(result.value.plaintext))
+          contacts.push(contactData)
+        } catch (error) {
+          console.warn('ContactsManager: Failed to parse contact data:', error)
+        }
+      } else {
+        console.warn('ContactsManager: Failed to decrypt contact output:', result.reason)
       }
     }
 
