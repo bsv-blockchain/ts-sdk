@@ -1125,7 +1125,7 @@ export function validateListOutputsArgs (args: ListOutputsArgs): ValidListOutput
   else throw new WERR_INVALID_PARAMETER('tagQueryMode', 'undefined, \'any\', or \'all\'')
 
   const vargs: ValidListOutputsArgs = {
-    basket: validateStringLength(args.basket, 'basket', 1, 300),
+    basket: validateBasket(args.basket),
     tags: (args.tags != null ? args.tags : []).map(t => validateTag(t)),
     tagQueryMode,
     includeLockingScripts: args.include === 'locking scripts',
