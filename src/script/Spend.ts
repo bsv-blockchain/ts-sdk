@@ -737,8 +737,14 @@ export default class Spend {
           }
           bn1 = new BigNumber(buf1)
           let shiftedBn: BigNumber
-          if (currentOpcode === OP.OP_LSHIFT) shiftedBn = bn1.ushln(shiftBits)
-          else shiftedBn = bn1.ushrn(shiftBits)
+          if (currentOpcode === OP.OP_LSHIFT) {
+            shiftedBn = bn1.ushln(shiftBits)
+            // Truncate to original byte length by masking off the overflow MSBs
+            const mask = new BigNumber(1).ushln(buf1.length * 8).isubn(1)
+            shiftedBn = shiftedBn.iand(mask)
+          } else {
+            shiftedBn = bn1.ushrn(shiftBits)
+          }
 
           const shiftedArr = shiftedBn.toArray('be', buf1.length)
           this.pushStack(shiftedArr)
