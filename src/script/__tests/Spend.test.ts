@@ -266,6 +266,16 @@ describe('Spend', () => {
     expect(spend.validate()).toBe(true)
   })
 
+  it('truncates overflow MSBs on OP_LSHIFT (0x6A09E667 << 30 === 0xC0000000)', () => {
+    // 0x6A09E667 left-shifted by 30 bits produces 0x1A827999C0000000 (8 bytes),
+    // but must be truncated to the original 4 bytes → 0xC0000000
+    const spend = createSpendWithPushes(
+      '1e OP_LSHIFT c0000000 OP_EQUAL',
+      [[0x6a, 0x09, 0xe6, 0x67]]
+    )
+    expect(spend.validate()).toBe(true)
+  })
+
   it('Successfully validates an R-puzzle spend (HASH256)', async () => {
     const k = new PrivateKey(2)
     const c = new Curve()
