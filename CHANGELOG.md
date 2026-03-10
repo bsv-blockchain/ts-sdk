@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [2.0.7 - 2026-03-10](#207---2026-03-10)
+- [2.0.6 - 2026-03-07](#206---2026-03-07)
 - [2.0.5 - 2026-02-27](#205---2026-02-27)
 - [2.0.4 - 2026-02-17](#204---2026-02-17)
 - [2.0.3 - 2026-02-12](#203---2026-02-12)
@@ -212,6 +214,13 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [2.0.7] - 2026-03-10
+
+### Fixed
+- `OP_LSHIFT` in the `Spend` script interpreter now correctly truncates the result to the original operand's byte length by masking off overflow MSBs, preventing incorrect stack values when shifts produce more bytes than the input (e.g. `0x6A09E667 << 30` now yields `0xC0000000` instead of overflowing to 8 bytes).
 
 ---
 
