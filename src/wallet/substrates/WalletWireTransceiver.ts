@@ -322,6 +322,15 @@ export default class WalletWireTransceiver implements WalletInterface {
       paramWriter.writeInt8(0) // options not present
     }
 
+    // Serialize optional reference
+    if (args.reference != null && args.reference !== '') {
+      const referenceAsArray = Utils.toArray(args.reference, 'base64')
+      paramWriter.writeVarIntNum(referenceAsArray.length)
+      paramWriter.write(referenceAsArray)
+    } else {
+      paramWriter.writeVarIntNum(-1)
+    }
+
     // Transmit and parse response
     const result = await this.transmit(
       'createAction',
@@ -591,6 +600,15 @@ export default class WalletWireTransceiver implements WalletInterface {
           : 0
         : -1
     )
+
+    // Serialize optional reference
+    if (args.reference != null && args.reference !== '') {
+      const referenceAsArray = Utils.toArray(args.reference, 'base64')
+      paramWriter.writeVarIntNum(referenceAsArray.length)
+      paramWriter.write(referenceAsArray)
+    } else {
+      paramWriter.writeVarIntNum(-1)
+    }
 
     // Transmit and parse response
     const result = await this.transmit(
@@ -906,6 +924,15 @@ export default class WalletWireTransceiver implements WalletInterface {
           : 0
         : -1
     )
+
+    // Serialize optional reference
+    if (args.reference != null && args.reference !== '') {
+      const referenceAsArray = Utils.toArray(args.reference, 'base64')
+      paramWriter.writeVarIntNum(referenceAsArray.length)
+      paramWriter.write(referenceAsArray)
+    } else {
+      paramWriter.writeVarIntNum(-1)
+    }
 
     await this.transmit('internalizeAction', originator, paramWriter.toArray())
     return { accepted: true }

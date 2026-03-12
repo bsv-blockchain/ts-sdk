@@ -9,3 +9,5 @@ CLAUDE.md
 # MkDocs documentation
 /site
 .DS_Store
+
+.idea
