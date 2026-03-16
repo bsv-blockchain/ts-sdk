@@ -1462,7 +1462,7 @@ describe('Transaction', () => {
 
   describe('completeWithWallet', () => {
     // Mock implementation of WalletInterface for testing
-    class MockWallet implements Partial<WalletInterface> {
+    class MockWallet {
       public lastCreateActionArgs: CreateActionArgs | null = null
       public lastSignActionArgs: any = null
       public signActionCalled: boolean = false
@@ -1624,7 +1624,7 @@ describe('Transaction', () => {
       const mockWallet = new MockWallet()
 
       // Complete the transaction with the wallet
-      await tx.completeWithWallet(mockWallet, 'Test transaction completion')
+      await tx.completeWithWallet(mockWallet as unknown as WalletInterface,'Test transaction completion')
 
       // Verify that the wallet's createAction was called with correct arguments
       expect(mockWallet.lastCreateActionArgs).not.toBeNull()
@@ -1665,7 +1665,7 @@ describe('Transaction', () => {
       const mockWallet = new MockWallet()
 
       // Expect completeWithWallet to throw an error
-      await expect(tx.completeWithWallet(mockWallet))
+      await expect(tx.completeWithWallet(mockWallet as unknown as WalletInterface))
         .rejects
         .toThrow('All inputs must have a sourceTransaction when using completeWithWallet')
     })
@@ -1710,7 +1710,7 @@ describe('Transaction', () => {
       const mockWallet = new MockWallet()
 
       // Expect completeWithWallet to throw an error
-      await expect(tx.completeWithWallet(mockWallet))
+      await expect(tx.completeWithWallet(mockWallet as unknown as WalletInterface))
         .rejects
         .toThrow('All inputs must have an unlockingScript when using completeWithWallet')
     })
@@ -1766,7 +1766,7 @@ describe('Transaction', () => {
       const mockWallet = new MockWallet()
 
       // Complete the transaction with the wallet
-      await tx.completeWithWallet(mockWallet, 'Test with template')
+      await tx.completeWithWallet(mockWallet as unknown as WalletInterface,'Test with template')
 
       // Verify that signAction was called
       expect(mockWallet.signActionCalled).toBe(true)
@@ -1850,7 +1850,7 @@ describe('Transaction', () => {
       const mockWallet = new MockWallet()
 
       // Complete the transaction with the wallet
-      await tx.completeWithWallet(mockWallet, 'Test with mixed inputs')
+      await tx.completeWithWallet(mockWallet as unknown as WalletInterface,'Test with mixed inputs')
 
       // Verify that signAction was called (because at least one template exists)
       expect(mockWallet.signActionCalled).toBe(true)
@@ -1937,7 +1937,7 @@ describe('Transaction', () => {
       const mockWallet = new MockWallet()
 
       // Should throw error about missing script/template on input 1
-      await expect(tx.completeWithWallet(mockWallet))
+      await expect(tx.completeWithWallet(mockWallet as unknown as WalletInterface))
         .rejects
         .toThrow('Input 1 must have either an unlockingScript or unlockingScriptTemplate')
     })
@@ -1964,7 +1964,7 @@ describe('Transaction', () => {
         returnTXIDOnly: true
       }
 
-      await tx.completeWithWallet(mockWallet, 'Test with options', undefined, options)
+      await tx.completeWithWallet(mockWallet as unknown as WalletInterface,'Test with options', undefined, options)
 
       // Verify options were passed to createAction
       expect(mockWallet.lastCreateActionArgs?.options).toEqual(options)
@@ -1997,7 +1997,7 @@ describe('Transaction', () => {
         randomizeOutputs: false
       }
 
-      await tx.completeWithWallet(mockWallet, 'Test template with options', undefined, options)
+      await tx.completeWithWallet(mockWallet as unknown as WalletInterface,'Test template with options', undefined, options)
 
       // Verify signAndProcess: false was set for createAction (required for template flow)
       expect(mockWallet.lastCreateActionArgs?.options?.signAndProcess).toBe(false)
