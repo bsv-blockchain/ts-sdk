@@ -1,31 +1,54 @@
 import {
-  Base64String,
-  BasketStringUnder300Bytes,
-  BEEF,
-  BooleanDefaultFalse,
-  BooleanDefaultTrue,
-  Byte,
-  CertificateFieldNameUnder50Bytes,
-  DescriptionString5to50Bytes,
-  EntityIconURLStringMax500Bytes,
-  EntityNameStringMax100Bytes,
-  HexString,
-  ISOTimestampString,
-  KeyIDStringUnder800Bytes,
-  LabelStringUnder300Bytes,
-  OutpointString,
-  OutputTagStringUnder300Bytes,
-  PositiveInteger,
-  PositiveIntegerDefault10Max10000,
-  PositiveIntegerMax10,
-  PositiveIntegerOrZero,
-  ProtocolString5To400Bytes,
-  PubKeyHex,
-  SatoshiValue,
-  SecurityLevel,
-  TXIDHexString,
-  VersionString7To30Bytes,
-  WalletInterface
+  WalletInterface,
+  CreateActionArgs,
+  CreateActionResult,
+  SignActionArgs,
+  SignActionResult,
+  AbortActionArgs,
+  AbortActionResult,
+  ListActionsArgs,
+  ListActionsResult,
+  InternalizeActionArgs,
+  InternalizeActionResult,
+  ListOutputsArgs,
+  ListOutputsResult,
+  RelinquishOutputArgs,
+  RelinquishOutputResult,
+  GetPublicKeyArgs,
+  GetPublicKeyResult,
+  RevealCounterpartyKeyLinkageArgs,
+  RevealCounterpartyKeyLinkageResult,
+  RevealSpecificKeyLinkageArgs,
+  RevealSpecificKeyLinkageResult,
+  WalletEncryptArgs,
+  WalletEncryptResult,
+  WalletDecryptArgs,
+  WalletDecryptResult,
+  CreateHmacArgs,
+  CreateHmacResult,
+  VerifyHmacArgs,
+  VerifyHmacResult,
+  CreateSignatureArgs,
+  CreateSignatureResult,
+  VerifySignatureArgs,
+  VerifySignatureResult,
+  AcquireCertificateArgs,
+  AcquireCertificateResult,
+  ListCertificatesArgs,
+  ListCertificatesResult,
+  ProveCertificateArgs,
+  ProveCertificateResult,
+  RelinquishCertificateArgs,
+  RelinquishCertificateResult,
+  DiscoverByIdentityKeyArgs,
+  DiscoverCertificatesResult,
+  DiscoverByAttributesArgs,
+  AuthenticatedResult,
+  GetHeightResult,
+  GetHeaderArgs,
+  GetHeaderResult,
+  GetNetworkResult,
+  GetVersionResult
 } from '../Wallet.interfaces.js'
 import { CallType } from './WalletWireCalls.js'
 
@@ -39,464 +62,115 @@ import { CallType } from './WalletWireCalls.js'
 export abstract class InvokableWalletBase implements WalletInterface {
   abstract invoke(call: CallType, args: any): Promise<any>
 
-  async createAction(args: {
-    description: DescriptionString5to50Bytes
-    inputs?: Array<{
-      tx?: BEEF
-      outpoint: OutpointString
-      unlockingScript?: HexString
-      unlockingScriptLength?: PositiveInteger
-      inputDescription: DescriptionString5to50Bytes
-      sequenceNumber?: PositiveIntegerOrZero
-    }>
-    outputs?: Array<{
-      lockingScript: HexString
-      satoshis: SatoshiValue
-      outputDescription: DescriptionString5to50Bytes
-      basket?: BasketStringUnder300Bytes
-      customInstructions?: string
-      tags?: OutputTagStringUnder300Bytes[]
-    }>
-    lockTime?: PositiveIntegerOrZero
-    version?: PositiveIntegerOrZero
-    labels?: LabelStringUnder300Bytes[]
-    options?: {
-      signAndProcess?: BooleanDefaultTrue
-      acceptDelayedBroadcast?: BooleanDefaultTrue
-      trustSelf?: 'known'
-      knownTxids?: TXIDHexString[]
-      returnTXIDOnly?: BooleanDefaultFalse
-      noSend?: BooleanDefaultFalse
-      noSendChange?: OutpointString[]
-      sendWith?: TXIDHexString[]
-    }
-  }): Promise<{
-    txid?: TXIDHexString
-    tx?: BEEF
-    noSendChange?: OutpointString[]
-    sendWithResults?: Array<{
-      txid: TXIDHexString
-      status: 'unproven' | 'sending' | 'failed'
-    }>
-    signableTransaction?: { tx: BEEF, reference: Base64String }
-  }> {
+  async createAction(args: CreateActionArgs): Promise<CreateActionResult> {
     return await this.invoke('createAction', args)
   }
 
-  async signAction(args: {
-    spends: Record<
-      PositiveIntegerOrZero,
-      { unlockingScript: HexString, sequenceNumber?: PositiveIntegerOrZero }
-    >
-    reference: Base64String
-    options?: {
-      acceptDelayedBroadcast?: BooleanDefaultTrue
-      returnTXIDOnly?: BooleanDefaultFalse
-      noSend?: BooleanDefaultFalse
-      noSendChange?: OutpointString[]
-      sendWith: TXIDHexString[]
-    }
-  }): Promise<{
-    txid?: TXIDHexString
-    tx?: BEEF
-    noSendChange?: OutpointString[]
-    sendWithResults?: Array<{
-      txid: TXIDHexString
-      status: 'unproven' | 'sending' | 'failed'
-    }>
-  }> {
+  async signAction(args: SignActionArgs): Promise<SignActionResult> {
     return await this.invoke('signAction', args)
   }
 
-  async abortAction(args: {
-    reference: Base64String
-  }): Promise<{ aborted: true }> {
+  async abortAction(args: AbortActionArgs): Promise<AbortActionResult> {
     return await this.invoke('abortAction', args)
   }
 
-  async listActions(args: {
-    labels: LabelStringUnder300Bytes[]
-    labelQueryMode?: 'any' | 'all'
-    includeLabels?: BooleanDefaultFalse
-    includeInputs?: BooleanDefaultFalse
-    includeInputSourceLockingScripts?: BooleanDefaultFalse
-    includeInputUnlockingScripts?: BooleanDefaultFalse
-    includeOutputs?: BooleanDefaultFalse
-    includeOutputLockingScripts?: BooleanDefaultFalse
-    limit?: PositiveIntegerDefault10Max10000
-    offset?: PositiveIntegerOrZero
-  }): Promise<{
-    totalActions: PositiveIntegerOrZero
-    actions: Array<{
-      txid: TXIDHexString
-      satoshis: SatoshiValue
-      status:
-      | 'completed'
-      | 'unprocessed'
-      | 'sending'
-      | 'unproven'
-      | 'unsigned'
-      | 'nosend'
-      | 'nonfinal'
-      isOutgoing: boolean
-      description: DescriptionString5to50Bytes
-      labels?: LabelStringUnder300Bytes[]
-      version: PositiveIntegerOrZero
-      lockTime: PositiveIntegerOrZero
-      inputs?: Array<{
-        sourceOutpoint: OutpointString
-        sourceSatoshis: SatoshiValue
-        sourceLockingScript?: HexString
-        unlockingScript?: HexString
-        inputDescription: DescriptionString5to50Bytes
-        sequenceNumber: PositiveIntegerOrZero
-      }>
-      outputs?: Array<{
-        outputIndex: PositiveIntegerOrZero
-        satoshis: SatoshiValue
-        lockingScript?: HexString
-        spendable: boolean
-        outputDescription: DescriptionString5to50Bytes
-        basket: BasketStringUnder300Bytes
-        tags: OutputTagStringUnder300Bytes[]
-        customInstructions?: string
-      }>
-    }>
-  }> {
+  async listActions(args: ListActionsArgs): Promise<ListActionsResult> {
     return await this.invoke('listActions', args)
   }
 
-  async internalizeAction(args: {
-    tx: BEEF
-    outputs: Array<{
-      outputIndex: PositiveIntegerOrZero
-      protocol: 'wallet payment' | 'basket insertion'
-      paymentRemittance?: {
-        derivationPrefix: Base64String
-        derivationSuffix: Base64String
-        senderIdentityKey: PubKeyHex
-      }
-      insertionRemittance?: {
-        basket: BasketStringUnder300Bytes
-        customInstructions?: string
-        tags?: OutputTagStringUnder300Bytes[]
-      }
-    }>
-    description: DescriptionString5to50Bytes
-    labels?: LabelStringUnder300Bytes[]
-  }): Promise<{ accepted: true }> {
+  async internalizeAction(args: InternalizeActionArgs): Promise<InternalizeActionResult> {
     return await this.invoke('internalizeAction', args)
   }
 
-  async listOutputs(args: {
-    basket: BasketStringUnder300Bytes
-    tags?: OutputTagStringUnder300Bytes[]
-    tagQueryMode?: 'all' | 'any'
-    include?: 'locking scripts' | 'entire transactions'
-    includeCustomInstructions?: BooleanDefaultFalse
-    includeTags?: BooleanDefaultFalse
-    includeLabels?: BooleanDefaultFalse
-    limit?: PositiveIntegerDefault10Max10000
-    offset?: PositiveIntegerOrZero
-  }): Promise<{
-    totalOutputs: PositiveIntegerOrZero
-    outputs: Array<{
-      outpoint: OutpointString
-      satoshis: SatoshiValue
-      lockingScript?: HexString
-      tx?: BEEF
-      spendable: boolean
-      customInstructions?: string
-      tags?: OutputTagStringUnder300Bytes[]
-      labels?: LabelStringUnder300Bytes[]
-    }>
-  }> {
+  async listOutputs(args: ListOutputsArgs): Promise<ListOutputsResult> {
     return await this.invoke('listOutputs', args)
   }
 
-  async relinquishOutput(args: {
-    basket: BasketStringUnder300Bytes
-    output: OutpointString
-  }): Promise<{ relinquished: true }> {
+  async relinquishOutput(args: RelinquishOutputArgs): Promise<RelinquishOutputResult> {
     return await this.invoke('relinquishOutput', args)
   }
 
-  async getPublicKey(args: {
-    identityKey?: true
-    protocolID?: [SecurityLevel, ProtocolString5To400Bytes]
-    keyID?: KeyIDStringUnder800Bytes
-    privileged?: BooleanDefaultFalse
-    privilegedReason?: DescriptionString5to50Bytes
-    counterparty?: PubKeyHex | 'self' | 'anyone'
-    forSelf?: BooleanDefaultFalse
-  }): Promise<{ publicKey: PubKeyHex }> {
+  async getPublicKey(args: GetPublicKeyArgs): Promise<GetPublicKeyResult> {
     return await this.invoke('getPublicKey', args)
   }
 
-  async revealCounterpartyKeyLinkage(args: {
-    counterparty: PubKeyHex
-    verifier: PubKeyHex
-    privilegedReason?: DescriptionString5to50Bytes
-    privileged?: BooleanDefaultFalse
-  }): Promise<{
-    prover: PubKeyHex
-    verifier: PubKeyHex
-    counterparty: PubKeyHex
-    revelationTime: ISOTimestampString
-    encryptedLinkage: Byte[]
-    encryptedLinkageProof: Byte[]
-  }> {
+  async revealCounterpartyKeyLinkage(args: RevealCounterpartyKeyLinkageArgs): Promise<RevealCounterpartyKeyLinkageResult> {
     return await this.invoke('revealCounterpartyKeyLinkage', args)
   }
 
-  async revealSpecificKeyLinkage(args: {
-    counterparty: PubKeyHex
-    verifier: PubKeyHex
-    protocolID: [SecurityLevel, ProtocolString5To400Bytes]
-    keyID: KeyIDStringUnder800Bytes
-    privilegedReason?: DescriptionString5to50Bytes
-    privileged?: BooleanDefaultFalse
-  }): Promise<{
-    prover: PubKeyHex
-    verifier: PubKeyHex
-    counterparty: PubKeyHex
-    protocolID: [SecurityLevel, ProtocolString5To400Bytes]
-    keyID: KeyIDStringUnder800Bytes
-    encryptedLinkage: Byte[]
-    encryptedLinkageProof: Byte[]
-    proofType: Byte
-  }> {
+  async revealSpecificKeyLinkage(args: RevealSpecificKeyLinkageArgs): Promise<RevealSpecificKeyLinkageResult> {
     return await this.invoke('revealSpecificKeyLinkage', args)
   }
 
-  async encrypt(args: {
-    plaintext: Byte[]
-    protocolID: [SecurityLevel, ProtocolString5To400Bytes]
-    keyID: KeyIDStringUnder800Bytes
-    privilegedReason?: DescriptionString5to50Bytes
-    counterparty?: PubKeyHex | 'self' | 'anyone'
-    privileged?: BooleanDefaultFalse
-  }): Promise<{ ciphertext: Byte[] }> {
+  async encrypt(args: WalletEncryptArgs): Promise<WalletEncryptResult> {
     return await this.invoke('encrypt', args)
   }
 
-  async decrypt(args: {
-    ciphertext: Byte[]
-    protocolID: [SecurityLevel, ProtocolString5To400Bytes]
-    keyID: KeyIDStringUnder800Bytes
-    privilegedReason?: DescriptionString5to50Bytes
-    counterparty?: PubKeyHex | 'self' | 'anyone'
-    privileged?: BooleanDefaultFalse
-  }): Promise<{ plaintext: Byte[] }> {
+  async decrypt(args: WalletDecryptArgs): Promise<WalletDecryptResult> {
     return await this.invoke('decrypt', args)
   }
 
-  async createHmac(args: {
-    data: Byte[]
-    protocolID: [SecurityLevel, ProtocolString5To400Bytes]
-    keyID: KeyIDStringUnder800Bytes
-    privilegedReason?: DescriptionString5to50Bytes
-    counterparty?: PubKeyHex | 'self' | 'anyone'
-    privileged?: BooleanDefaultFalse
-  }): Promise<{ hmac: Byte[] }> {
+  async createHmac(args: CreateHmacArgs): Promise<CreateHmacResult> {
     return await this.invoke('createHmac', args)
   }
 
-  async verifyHmac(args: {
-    data: Byte[]
-    hmac: Byte[]
-    protocolID: [SecurityLevel, ProtocolString5To400Bytes]
-    keyID: KeyIDStringUnder800Bytes
-    privilegedReason?: DescriptionString5to50Bytes
-    counterparty?: PubKeyHex | 'self' | 'anyone'
-    privileged?: BooleanDefaultFalse
-  }): Promise<{ valid: true }> {
+  async verifyHmac(args: VerifyHmacArgs): Promise<VerifyHmacResult> {
     return await this.invoke('verifyHmac', args)
   }
 
-  async createSignature(args: {
-    data?: Byte[]
-    hashToDirectlySign?: Byte[]
-    protocolID: [SecurityLevel, ProtocolString5To400Bytes]
-    keyID: KeyIDStringUnder800Bytes
-    privilegedReason?: DescriptionString5to50Bytes
-    counterparty?: PubKeyHex | 'self' | 'anyone'
-    privileged?: BooleanDefaultFalse
-  }): Promise<{ signature: Byte[] }> {
+  async createSignature(args: CreateSignatureArgs): Promise<CreateSignatureResult> {
     return await this.invoke('createSignature', args)
   }
 
-  async verifySignature(args: {
-    data?: Byte[]
-    hashToDirectlyVerify?: Byte[]
-    signature: Byte[]
-    protocolID: [SecurityLevel, ProtocolString5To400Bytes]
-    keyID: KeyIDStringUnder800Bytes
-    privilegedReason?: DescriptionString5to50Bytes
-    counterparty?: PubKeyHex | 'self' | 'anyone'
-    forSelf?: BooleanDefaultFalse
-    privileged?: BooleanDefaultFalse
-  }): Promise<{ valid: true }> {
+  async verifySignature(args: VerifySignatureArgs): Promise<VerifySignatureResult> {
     return await this.invoke('verifySignature', args)
   }
 
-  async acquireCertificate(args: {
-    type: Base64String
-    subject: PubKeyHex
-    serialNumber: Base64String
-    revocationOutpoint: OutpointString
-    signature: HexString
-    fields: Record<CertificateFieldNameUnder50Bytes, string>
-    certifier: PubKeyHex
-    keyringRevealer: PubKeyHex | 'certifier'
-    keyringForSubject: Record<CertificateFieldNameUnder50Bytes, Base64String>
-    acquisitionProtocol: 'direct' | 'issuance'
-    certifierUrl?: string
-  }): Promise<{
-    type: Base64String
-    subject: PubKeyHex
-    serialNumber: Base64String
-    certifier: PubKeyHex
-    revocationOutpoint: OutpointString
-    signature: HexString
-    fields: Record<CertificateFieldNameUnder50Bytes, string>
-  }> {
+  async acquireCertificate(args: AcquireCertificateArgs): Promise<AcquireCertificateResult> {
     return await this.invoke('acquireCertificate', args)
   }
 
-  async listCertificates(args: {
-    certifiers: PubKeyHex[]
-    types: Base64String[]
-    limit?: PositiveIntegerDefault10Max10000
-    offset?: PositiveIntegerOrZero
-    privileged?: BooleanDefaultFalse
-    privilegedReason?: DescriptionString5to50Bytes
-  }): Promise<{
-    totalCertificates: PositiveIntegerOrZero
-    certificates: Array<{
-      type: Base64String
-      subject: PubKeyHex
-      serialNumber: Base64String
-      certifier: PubKeyHex
-      revocationOutpoint: OutpointString
-      signature: HexString
-      fields: Record<CertificateFieldNameUnder50Bytes, string>
-    }>
-  }> {
+  async listCertificates(args: ListCertificatesArgs): Promise<ListCertificatesResult> {
     return await this.invoke('listCertificates', args)
   }
 
-  async proveCertificate(args: {
-    certificate: {
-      type: Base64String
-      subject: PubKeyHex
-      serialNumber: Base64String
-      certifier: PubKeyHex
-      revocationOutpoint: OutpointString
-      signature: HexString
-      fields: Record<CertificateFieldNameUnder50Bytes, string>
-    }
-    fieldsToReveal: CertificateFieldNameUnder50Bytes[]
-    verifier: PubKeyHex
-    privileged?: BooleanDefaultFalse
-    privilegedReason?: DescriptionString5to50Bytes
-  }): Promise<{
-    keyringForVerifier: Record<CertificateFieldNameUnder50Bytes, Base64String>
-  }> {
+  async proveCertificate(args: ProveCertificateArgs): Promise<ProveCertificateResult> {
     return await this.invoke('proveCertificate', args)
   }
 
-  async relinquishCertificate(args: {
-    type: Base64String
-    serialNumber: Base64String
-    certifier: PubKeyHex
-  }): Promise<{ relinquished: true }> {
+  async relinquishCertificate(args: RelinquishCertificateArgs): Promise<RelinquishCertificateResult> {
     return await this.invoke('relinquishCertificate', args)
   }
 
-  async discoverByIdentityKey(args: {
-    identityKey: PubKeyHex
-    limit?: PositiveIntegerDefault10Max10000
-    offset?: PositiveIntegerOrZero
-  }): Promise<{
-    totalCertificates: PositiveIntegerOrZero
-    certificates: Array<{
-      type: Base64String
-      subject: PubKeyHex
-      serialNumber: Base64String
-      certifier: PubKeyHex
-      revocationOutpoint: OutpointString
-      signature: HexString
-      fields: Record<CertificateFieldNameUnder50Bytes, Base64String>
-      certifierInfo: {
-        name: EntityNameStringMax100Bytes
-        iconUrl: EntityIconURLStringMax500Bytes
-        description: DescriptionString5to50Bytes
-        trust: PositiveIntegerMax10
-      }
-      publiclyRevealedKeyring: Record<
-        CertificateFieldNameUnder50Bytes,
-        Base64String
-      >
-      decryptedFields: Record<CertificateFieldNameUnder50Bytes, string>
-    }>
-  }> {
+  async discoverByIdentityKey(args: DiscoverByIdentityKeyArgs): Promise<DiscoverCertificatesResult> {
     return await this.invoke('discoverByIdentityKey', args)
   }
 
-  async discoverByAttributes(args: {
-    attributes: Record<CertificateFieldNameUnder50Bytes, string>
-    limit?: PositiveIntegerDefault10Max10000
-    offset?: PositiveIntegerOrZero
-  }): Promise<{
-    totalCertificates: PositiveIntegerOrZero
-    certificates: Array<{
-      type: Base64String
-      subject: PubKeyHex
-      serialNumber: Base64String
-      certifier: PubKeyHex
-      revocationOutpoint: OutpointString
-      signature: HexString
-      fields: Record<CertificateFieldNameUnder50Bytes, Base64String>
-      certifierInfo: {
-        name: EntityNameStringMax100Bytes
-        iconUrl: EntityIconURLStringMax500Bytes
-        description: DescriptionString5to50Bytes
-        trust: PositiveIntegerMax10
-      }
-      publiclyRevealedKeyring: Record<
-        CertificateFieldNameUnder50Bytes,
-        Base64String
-      >
-      decryptedFields: Record<CertificateFieldNameUnder50Bytes, string>
-    }>
-  }> {
+  async discoverByAttributes(args: DiscoverByAttributesArgs): Promise<DiscoverCertificatesResult> {
     return await this.invoke('discoverByAttributes', args)
   }
 
-  async isAuthenticated(args: {}): Promise<{ authenticated: true }> {
+  async isAuthenticated(args: {}): Promise<AuthenticatedResult> {
     return await this.invoke('isAuthenticated', args)
   }
 
-  async waitForAuthentication(args: {}): Promise<{ authenticated: true }> {
+  async waitForAuthentication(args: {}): Promise<AuthenticatedResult> {
     return await this.invoke('waitForAuthentication', args)
   }
 
-  async getHeight(args: {}): Promise<{ height: PositiveInteger }> {
+  async getHeight(args: {}): Promise<GetHeightResult> {
     return await this.invoke('getHeight', args)
   }
 
-  async getHeaderForHeight(args: {
-    height: PositiveInteger
-  }): Promise<{ header: HexString }> {
+  async getHeaderForHeight(args: GetHeaderArgs): Promise<GetHeaderResult> {
     return await this.invoke('getHeaderForHeight', args)
   }
 
-  async getNetwork(args: {}): Promise<{ network: 'mainnet' | 'testnet' }> {
+  async getNetwork(args: {}): Promise<GetNetworkResult> {
     return await this.invoke('getNetwork', args)
   }
 
-  async getVersion(args: {}): Promise<{ version: VersionString7To30Bytes }> {
+  async getVersion(args: {}): Promise<GetVersionResult> {
     return await this.invoke('getVersion', args)
   }
 }
