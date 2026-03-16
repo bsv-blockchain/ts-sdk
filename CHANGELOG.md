@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [2.0.10 - 2026-03-16](#2010---2026-03-16)
 - [2.0.9 - 2026-03-16](#209---2026-03-16)
 - [2.0.8 - 2026-03-16](#208---2026-03-16)
 - [2.0.7 - 2026-03-10](#207---2026-03-10)
@@ -216,6 +217,15 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [2.0.10] - 2026-03-16
+
+### Added
+- Optional `reference` field (`Base64String`) on `CreateActionArgs`, `ListActionsArgs`, and `InternalizeActionArgs` interfaces for correlating related actions.
+- Wire serialization/deserialization of the `reference` field in `WalletWireProcessor` and `WalletWireTransceiver`.
+- Validation of the `reference` field in `validationHelpers.ts`.
 
 ---
 
