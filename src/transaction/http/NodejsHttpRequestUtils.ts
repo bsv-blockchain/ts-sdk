@@ -7,7 +7,7 @@ import {
 export interface NodejsRequestLike {
   write: (chunk: any) => void
   on: (event: string, callback: (data: any) => void) => void
-  end: (() => void) & (() => void)
+  end: () => void
 }
 
 /** Common interface for Node.js https modules */

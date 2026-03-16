@@ -77,11 +77,11 @@ export default class P2PKH implements ScriptTemplate {
         sourceSatoshis = resolved.sourceSatoshis
         lockingScript = resolved.lockingScript
 
-        const preimage = formatPreimage(
+        const preimage = formatPreimage({
           tx, inputIndex, signatureScope,
-          resolved.sourceTXID, resolved.sourceSatoshis,
-          resolved.lockingScript, resolved.otherInputs
-        )
+          sourceTXID: resolved.sourceTXID, sourceSatoshis: resolved.sourceSatoshis,
+          lockingScript: resolved.lockingScript, otherInputs: resolved.otherInputs
+        })
 
         const rawSignature = privateKey.sign(sha256(preimage))
         const sig = new TransactionSignature(

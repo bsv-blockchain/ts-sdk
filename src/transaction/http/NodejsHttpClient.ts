@@ -3,7 +3,7 @@ import {
   HttpClientRequestOptions,
   HttpClientResponse
 } from './HttpClient.js'
-import { HttpsModuleLike, NodejsRequestLike, executeNodejsRequest } from './NodejsHttpRequestUtils.js'
+import { HttpsModuleLike, executeNodejsRequest } from './NodejsHttpRequestUtils.js'
 
 /** Node Https module interface limited to options needed by ts-sdk */
 export interface HttpsNodejs {
@@ -20,7 +20,7 @@ export interface NodejsHttpClientRequest {
 
   on: (event: string, callback: (data: any) => void) => void
 
-  end: (() => void) & (() => void)
+  end: () => void
 }
 
 /**

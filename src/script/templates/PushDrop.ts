@@ -222,12 +222,12 @@ export default class PushDrop implements ScriptTemplate {
         sourceSatoshis = resolved.sourceSatoshis
         lockingScript = resolved.lockingScript as LockingScript
 
-        const preimage = formatPreimage(
+        const preimage = formatPreimage({
           tx, inputIndex, signatureScope,
-          resolved.sourceTXID, resolved.sourceSatoshis,
-          resolved.lockingScript, resolved.otherInputs,
-          tx.inputs[inputIndex].sequence ?? 0xffffffff
-        )
+          sourceTXID: resolved.sourceTXID, sourceSatoshis: resolved.sourceSatoshis,
+          lockingScript: resolved.lockingScript, otherInputs: resolved.otherInputs,
+          inputSequence: tx.inputs[inputIndex].sequence ?? 0xffffffff
+        })
 
         const preimageHash = Hash.sha256(preimage)
         const { signature: bareSignature } = await this.wallet.createSignature({

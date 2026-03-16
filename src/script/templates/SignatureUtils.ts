@@ -77,19 +77,23 @@ export function resolveSourceDetails(
   return { sourceTXID, sourceSatoshis, lockingScript, otherInputs }
 }
 
+/** Parameters for formatting the transaction preimage */
+export interface FormatPreimageParams {
+  tx: Transaction
+  inputIndex: number
+  signatureScope: number
+  sourceTXID: string
+  sourceSatoshis: number
+  lockingScript: Script
+  otherInputs: Transaction['inputs']
+  inputSequence?: number
+}
+
 /**
  * Formats the transaction preimage for signing.
  */
-export function formatPreimage(
-  tx: Transaction,
-  inputIndex: number,
-  signatureScope: number,
-  sourceTXID: string,
-  sourceSatoshis: number,
-  lockingScript: Script,
-  otherInputs: typeof tx.inputs,
-  inputSequence?: number
-): number[] {
+export function formatPreimage(params: FormatPreimageParams): number[] {
+  const { tx, inputIndex, signatureScope, sourceTXID, sourceSatoshis, lockingScript, otherInputs, inputSequence } = params
   const input = tx.inputs[inputIndex]
   return TransactionSignature.format({
     sourceTXID,
