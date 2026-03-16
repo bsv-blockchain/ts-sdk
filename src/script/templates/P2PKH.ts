@@ -1,6 +1,6 @@
 import OP from '../OP.js'
 import ScriptTemplate from '../ScriptTemplate.js'
-import { fromBase58Check, verifyNotNull } from '../../primitives/utils.js'
+import { fromBase58Check } from '../../primitives/utils.js'
 import LockingScript from '../LockingScript.js'
 import UnlockingScript from '../UnlockingScript.js'
 import Transaction from '../../transaction/Transaction.js'
@@ -8,6 +8,7 @@ import PrivateKey from '../../primitives/PrivateKey.js'
 import TransactionSignature from '../../primitives/TransactionSignature.js'
 import { sha256 } from '../../primitives/Hash.js'
 import Script from '../Script.js'
+import { computeSignatureScope, resolveSourceDetails, formatPreimage } from './SignatureUtils.js'
 
 /**
  * P2PKH (Pay To Public Key Hash) class implementing ScriptTemplate.
@@ -71,65 +72,15 @@ export default class P2PKH implements ScriptTemplate {
   } {
     return {
       sign: async (tx: Transaction, inputIndex: number) => {
-        let signatureScope = TransactionSignature.SIGHASH_FORKID
-        if (signOutputs === 'all') {
-          signatureScope |= TransactionSignature.SIGHASH_ALL
-        }
-        if (signOutputs === 'none') {
-          signatureScope |= TransactionSignature.SIGHASH_NONE
-        }
-        if (signOutputs === 'single') {
-          signatureScope |= TransactionSignature.SIGHASH_SINGLE
-        }
-        if (anyoneCanPay) {
-          signatureScope |= TransactionSignature.SIGHASH_ANYONECANPAY
-        }
+        const signatureScope = computeSignatureScope(signOutputs, anyoneCanPay)
+        const resolved = resolveSourceDetails(tx, inputIndex, sourceSatoshis, lockingScript)
+        sourceSatoshis = resolved.sourceSatoshis
+        lockingScript = resolved.lockingScript
 
-        const input = tx.inputs[inputIndex]
-
-        const otherInputs = tx.inputs.filter(
-          (_, index) => index !== inputIndex
-        )
-
-        const sourceTXID = input.sourceTXID ?? input.sourceTransaction?.id('hex')
-        if (sourceTXID == null || sourceTXID === undefined) {
-          throw new Error(
-            'The input sourceTXID or sourceTransaction is required for transaction signing.'
-          )
-        }
-        if (sourceTXID === '') {
-          throw new Error(
-            'The input sourceTXID or sourceTransaction is required for transaction signing.'
-          )
-        }
-        sourceSatoshis ||=
-          input.sourceTransaction?.outputs[input.sourceOutputIndex].satoshis
-        if (sourceSatoshis == null || sourceSatoshis === undefined) {
-          throw new Error(
-            'The sourceSatoshis or input sourceTransaction is required for transaction signing.'
-          )
-        }
-        lockingScript ||=
-          input.sourceTransaction?.outputs[input.sourceOutputIndex]
-            .lockingScript
-        if (lockingScript == null) {
-          throw new Error(
-            'The lockingScript or input sourceTransaction is required for transaction signing.'
-          )
-        }
-
-        const preimage = TransactionSignature.format({
-          sourceTXID,
-          sourceOutputIndex: verifyNotNull(input.sourceOutputIndex, 'input.sourceOutputIndex must have value'),
-          sourceSatoshis,
-          transactionVersion: tx.version,
-          otherInputs,
-          inputIndex,
-          outputs: tx.outputs,
-          inputSequence: verifyNotNull(input.sequence, 'input.sequence must have value'),
-          subscript: lockingScript,
-          lockTime: tx.lockTime,
-          scope: signatureScope
+        const preimage = formatPreimage({
+          tx, inputIndex, signatureScope,
+          sourceTXID: resolved.sourceTXID, sourceSatoshis: resolved.sourceSatoshis,
+          lockingScript: resolved.lockingScript, otherInputs: resolved.otherInputs
         })
 
         const rawSignature = privateKey.sign(sha256(preimage))

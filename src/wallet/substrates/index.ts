@@ -1,3 +1,4 @@
+export { InvokableWalletBase } from './InvokableWalletBase.js'
 export { default as WindowCWISubstrate } from './window.CWI.js'
 export { default as XDM } from './XDM.js'
 export * from './WalletWire.js'
