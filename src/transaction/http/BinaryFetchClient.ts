@@ -3,6 +3,7 @@ import {
   HttpClientRequestOptions,
   HttpClientResponse
 } from './HttpClient.js'
+import { HttpsModuleLike, NodejsRequestLike, executeNodejsRequest } from './NodejsHttpRequestUtils.js'
 
 /** Node Https module interface limited to options needed by ts-sdk */
 export interface BinaryHttpsNodejs {
@@ -32,37 +33,12 @@ export class BinaryNodejsHttpClient implements HttpClient {
     url: string,
     requestOptions: HttpClientRequestOptions
   ): Promise<HttpClientResponse> {
-    return await new Promise((resolve, reject) => {
-      const req = this.https.request(url, requestOptions, (res) => {
-        let body = ''
-        res.on('data', (chunk: string) => {
-          body += chunk
-        })
-        res.on('end', () => {
-          const ok = res.statusCode >= 200 && res.statusCode <= 299
-          const mediaType = res.headers['content-type']
-          const data =
-            body !== '' && typeof mediaType === 'string' && mediaType.startsWith('application/json')
-              ? JSON.parse(body)
-              : body
-          resolve({
-            status: res.statusCode,
-            statusText: res.statusMessage,
-            ok,
-            data
-          })
-        })
-      })
-
-      req.on('error', (error: Error) => {
-        reject(error)
-      })
-
-      if (requestOptions.data !== null && requestOptions.data !== undefined) {
-        req.write(Buffer.from(requestOptions.data))
-      }
-      req.end()
-    })
+    return await executeNodejsRequest(
+      this.https as unknown as HttpsModuleLike,
+      url,
+      requestOptions,
+      (data) => Buffer.from(data)
+    )
   }
 }
 

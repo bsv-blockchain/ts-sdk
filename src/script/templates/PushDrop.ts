@@ -9,6 +9,7 @@ import {
 import { WalletInterface, WalletProtocol } from '../../wallet/Wallet.interfaces.js'
 import { Transaction } from '../../transaction/index.js'
 import { verifyNotNull } from '../../primitives/utils.js'
+import { computeSignatureScope, resolveSourceDetails, formatPreimage } from './SignatureUtils.js'
 
 /**
  * For a given piece of data to push onto the stack in script, creates the correct minimally-encoded script chunk,
@@ -216,61 +217,17 @@ export default class PushDrop implements ScriptTemplate {
         tx: Transaction,
         inputIndex: number
       ): Promise<UnlockingScript> => {
-        let signatureScope = TransactionSignature.SIGHASH_FORKID
-        if (signOutputs === 'all') {
-          signatureScope |= TransactionSignature.SIGHASH_ALL
-        }
-        if (signOutputs === 'none') {
-          signatureScope |= TransactionSignature.SIGHASH_NONE
-        }
-        if (signOutputs === 'single') {
-          signatureScope |= TransactionSignature.SIGHASH_SINGLE
-        }
-        if (anyoneCanPay) {
-          signatureScope |= TransactionSignature.SIGHASH_ANYONECANPAY
-        }
+        const signatureScope = computeSignatureScope(signOutputs, anyoneCanPay)
+        const resolved = resolveSourceDetails(tx, inputIndex, sourceSatoshis, lockingScript)
+        sourceSatoshis = resolved.sourceSatoshis
+        lockingScript = resolved.lockingScript as LockingScript
 
-        const input = tx.inputs[inputIndex]
-
-        const otherInputs = tx.inputs.filter(
-          (_, index) => index !== inputIndex
+        const preimage = formatPreimage(
+          tx, inputIndex, signatureScope,
+          resolved.sourceTXID, resolved.sourceSatoshis,
+          resolved.lockingScript, resolved.otherInputs,
+          tx.inputs[inputIndex].sequence ?? 0xffffffff
         )
-
-        const sourceTXID = input.sourceTXID ?? input.sourceTransaction?.id('hex')
-        if (sourceTXID == null || sourceTXID === undefined) {
-          throw new Error(
-            'The input sourceTXID or sourceTransaction is required for transaction signing.'
-          )
-        }
-        sourceSatoshis ||=
-          input.sourceTransaction?.outputs[input.sourceOutputIndex].satoshis
-        if (sourceSatoshis == null || sourceSatoshis === undefined) {
-          throw new Error(
-            'The sourceSatoshis or input sourceTransaction is required for transaction signing.'
-          )
-        }
-        lockingScript ||=
-          input.sourceTransaction?.outputs[input.sourceOutputIndex]
-            .lockingScript
-        if (lockingScript == null) {
-          throw new Error(
-            'The lockingScript or input sourceTransaction is required for transaction signing.'
-          )
-        }
-
-        const preimage = TransactionSignature.format({
-          sourceTXID,
-          sourceOutputIndex: verifyNotNull(input.sourceOutputIndex, 'input.sourceOutputIndex must have value'),
-          sourceSatoshis,
-          transactionVersion: tx.version,
-          otherInputs,
-          inputIndex,
-          outputs: tx.outputs,
-          inputSequence: input.sequence ?? 0xffffffff,
-          subscript: lockingScript,
-          lockTime: tx.lockTime,
-          scope: signatureScope
-        })
 
         const preimageHash = Hash.sha256(preimage)
         const { signature: bareSignature } = await this.wallet.createSignature({
