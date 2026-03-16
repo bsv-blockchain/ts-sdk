@@ -1302,8 +1302,8 @@ export default class Transaction {
    * @returns The formatted preimage
    */
   preimage (inputIndex?: number, signatureScope?: number, subscript?: LockingScript): number[] {
-    if (inputIndex === undefined) inputIndex = 0
-    if (signatureScope === undefined) signatureScope = TransactionSignature.SIGHASH_FORKID | TransactionSignature.SIGHASH_ALL
+    inputIndex ??= 0
+    signatureScope ??= TransactionSignature.SIGHASH_FORKID | TransactionSignature.SIGHASH_ALL
     if (inputIndex < 0 || inputIndex >= this.inputs.length) {
       throw new Error('Invalid input index')
     }
