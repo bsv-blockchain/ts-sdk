@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [2.0.8 - 2026-03-16](#208---2026-03-16)
 - [2.0.7 - 2026-03-10](#207---2026-03-10)
 - [2.0.6 - 2026-03-07](#206---2026-03-07)
 - [2.0.5 - 2026-02-27](#205---2026-02-27)
@@ -214,6 +215,14 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [2.0.8] - 2026-03-16
+
+### Fixed
+- Added explicit `type` import for `WalletInterface`, `DescriptionString5to50Bytes`, and `CreateActionOptions` in `Transaction.ts` to prevent downstream TypeScript build errors when consuming `@bsv/sdk` (e.g. from `@bsv/wallet`).
+- Fixed `MockWallet` class in `Transaction.test.ts` that used an invalid `implements Partial<WalletInterface>` clause, causing type errors under strict compilation. Replaced with `as unknown as WalletInterface` casts at call sites.
 
 ---
 
