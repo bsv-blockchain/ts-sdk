@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [2.0.9 - 2026-03-16](#209---2026-03-16)
 - [2.0.8 - 2026-03-16](#208---2026-03-16)
 - [2.0.7 - 2026-03-10](#207---2026-03-10)
 - [2.0.6 - 2026-03-07](#206---2026-03-07)
@@ -215,6 +216,17 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [2.0.9] - 2026-03-16
+
+### Added
+- `Transaction.preimage()` method — returns the sighash preimage for a given input index, signature scope (default `SIGHASH_FORKID | SIGHASH_ALL`), and optional subscript.
+
+### Fixed
+- `TransactionSignature` was not exported as a default export, causing incorrect named-import usage in `Spend.ts` and downstream consumers; corrected to `export default class TransactionSignature`.
+- Export `SignatureHashCache` type from `primitives/index.ts` so consumers can reference it without reaching into internals.
 
 ---
 
