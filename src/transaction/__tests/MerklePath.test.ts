@@ -1,7 +1,11 @@
 import ChainTracker from '../ChainTracker'
 import MerklePath from '../../transaction/MerklePath'
+import { hash256 } from '../../primitives/Hash'
+import { toHex, toArray } from '../../primitives/utils'
 import invalidBumps from './bump.invalid.vectors'
 import validBumps from './bump.valid.vectors'
+
+const merkleHash = (m: string): string => toHex(hash256(toArray(m, 'hex').reverse()).reverse())
 
 const BRC74Hex =
   'fe8a6a0c000c04fde80b0011774f01d26412f0d16ea3f0447be0b5ebec67b0782e321a7a01cbdf7f734e30fde90b02004e53753e3fe4667073063a17987292cfdea278824e9888e52180581d7188d8fdea0b025e441996fc53f0191d649e68a200e752fb5f39e0d5617083408fa179ddc5c998fdeb0b0102fdf405000671394f72237d08a4277f4435e5b6edf7adc272f25effef27cdfe805ce71a81fdf50500262bccabec6c4af3ed00cc7a7414edea9c5efa92fb8623dd6160a001450a528201fdfb020101fd7c010093b3efca9b77ddec914f8effac691ecb54e2c81d0ab81cbc4c4b93befe418e8501bf01015e005881826eb6973c54003a02118fe270f03d46d02681c8bc71cd44c613e86302f8012e00e07a2bb8bb75e5accff266022e1e5e6e7b4d6d943a04faadcf2ab4a22f796ff30116008120cafa17309c0bb0e0ffce835286b3a2dcae48e4497ae2d2b7ced4f051507d010a00502e59ac92f46543c23006bff855d96f5e648043f0fb87a7a5949e6a9bebae430104001ccd9f8f64f4d0489b30cc815351cf425e0e78ad79a589350e4341ac165dbe45010301010000af8764ce7e1cc132ab5ed2229a005c87201c9a5ee15c0f91dd53eff31ab30cd4'
@@ -131,6 +135,26 @@ class FakeChainTracker implements ChainTracker {
   }
 }
 
+/** Splits BRC74JSON into two partial paths (A covers txid2, B covers txid3) ready to combine. */
+function buildSplitPaths (): [MerklePath, MerklePath] {
+  const path0A = [...BRC74JSON.path[0]]
+  const path0B = [...BRC74JSON.path[0]]
+  const path1A = [...BRC74JSON.path[1]]
+  const path1B = [...BRC74JSON.path[1]]
+  const pathRest = [...BRC74JSON.path]
+  pathRest.shift()
+  pathRest.shift()
+  path0A.splice(2, 2)
+  path0B.shift()
+  path0B.shift()
+  path1A.shift()
+  path1B.pop()
+  return [
+    new MerklePath(BRC74JSON.blockHeight, [path0A, path1A, ...pathRest]),
+    new MerklePath(BRC74JSON.blockHeight, [path0B, path1B, ...pathRest])
+  ]
+}
+
 describe('MerklePath', () => {
   it('Parses from hex', () => {
     const path = MerklePath.fromHex(BRC74Hex)
@@ -163,28 +187,7 @@ describe('MerklePath', () => {
     )
   })
   it('Combines two paths', () => {
-    const path0A = [...BRC74JSON.path[0]]
-    const path0B = [...BRC74JSON.path[0]]
-    const path1A = [...BRC74JSON.path[1]]
-    const path1B = [...BRC74JSON.path[1]]
-    const pathRest = [...BRC74JSON.path]
-    pathRest.shift()
-    pathRest.shift()
-    path0A.splice(2, 2)
-    path0B.shift()
-    path0B.shift()
-    path1A.shift()
-    path1B.pop()
-    const pathAJSON = {
-      blockHeight: BRC74JSON.blockHeight,
-      path: [path0A, path1A, ...pathRest]
-    }
-    const pathBJSON = {
-      blockHeight: BRC74JSON.blockHeight,
-      path: [path0B, path1B, ...pathRest]
-    }
-    const pathA = new MerklePath(pathAJSON.blockHeight, pathAJSON.path)
-    const pathB = new MerklePath(pathBJSON.blockHeight, pathBJSON.path)
+    const [pathA, pathB] = buildSplitPaths()
     expect(pathA.computeRoot(BRC74TXID2)).toEqual(BRC74Root)
     expect(() => pathA.computeRoot(BRC74TXID3)).toThrow()
     expect(() => pathB.computeRoot(BRC74TXID2)).toThrow()
@@ -195,42 +198,21 @@ describe('MerklePath', () => {
     expect(pathA.computeRoot(BRC74TXID3)).toEqual(BRC74Root)
   })
   it('Serializes and deserializes a combined trimmed path', () => {
-    const path0A = [...BRC74JSON.path[0]]
-    const path0B = [...BRC74JSON.path[0]]
-    const path1A = [...BRC74JSON.path[1]]
-    const path1B = [...BRC74JSON.path[1]]
-    const pathRest = [...BRC74JSON.path]
-    pathRest.shift()
-    pathRest.shift()
-    path0A.splice(2, 2)
-    path0B.shift()
-    path0B.shift()
-    path1A.shift()
-    path1B.pop()
-    const pathA = new MerklePath(BRC74JSON.blockHeight, [path0A, path1A, ...pathRest])
-    const pathB = new MerklePath(BRC74JSON.blockHeight, [path0B, path1B, ...pathRest])
+    const [pathA, pathB] = buildSplitPaths()
     pathA.combine(pathB)
-    const hex = pathA.toHex()
     let deserialized: MerklePath
-    expect(() => { deserialized = MerklePath.fromHex(hex) }).not.toThrow()
+    expect(() => { deserialized = MerklePath.fromHex(pathA.toHex()) }).not.toThrow()
     expect(deserialized!.computeRoot(BRC74TXID2)).toEqual(BRC74Root)
     expect(deserialized!.computeRoot(BRC74TXID3)).toEqual(BRC74Root)
   })
   it('Constructs a compound path from all txids at level 0 only', () => {
     // A single-level compound path: all txids for a block given at level 0, no higher levels.
     // The implementation should be able to compute the merkle root by calculating up from the leaves.
-    const { hash256 } = require('../../primitives/Hash')
-    const { toHex: hex2, toArray: arr } = require('../../primitives/utils')
-    const hashFn = (m: string): string => hex2(hash256(arr(m, 'hex').reverse()).reverse())
     const tx0 = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     const tx1 = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
     const tx2 = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
     const tx3 = 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
-    // Compute the expected 4-tx merkle root
-    const n01 = hashFn(tx1 + tx0) // parent of (tx0 even, tx1 odd): hash(right+left)
-    const n23 = hashFn(tx3 + tx2) // parent of (tx2 even, tx3 odd)
-    const root4 = hashFn(n23 + n01) // root: hash(right+left) where right=n23(odd offset 1), left=n01(even offset 0)
-    // Constructing with only level 0: all 4 txids, no higher levels provided
+    const root4 = merkleHash(merkleHash(tx3 + tx2) + merkleHash(tx1 + tx0))
     let mp: MerklePath
     expect(() => {
       mp = new MerklePath(100, [[
@@ -245,9 +227,8 @@ describe('MerklePath', () => {
     expect(mp!.computeRoot(tx2)).toEqual(root4)
     expect(mp!.computeRoot(tx3)).toEqual(root4)
     // Serializing and deserializing a single-level compound path should also work
-    const hex = mp!.toHex()
     let deserialized: MerklePath
-    expect(() => { deserialized = MerklePath.fromHex(hex) }).not.toThrow()
+    expect(() => { deserialized = MerklePath.fromHex(mp!.toHex()) }).not.toThrow()
     expect(deserialized!.computeRoot(tx0)).toEqual(root4)
     expect(deserialized!.computeRoot(tx3)).toEqual(root4)
   })
