@@ -281,9 +281,19 @@ export default class MerklePath {
     // special case for blocks with only one transaction
     if (this.path.length === 1 && this.path[0].length === 1) return workingHash
 
-    for (let height = 0; height < this.path.length; height++) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const leaves = this.path[height]
+    // Determine effective tree height. For a compound path where all txids are at level 0
+    // (path.length === 1 or intermediate levels are empty/trimmed), we need to compute up
+    // to the height implied by the highest offset present in path[0].
+    let treeHeight = this.path.length
+    const maxOffset = this.path[0].reduce((max, l) => Math.max(max, l.offset), 0)
+    if (maxOffset > 0) {
+      let bits = 0
+      let mo = maxOffset
+      while (mo > 0) { mo >>>= 1; bits++ }
+      treeHeight = Math.max(treeHeight, bits)
+    }
+
+    for (let height = 0; height < treeHeight; height++) {
       const offset = (index >> height) ^ 1
       const leaf = this.findOrComputeLeaf(height, offset)
       if (typeof leaf !== 'object') {
@@ -315,9 +325,9 @@ export default class MerklePath {
     const hash = (m: string): string =>
       toHex(hash256(toArray(m, 'hex').reverse()).reverse())
 
-    let leaf: MerklePathLeaf | undefined = this.path[height].find(
-      (l) => l.offset === offset
-    )
+    let leaf: MerklePathLeaf | undefined = height < this.path.length
+      ? this.path[height].find((l) => l.offset === offset)
+      : undefined
 
     if (leaf != null) return leaf
 

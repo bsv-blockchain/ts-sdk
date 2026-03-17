@@ -194,6 +194,63 @@ describe('MerklePath', () => {
     expect(pathA.computeRoot(BRC74TXID2)).toEqual(BRC74Root)
     expect(pathA.computeRoot(BRC74TXID3)).toEqual(BRC74Root)
   })
+  it('Serializes and deserializes a combined trimmed path', () => {
+    const path0A = [...BRC74JSON.path[0]]
+    const path0B = [...BRC74JSON.path[0]]
+    const path1A = [...BRC74JSON.path[1]]
+    const path1B = [...BRC74JSON.path[1]]
+    const pathRest = [...BRC74JSON.path]
+    pathRest.shift()
+    pathRest.shift()
+    path0A.splice(2, 2)
+    path0B.shift()
+    path0B.shift()
+    path1A.shift()
+    path1B.pop()
+    const pathA = new MerklePath(BRC74JSON.blockHeight, [path0A, path1A, ...pathRest])
+    const pathB = new MerklePath(BRC74JSON.blockHeight, [path0B, path1B, ...pathRest])
+    pathA.combine(pathB)
+    const hex = pathA.toHex()
+    let deserialized: MerklePath
+    expect(() => { deserialized = MerklePath.fromHex(hex) }).not.toThrow()
+    expect(deserialized!.computeRoot(BRC74TXID2)).toEqual(BRC74Root)
+    expect(deserialized!.computeRoot(BRC74TXID3)).toEqual(BRC74Root)
+  })
+  it('Constructs a compound path from all txids at level 0 only', () => {
+    // A single-level compound path: all txids for a block given at level 0, no higher levels.
+    // The implementation should be able to compute the merkle root by calculating up from the leaves.
+    const { hash256 } = require('../../primitives/Hash')
+    const { toHex: hex2, toArray: arr } = require('../../primitives/utils')
+    const hashFn = (m: string): string => hex2(hash256(arr(m, 'hex').reverse()).reverse())
+    const tx0 = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    const tx1 = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    const tx2 = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+    const tx3 = 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
+    // Compute the expected 4-tx merkle root
+    const n01 = hashFn(tx1 + tx0) // parent of (tx0 even, tx1 odd): hash(right+left)
+    const n23 = hashFn(tx3 + tx2) // parent of (tx2 even, tx3 odd)
+    const root4 = hashFn(n23 + n01) // root: hash(right+left) where right=n23(odd offset 1), left=n01(even offset 0)
+    // Constructing with only level 0: all 4 txids, no higher levels provided
+    let mp: MerklePath
+    expect(() => {
+      mp = new MerklePath(100, [[
+        { offset: 0, txid: true, hash: tx0 },
+        { offset: 1, txid: true, hash: tx1 },
+        { offset: 2, txid: true, hash: tx2 },
+        { offset: 3, txid: true, hash: tx3 }
+      ]])
+    }).not.toThrow()
+    expect(mp!.computeRoot(tx0)).toEqual(root4)
+    expect(mp!.computeRoot(tx1)).toEqual(root4)
+    expect(mp!.computeRoot(tx2)).toEqual(root4)
+    expect(mp!.computeRoot(tx3)).toEqual(root4)
+    // Serializing and deserializing a single-level compound path should also work
+    const hex = mp!.toHex()
+    let deserialized: MerklePath
+    expect(() => { deserialized = MerklePath.fromHex(hex) }).not.toThrow()
+    expect(deserialized!.computeRoot(tx0)).toEqual(root4)
+    expect(deserialized!.computeRoot(tx3)).toEqual(root4)
+  })
   it('Rejects invalid bumps', () => {
     for (const invalid of invalidBumps) {
       expect(() => MerklePath.fromHex(invalid.bump)).toThrow(invalid.error)
