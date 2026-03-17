@@ -284,4 +284,27 @@ describe('MerklePath', () => {
     )
     expect(isValid).toBe(false)
   })
+  it('constructs a compound MerklePath from all txids in a block with odd tree levels', () => {
+    const blockData = {
+      height: 125632,
+      merkleroot: '205b2e27c58601fc1a8de04c83b6b0c46f89c16b2161c93441b7e9269cf6bc4a',
+      tx: [
+        '17cba98da71fe75862aac894392f2ff604356db386767fec364877a5a9ff200c',
+        '14ce64bd223ec9bb42662b74fdcf94f96a209a1aee72b7ba7639db503150ec2e',
+        '90a2de85351cfadd2326b9b0098e9c453af09b2980835f57a1429bbb44beb872',
+        'a31f2ddfea7ddd4581dca3007ee99e58ea6baa97a8ac3b32bb4610baac9f7206',
+        'c36eeed6fbc0259d30804f59f804dfcda35a54461157d6ac9c094f0ea378f35c',
+        '17752483868c52a98407a0e226d73b42e214e0fad548541619d858e1fd4a9549',
+        '3b8c4460412cfc55be0d50308ba704a859bd6f83bfed01b0828c9b067cd69246',
+        'a3f1b9d4b3ef3b061af352fdc2d02048417030fef9282c36da689cd899437cdb',
+        '66e2b022da877621ef197e02c3ef7d3f820d33a86ead2e72bf966432ea6776f1',
+        'e988b5d7a2cec8e0759ade2e151737d1cdfdde68accff42938583ad12eb98b99',
+        '5e7a8a8ec3f912ac1c4e90279c04263f170ed055c0411c8d490b846f01e6a99e'
+      ]
+    }
+    const leafs = blockData.tx.map((hash, offset) => ({ hash, txid: true, offset }))
+    if (leafs.length % 2) leafs.push({ offset: leafs.length, duplicate: true } as any)
+    const mp = new MerklePath(blockData.height, [leafs])
+    expect(mp.computeRoot()).toBe(blockData.merkleroot)
+  })
 })

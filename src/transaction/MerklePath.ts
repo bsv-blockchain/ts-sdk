@@ -291,6 +291,12 @@ export default class MerklePath {
       const offset = (index >> height) ^ 1
       const leaf = this.findOrComputeLeaf(height, offset)
       if (typeof leaf !== 'object') {
+        // For single-level paths (all txids at level 0), the sibling may be beyond the tree
+        // because this is the last odd node at this height. Bitcoin Merkle duplicates it.
+        if (this.path.length === 1 && (index >> height) === (maxOffset >> height)) {
+          workingHash = hash((workingHash ?? '') + (workingHash ?? ''))
+          continue
+        }
         throw new Error(`Missing hash for index ${index} at height ${height}`)
       }
       if (leaf.duplicate === true) {
@@ -334,7 +340,16 @@ export default class MerklePath {
     if (leaf0 == null || leaf0.hash == null || leaf0.hash === '') return undefined
 
     const leaf1 = this.findOrComputeLeaf(h, l + 1)
-    if (leaf1 == null) return undefined
+    if (leaf1 == null) {
+      // For single-level paths, leaf0 may be the last odd node at height h — duplicate it.
+      if (this.path.length === 1) {
+        const maxOffset0 = this.path[0].reduce((max, lf) => Math.max(max, lf.offset), 0)
+        if (l === (maxOffset0 >> h)) {
+          return { offset, hash: hash(leaf0.hash + leaf0.hash) }
+        }
+      }
+      return undefined
+    }
 
     let workinghash: string
     if (leaf1.duplicate === true) {
