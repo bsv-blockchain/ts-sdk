@@ -112,6 +112,24 @@ const BRC74JSONTrimmed = {
 }
 BRC74JSONTrimmed.path[1] = []
 
+const BLOCK_125632 = {
+  height: 125632,
+  merkleroot: '205b2e27c58601fc1a8de04c83b6b0c46f89c16b2161c93441b7e9269cf6bc4a',
+  tx: [
+    '17cba98da71fe75862aac894392f2ff604356db386767fec364877a5a9ff200c',
+    '14ce64bd223ec9bb42662b74fdcf94f96a209a1aee72b7ba7639db503150ec2e',
+    '90a2de85351cfadd2326b9b0098e9c453af09b2980835f57a1429bbb44beb872',
+    'a31f2ddfea7ddd4581dca3007ee99e58ea6baa97a8ac3b32bb4610baac9f7206',
+    'c36eeed6fbc0259d30804f59f804dfcda35a54461157d6ac9c094f0ea378f35c',
+    '17752483868c52a98407a0e226d73b42e214e0fad548541619d858e1fd4a9549',
+    '3b8c4460412cfc55be0d50308ba704a859bd6f83bfed01b0828c9b067cd69246',
+    'a3f1b9d4b3ef3b061af352fdc2d02048417030fef9282c36da689cd899437cdb',
+    '66e2b022da877621ef197e02c3ef7d3f820d33a86ead2e72bf966432ea6776f1',
+    'e988b5d7a2cec8e0759ade2e151737d1cdfdde68accff42938583ad12eb98b99',
+    '5e7a8a8ec3f912ac1c4e90279c04263f170ed055c0411c8d490b846f01e6a99e'
+  ]
+}
+
 const BRC74Root =
   '57aab6e6fb1b697174ffb64e062c4728f2ffd33ddcfa02a43b64d8cd29b483b4'
 const BRC74TXID1 =
@@ -285,26 +303,97 @@ describe('MerklePath', () => {
     expect(isValid).toBe(false)
   })
   it('constructs a compound MerklePath from all txids in a block with odd tree levels', () => {
-    const blockData = {
-      height: 125632,
-      merkleroot: '205b2e27c58601fc1a8de04c83b6b0c46f89c16b2161c93441b7e9269cf6bc4a',
-      tx: [
-        '17cba98da71fe75862aac894392f2ff604356db386767fec364877a5a9ff200c',
-        '14ce64bd223ec9bb42662b74fdcf94f96a209a1aee72b7ba7639db503150ec2e',
-        '90a2de85351cfadd2326b9b0098e9c453af09b2980835f57a1429bbb44beb872',
-        'a31f2ddfea7ddd4581dca3007ee99e58ea6baa97a8ac3b32bb4610baac9f7206',
-        'c36eeed6fbc0259d30804f59f804dfcda35a54461157d6ac9c094f0ea378f35c',
-        '17752483868c52a98407a0e226d73b42e214e0fad548541619d858e1fd4a9549',
-        '3b8c4460412cfc55be0d50308ba704a859bd6f83bfed01b0828c9b067cd69246',
-        'a3f1b9d4b3ef3b061af352fdc2d02048417030fef9282c36da689cd899437cdb',
-        '66e2b022da877621ef197e02c3ef7d3f820d33a86ead2e72bf966432ea6776f1',
-        'e988b5d7a2cec8e0759ade2e151737d1cdfdde68accff42938583ad12eb98b99',
-        '5e7a8a8ec3f912ac1c4e90279c04263f170ed055c0411c8d490b846f01e6a99e'
-      ]
-    }
-    const leafs = blockData.tx.map((hash, offset) => ({ hash, txid: true, offset }))
+    const { height, merkleroot, tx } = BLOCK_125632
+    const leafs = tx.map((hash, offset) => ({ hash, txid: true, offset }))
     if (leafs.length % 2) leafs.push({ offset: leafs.length, duplicate: true } as any)
-    const mp = new MerklePath(blockData.height, [leafs])
-    expect(mp.computeRoot()).toBe(blockData.merkleroot)
+    const mp = new MerklePath(height, [leafs])
+    expect(mp.computeRoot()).toBe(merkleroot)
+  })
+  it('compound path for 3 txids trims, round-trips through hex, and splits into per-txid proofs', () => {
+    const { height, merkleroot, tx } = BLOCK_125632
+
+    // Precompute the full Merkle tree for block 125632.
+    // merkleHash(right + left) matches the SDK's internal hash convention.
+    const L1 = [
+      merkleHash(tx[1] + tx[0]),
+      merkleHash(tx[3] + tx[2]),
+      merkleHash(tx[5] + tx[4]),
+      merkleHash(tx[7] + tx[6]),
+      merkleHash(tx[9] + tx[8]),
+      merkleHash(tx[10] + tx[10]) // tx[10] duplicated — odd count at level 0
+    ]
+    const L2 = [
+      merkleHash(L1[1] + L1[0]),
+      merkleHash(L1[3] + L1[2]),
+      merkleHash(L1[5] + L1[4])
+    ]
+    const L3 = [
+      merkleHash(L2[1] + L2[0]),
+      merkleHash(L2[2] + L2[2]) // L2 count = 3 (odd) — last node duplicated
+    ]
+    expect(merkleHash(L3[1] + L3[0])).toBe(merkleroot)
+
+    // Build minimal per-txid MerklePaths for tx[2], tx[5], and tx[8].
+    // tx[8] exercises the odd-level duplication at level 2 ({offset:3, duplicate:true}).
+    const mpTx2 = new MerklePath(height, [
+      [{ offset: 2, txid: true, hash: tx[2] }, { offset: 3, hash: tx[3] }],
+      [{ offset: 0, hash: L1[0] }],
+      [{ offset: 1, hash: L2[1] }],
+      [{ offset: 1, hash: L3[1] }]
+    ])
+    const mpTx5 = new MerklePath(height, [
+      [{ offset: 4, hash: tx[4] }, { offset: 5, txid: true, hash: tx[5] }],
+      [{ offset: 3, hash: L1[3] }],
+      [{ offset: 0, hash: L2[0] }],
+      [{ offset: 1, hash: L3[1] }]
+    ])
+    const mpTx8 = new MerklePath(height, [
+      [{ offset: 8, txid: true, hash: tx[8] }, { offset: 9, hash: tx[9] }],
+      [{ offset: 5, hash: L1[5] }],
+      [{ offset: 3, duplicate: true }], // tx[8] is last odd node at level 2
+      [{ offset: 0, hash: L3[0] }]
+    ])
+    expect(mpTx2.computeRoot(tx[2])).toBe(merkleroot)
+    expect(mpTx5.computeRoot(tx[5])).toBe(merkleroot)
+    expect(mpTx8.computeRoot(tx[8])).toBe(merkleroot)
+
+    // Combine into one compound path (combine() trims automatically)
+    const compound = new MerklePath(height, mpTx2.path.map(l => [...l]))
+    compound.combine(mpTx5)
+    compound.combine(mpTx8)
+    expect(compound.computeRoot(tx[2])).toBe(merkleroot)
+    expect(compound.computeRoot(tx[5])).toBe(merkleroot)
+    expect(compound.computeRoot(tx[8])).toBe(merkleroot)
+
+    // Serialize and deserialize
+    let deserialized: MerklePath
+    expect(() => { deserialized = MerklePath.fromHex(compound.toHex()) }).not.toThrow()
+    expect(deserialized!.computeRoot(tx[2])).toBe(merkleroot)
+    expect(deserialized!.computeRoot(tx[5])).toBe(merkleroot)
+    expect(deserialized!.computeRoot(tx[8])).toBe(merkleroot)
+
+    // Split the deserialized compound path into standalone per-txid proofs.
+    // findOrComputeLeaf reconstructs sibling hashes that were trimmed away.
+    const splitProof = (source: MerklePath, txOffset: number, txHash: string): MerklePath => {
+      const levels = source.path.map((_, h) => {
+        const sibOffset = (txOffset >> h) ^ 1
+        if (h === 0) {
+          const sib = source.findOrComputeLeaf(0, sibOffset)!
+          return [{ offset: txOffset, txid: true, hash: txHash }, sib].sort((a, b) => a.offset - b.offset)
+        }
+        const sib = source.findOrComputeLeaf(h, sibOffset)
+        return sib != null ? [sib] : []
+      })
+      return new MerklePath(source.blockHeight, levels)
+    }
+
+    const splitTx2 = splitProof(deserialized!, 2, tx[2])
+    const splitTx5 = splitProof(deserialized!, 5, tx[5])
+    const splitTx8 = splitProof(deserialized!, 8, tx[8])
+
+    // Each standalone proof computes the same root — no data was lost through the pipeline
+    expect(splitTx2.computeRoot(tx[2])).toBe(merkleroot)
+    expect(splitTx5.computeRoot(tx[5])).toBe(merkleroot)
+    expect(splitTx8.computeRoot(tx[8])).toBe(merkleroot)
   })
 })
