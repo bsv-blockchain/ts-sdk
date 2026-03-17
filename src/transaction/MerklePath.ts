@@ -284,14 +284,8 @@ export default class MerklePath {
     // Determine effective tree height. For a compound path where all txids are at level 0
     // (path.length === 1 or intermediate levels are empty/trimmed), we need to compute up
     // to the height implied by the highest offset present in path[0].
-    let treeHeight = this.path.length
     const maxOffset = this.path[0].reduce((max, l) => Math.max(max, l.offset), 0)
-    if (maxOffset > 0) {
-      let bits = 0
-      let mo = maxOffset
-      while (mo > 0) { mo >>>= 1; bits++ }
-      treeHeight = Math.max(treeHeight, bits)
-    }
+    const treeHeight = Math.max(this.path.length, 32 - Math.clz32(maxOffset))
 
     for (let height = 0; height < treeHeight; height++) {
       const offset = (index >> height) ^ 1
