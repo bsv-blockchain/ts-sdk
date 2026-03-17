@@ -4,8 +4,6 @@ import LockingScript from '../LockingScript'
 import UnlockingScript from '../UnlockingScript'
 import ScriptChunk from '../ScriptChunk'
 import OP from '../OP'
-import BigNumber from '../../primitives/BigNumber'
-import { toHex } from '../../primitives/utils'
 
 /**
  * Chronicle upgrade opcode tests.
