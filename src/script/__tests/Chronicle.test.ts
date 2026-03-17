@@ -37,16 +37,11 @@ describe('Chronicle Tests', () => {
   })
 
   /**
-   * At present only the first two test vectors added as real transaction (pre and post fork) compute a sighash known to match a valid signagure.
+   * At present only the first test vector added as real transaction (pre and post fork) compute a sighash known to match a valid signagure.
    * The remaining test vectors come from bitcoin-sv-staging repo as of 2025-06-23, but appear to be at least somewhat randomly generated.
    * The "scope" (SigHashType) values are all over the place.
    * Working with Teranode team to determine correct preimage values...
    */
-  it('sighashTestData', () => {
-    const log = computeSighashLog(sighashTestData, true)
-    //console.log(log)
-    //expect(log).toBe('')
-  })
 
   it('wip sighashTestData', () => {
     const log = computeSighashLog(sighashTestDataWip)

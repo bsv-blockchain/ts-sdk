@@ -92,6 +92,18 @@ function le4 (v: number): number[] {
   return [v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff]
 }
 
+/** Assert that a locking script built from items validates successfully. */
+function expectValid (items: Array<number | number[]>, txVersion: number = 1): void {
+  const spend = createSpend(buildLockingScript(items), [], txVersion)
+  expect(spend.validate()).toBe(true)
+}
+
+/** Assert that a locking script built from items throws on validation. */
+function expectInvalid (items: Array<number | number[]>, txVersion: number = 1): void {
+  const spend = createSpend(buildLockingScript(items), [], txVersion)
+  expect(() => spend.validate()).toThrow()
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -104,41 +116,21 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
   describe('OP_VER', () => {
     it('pushes the transaction version (1) as 4-byte LE, then DROP + TRUE succeeds', () => {
       // CScript([OP_VER, OP_DROP, OP_TRUE])
-      const ls = buildLockingScript([OP.OP_VER, OP.OP_DROP, OP.OP_TRUE])
-      const spend = createSpend(ls, [], 1)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_VER, OP.OP_DROP, OP.OP_TRUE])
     })
 
     it('pushes tx version 2 correctly as 4-byte LE', () => {
       // OP_VER should push [0x02, 0x00, 0x00, 0x00] for version 2
-      const ls = buildLockingScript([
-        OP.OP_VER,
-        le4(2), // expected value
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls, [], 2)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_VER, le4(2), OP.OP_EQUAL], 2)
     })
 
     it('pushes tx version 1 as [0x01, 0x00, 0x00, 0x00]', () => {
-      const ls = buildLockingScript([
-        OP.OP_VER,
-        le4(1),
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls, [], 1)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_VER, le4(1), OP.OP_EQUAL])
     })
 
     it('OP_VER with version 0xFF00 encodes correctly', () => {
       const ver = 0xFF00
-      const ls = buildLockingScript([
-        OP.OP_VER,
-        le4(ver),
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls, [], ver)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_VER, le4(ver), OP.OP_EQUAL], ver)
     })
   })
 
@@ -148,69 +140,26 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
   describe('OP_VERIF', () => {
     it('branches to TRUE when stack top matches tx version as 4-byte LE', () => {
       // CScript([b'\x01\x00\x00\x00', OP_VERIF, OP_TRUE, OP_ELSE, OP_FALSE, OP_ENDIF])
-      const ls = buildLockingScript([
-        le4(1), // push the 4-byte LE encoding of version 1
-        OP.OP_VERIF,
-        OP.OP_TRUE,
-        OP.OP_ELSE,
-        OP.OP_FALSE,
-        OP.OP_ENDIF
-      ])
-      const spend = createSpend(ls, [], 1)
-      expect(spend.validate()).toBe(true)
+      expectValid([le4(1), OP.OP_VERIF, OP.OP_TRUE, OP.OP_ELSE, OP.OP_FALSE, OP.OP_ENDIF])
     })
 
     it('branches to ELSE when stack top does NOT match tx version', () => {
       // Push version 2 encoding but tx version is 1 → VERIF is false → goes to ELSE
-      const ls = buildLockingScript([
-        le4(2),
-        OP.OP_VERIF,
-        OP.OP_FALSE,
-        OP.OP_ELSE,
-        OP.OP_TRUE,
-        OP.OP_ENDIF
-      ])
-      const spend = createSpend(ls, [], 1)
-      expect(spend.validate()).toBe(true)
+      expectValid([le4(2), OP.OP_VERIF, OP.OP_FALSE, OP.OP_ELSE, OP.OP_TRUE, OP.OP_ENDIF])
     })
 
     it('only matches exactly 4-byte items (3-byte push fails match)', () => {
       // Node v1.2.0: only matches when stack item is exactly 4 bytes
-      const ls = buildLockingScript([
-        [0x01, 0x00, 0x00], // 3 bytes — should NOT match version 1
-        OP.OP_VERIF,
-        OP.OP_FALSE, // if matched → fail
-        OP.OP_ELSE,
-        OP.OP_TRUE,  // not matched → succeed
-        OP.OP_ENDIF
-      ])
-      const spend = createSpend(ls, [], 1)
-      expect(spend.validate()).toBe(true)
+      // 3 bytes — should NOT match version 1
+      expectValid([[0x01, 0x00, 0x00], OP.OP_VERIF, OP.OP_FALSE, OP.OP_ELSE, OP.OP_TRUE, OP.OP_ENDIF])
     })
 
     it('only matches exactly 4-byte items (5-byte push fails match)', () => {
-      const ls = buildLockingScript([
-        [0x01, 0x00, 0x00, 0x00, 0x00], // 5 bytes
-        OP.OP_VERIF,
-        OP.OP_FALSE,
-        OP.OP_ELSE,
-        OP.OP_TRUE,
-        OP.OP_ENDIF
-      ])
-      const spend = createSpend(ls, [], 1)
-      expect(spend.validate()).toBe(true)
+      expectValid([[0x01, 0x00, 0x00, 0x00, 0x00], OP.OP_VERIF, OP.OP_FALSE, OP.OP_ELSE, OP.OP_TRUE, OP.OP_ENDIF])
     })
 
     it('requires at least one item on the stack', () => {
-      const ls = buildLockingScript([
-        OP.OP_VERIF,
-        OP.OP_TRUE,
-        OP.OP_ELSE,
-        OP.OP_FALSE,
-        OP.OP_ENDIF
-      ])
-      const spend = createSpend(ls, [], 1)
-      expect(() => spend.validate()).toThrow()
+      expectInvalid([OP.OP_VERIF, OP.OP_TRUE, OP.OP_ELSE, OP.OP_FALSE, OP.OP_ENDIF])
     })
   })
 
@@ -218,42 +167,16 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
     it('branches to TRUE when stack top does NOT match tx version', () => {
       // CScript([b'\x01\xFF\x00\x00', OP_VERNOTIF, OP_TRUE, OP_ELSE, OP_FALSE, OP_ENDIF])
       // Version 0x00FF01 != version 1 → VERNOTIF negates → true → goes to OP_TRUE
-      const ls = buildLockingScript([
-        [0x01, 0xFF, 0x00, 0x00],
-        OP.OP_VERNOTIF,
-        OP.OP_TRUE,
-        OP.OP_ELSE,
-        OP.OP_FALSE,
-        OP.OP_ENDIF
-      ])
-      const spend = createSpend(ls, [], 1)
-      expect(spend.validate()).toBe(true)
+      expectValid([[0x01, 0xFF, 0x00, 0x00], OP.OP_VERNOTIF, OP.OP_TRUE, OP.OP_ELSE, OP.OP_FALSE, OP.OP_ENDIF])
     })
 
     it('branches to ELSE when stack top matches tx version', () => {
-      const ls = buildLockingScript([
-        le4(1),
-        OP.OP_VERNOTIF,
-        OP.OP_FALSE,
-        OP.OP_ELSE,
-        OP.OP_TRUE,
-        OP.OP_ENDIF
-      ])
-      const spend = createSpend(ls, [], 1)
-      expect(spend.validate()).toBe(true)
+      expectValid([le4(1), OP.OP_VERNOTIF, OP.OP_FALSE, OP.OP_ELSE, OP.OP_TRUE, OP.OP_ENDIF])
     })
 
     it('non-4-byte items always evaluate as not-matching (so VERNOTIF → true)', () => {
-      const ls = buildLockingScript([
-        [0x01], // 1 byte — won't match, so NOT(false) = true
-        OP.OP_VERNOTIF,
-        OP.OP_TRUE,
-        OP.OP_ELSE,
-        OP.OP_FALSE,
-        OP.OP_ENDIF
-      ])
-      const spend = createSpend(ls, [], 1)
-      expect(spend.validate()).toBe(true)
+      // 1 byte — won't match, so NOT(false) = true
+      expectValid([[0x01], OP.OP_VERNOTIF, OP.OP_TRUE, OP.OP_ELSE, OP.OP_FALSE, OP.OP_ENDIF])
     })
   })
 
@@ -263,73 +186,29 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
   describe('OP_SUBSTR', () => {
     it("extracts 'oWorl' from 'HelloWorld' at offset 4, length 5", () => {
       // CScript([b'HelloWorld', OP_4, OP_5, OP_SUBSTR, b'oWorl', OP_EQUAL])
-      const ls = buildLockingScript([
-        strBytes('HelloWorld'),
-        OP.OP_4,
-        OP.OP_5,
-        OP.OP_SUBSTR,
-        strBytes('oWorl'),
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([strBytes('HelloWorld'), OP.OP_4, OP.OP_5, OP.OP_SUBSTR, strBytes('oWorl'), OP.OP_EQUAL])
     })
 
     it('extracts full string with offset 0 and length = size', () => {
-      const ls = buildLockingScript([
-        strBytes('ABC'),
-        OP.OP_0,  // offset 0
-        OP.OP_3,  // length 3
-        OP.OP_SUBSTR,
-        strBytes('ABC'),
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([strBytes('ABC'), OP.OP_0, OP.OP_3, OP.OP_SUBSTR, strBytes('ABC'), OP.OP_EQUAL])
     })
 
     it('extracts single char from beginning', () => {
-      const ls = buildLockingScript([
-        strBytes('Hello'),
-        OP.OP_0,
-        OP.OP_1,
-        OP.OP_SUBSTR,
-        strBytes('H'),
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([strBytes('Hello'), OP.OP_0, OP.OP_1, OP.OP_SUBSTR, strBytes('H'), OP.OP_EQUAL])
     })
 
     it('fails when offset is out of range', () => {
-      const ls = buildLockingScript([
-        strBytes('Hi'),
-        OP.OP_5, // offset 5, but string is only 2 bytes
-        OP.OP_1,
-        OP.OP_SUBSTR
-      ])
-      const spend = createSpend(ls)
-      expect(() => spend.validate()).toThrow()
+      // offset 5, but string is only 2 bytes
+      expectInvalid([strBytes('Hi'), OP.OP_5, OP.OP_1, OP.OP_SUBSTR])
     })
 
     it('fails when length exceeds available bytes from offset', () => {
-      const ls = buildLockingScript([
-        strBytes('Hi'),
-        OP.OP_1, // offset 1
-        OP.OP_5, // length 5, but only 1 byte remaining
-        OP.OP_SUBSTR
-      ])
-      const spend = createSpend(ls)
-      expect(() => spend.validate()).toThrow()
+      // offset 1, length 5, but only 1 byte remaining
+      expectInvalid([strBytes('Hi'), OP.OP_1, OP.OP_5, OP.OP_SUBSTR])
     })
 
     it('requires at least 3 stack items', () => {
-      const ls = buildLockingScript([
-        OP.OP_1,
-        OP.OP_SUBSTR
-      ])
-      const spend = createSpend(ls)
-      expect(() => spend.validate()).toThrow()
+      expectInvalid([OP.OP_1, OP.OP_SUBSTR])
     })
   })
 
@@ -339,49 +218,19 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
   describe('OP_LEFT', () => {
     it("extracts 'Hello' from 'HelloWorld' (left 5 bytes)", () => {
       // CScript([b'HelloWorld', OP_5, OP_LEFT, b'Hello', OP_EQUAL])
-      const ls = buildLockingScript([
-        strBytes('HelloWorld'),
-        OP.OP_5,
-        OP.OP_LEFT,
-        strBytes('Hello'),
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([strBytes('HelloWorld'), OP.OP_5, OP.OP_LEFT, strBytes('Hello'), OP.OP_EQUAL])
     })
 
     it('left 0 bytes returns empty', () => {
-      const ls = buildLockingScript([
-        strBytes('Hello'),
-        OP.OP_0,
-        OP.OP_LEFT,
-        OP.OP_0,
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([strBytes('Hello'), OP.OP_0, OP.OP_LEFT, OP.OP_0, OP.OP_EQUAL])
     })
 
     it('left full length returns the whole string', () => {
-      const ls = buildLockingScript([
-        strBytes('Hello'),
-        OP.OP_5,
-        OP.OP_LEFT,
-        strBytes('Hello'),
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([strBytes('Hello'), OP.OP_5, OP.OP_LEFT, strBytes('Hello'), OP.OP_EQUAL])
     })
 
     it('fails when length exceeds string size', () => {
-      const ls = buildLockingScript([
-        strBytes('Hi'),
-        OP.OP_5,
-        OP.OP_LEFT
-      ])
-      const spend = createSpend(ls)
-      expect(() => spend.validate()).toThrow()
+      expectInvalid([strBytes('Hi'), OP.OP_5, OP.OP_LEFT])
     })
   })
 
@@ -391,61 +240,23 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
   describe('OP_RIGHT', () => {
     it("extracts 'World' from 'HelloWorld' (right 5 bytes)", () => {
       // CScript([b'HelloWorld', OP_5, OP_RIGHT, b'World', OP_EQUAL])
-      const ls = buildLockingScript([
-        strBytes('HelloWorld'),
-        OP.OP_5,
-        OP.OP_RIGHT,
-        strBytes('World'),
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([strBytes('HelloWorld'), OP.OP_5, OP.OP_RIGHT, strBytes('World'), OP.OP_EQUAL])
     })
 
     it('right 0 bytes returns empty', () => {
-      const ls = buildLockingScript([
-        strBytes('Hello'),
-        OP.OP_0,
-        OP.OP_RIGHT,
-        OP.OP_0,
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([strBytes('Hello'), OP.OP_0, OP.OP_RIGHT, OP.OP_0, OP.OP_EQUAL])
     })
 
     it('right full length returns the whole string', () => {
-      const ls = buildLockingScript([
-        strBytes('Hello'),
-        OP.OP_5,
-        OP.OP_RIGHT,
-        strBytes('Hello'),
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([strBytes('Hello'), OP.OP_5, OP.OP_RIGHT, strBytes('Hello'), OP.OP_EQUAL])
     })
 
     it('right 1 byte returns last char', () => {
-      const ls = buildLockingScript([
-        strBytes('Hello'),
-        OP.OP_1,
-        OP.OP_RIGHT,
-        strBytes('o'),
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([strBytes('Hello'), OP.OP_1, OP.OP_RIGHT, strBytes('o'), OP.OP_EQUAL])
     })
 
     it('fails when length exceeds string size', () => {
-      const ls = buildLockingScript([
-        strBytes('Hi'),
-        OP.OP_5,
-        OP.OP_RIGHT
-      ])
-      const spend = createSpend(ls)
-      expect(() => spend.validate()).toThrow()
+      expectInvalid([strBytes('Hi'), OP.OP_5, OP.OP_RIGHT])
     })
   })
 
@@ -455,48 +266,20 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
   describe('OP_2MUL', () => {
     it('1 * 2 = 2', () => {
       // CScript([OP_1, OP_2MUL, OP_2, OP_EQUAL])
-      const ls = buildLockingScript([
-        OP.OP_1,
-        OP.OP_2MUL,
-        OP.OP_2,
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_1, OP.OP_2MUL, OP.OP_2, OP.OP_EQUAL])
     })
 
     it('0 * 2 = 0', () => {
-      const ls = buildLockingScript([
-        OP.OP_0,
-        OP.OP_2MUL,
-        OP.OP_0,
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_0, OP.OP_2MUL, OP.OP_0, OP.OP_EQUAL])
     })
 
     it('8 * 2 = 16', () => {
-      const ls = buildLockingScript([
-        OP.OP_8,
-        OP.OP_2MUL,
-        OP.OP_16,
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_8, OP.OP_2MUL, OP.OP_16, OP.OP_EQUAL])
     })
 
     it('-1 * 2 = -2', () => {
-      const ls = buildLockingScript([
-        OP.OP_1NEGATE,
-        OP.OP_2MUL,
-        // -2 in script num is [0x82]
-        [0x82],
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      // -2 in script num is [0x82]
+      expectValid([OP.OP_1NEGATE, OP.OP_2MUL, [0x82], OP.OP_EQUAL])
     })
   })
 
@@ -506,47 +289,19 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
   describe('OP_2DIV', () => {
     it('2 / 2 = 1', () => {
       // CScript([OP_2, OP_2DIV, OP_1, OP_EQUAL])
-      const ls = buildLockingScript([
-        OP.OP_2,
-        OP.OP_2DIV,
-        OP.OP_1,
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_2, OP.OP_2DIV, OP.OP_1, OP.OP_EQUAL])
     })
 
     it('16 / 2 = 8', () => {
-      const ls = buildLockingScript([
-        OP.OP_16,
-        OP.OP_2DIV,
-        OP.OP_8,
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_16, OP.OP_2DIV, OP.OP_8, OP.OP_EQUAL])
     })
 
     it('1 / 2 = 0 (integer division)', () => {
-      const ls = buildLockingScript([
-        OP.OP_1,
-        OP.OP_2DIV,
-        OP.OP_0,
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_1, OP.OP_2DIV, OP.OP_0, OP.OP_EQUAL])
     })
 
     it('0 / 2 = 0', () => {
-      const ls = buildLockingScript([
-        OP.OP_0,
-        OP.OP_2DIV,
-        OP.OP_0,
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_0, OP.OP_2DIV, OP.OP_0, OP.OP_EQUAL])
     })
   })
 
@@ -556,15 +311,7 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
   describe('OP_LSHIFTNUM', () => {
     it('1 << 2 = 4', () => {
       // CScript([OP_1, OP_2, OP_LSHIFTNUM, OP_4, OP_EQUAL])
-      const ls = buildLockingScript([
-        OP.OP_1,
-        OP.OP_2,
-        OP.OP_LSHIFTNUM,
-        OP.OP_4,
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_1, OP.OP_2, OP.OP_LSHIFTNUM, OP.OP_4, OP.OP_EQUAL])
     })
 
     it('1 << 1 = 2', () => {
@@ -584,15 +331,7 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
   describe('OP_RSHIFTNUM', () => {
     it('16 >> 2 = 4', () => {
       // CScript([OP_16, OP_2, OP_RSHIFTNUM, OP_4, OP_EQUAL])
-      const ls = buildLockingScript([
-        OP.OP_16,
-        OP.OP_2,
-        OP.OP_RSHIFTNUM,
-        OP.OP_4,
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_16, OP.OP_2, OP.OP_RSHIFTNUM, OP.OP_4, OP.OP_EQUAL])
     })
 
     it('4 >> 2 = 1', () => {
@@ -718,27 +457,12 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
       // A large script number followed by OP_1ADD OP_DROP OP_TRUE
       // Use a modest size that proves the limit is > 4 bytes (pre-genesis limit)
       const bigNum = new Array(8).fill(42) // 8-byte script number
-      const ls = buildLockingScript([
-        bigNum,
-        OP.OP_1ADD,
-        OP.OP_DROP,
-        OP.OP_TRUE
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([bigNum, OP.OP_1ADD, OP.OP_DROP, OP.OP_TRUE])
     })
 
     it('OP_MUL works with numbers up to the genesis script num size', () => {
       // Use OP_DUP OP_MUL to square a number, verifying arithmetic on larger nums
-      const ls = buildLockingScript([
-        OP.OP_3,
-        OP.OP_DUP,
-        OP.OP_MUL,
-        OP.OP_9,
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_3, OP.OP_DUP, OP.OP_MUL, OP.OP_9, OP.OP_EQUAL])
     })
   })
 
@@ -756,15 +480,7 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
 
       for (const { input, len, expected } of testCases) {
         const lenOpcode = OP.OP_1 + (len - 1) // len is always 1-10 in our test cases
-        const ls = buildLockingScript([
-          input,
-          lenOpcode,
-          OP.OP_RIGHT,
-          expected,
-          OP.OP_EQUAL
-        ])
-        const spend = createSpend(ls)
-        expect(spend.validate()).toBe(true)
+        expectValid([input, lenOpcode, OP.OP_RIGHT, expected, OP.OP_EQUAL])
       }
     })
   })
@@ -776,27 +492,18 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
     it('version 1 pushes exactly [0x01, 0x00, 0x00, 0x00] (not script num [0x01])', () => {
       // If OP_VER used script num, it would push [0x01] (1 byte).
       // With the fix it pushes 4 bytes. Check by testing SIZE.
-      const ls = buildLockingScript([
+      expectValid([
         OP.OP_VER,
-        OP.OP_SIZE,    // push size of top element
-        OP.OP_4,       // expected: 4 bytes
+        OP.OP_SIZE,       // push size of top element
+        OP.OP_4,          // expected: 4 bytes
         OP.OP_EQUALVERIFY,
-        // Now verify the actual value
-        le4(1),
+        le4(1),           // verify actual value
         OP.OP_EQUAL
       ])
-      const spend = createSpend(ls, [], 1)
-      expect(spend.validate()).toBe(true)
     })
 
     it('version 256 pushes [0x00, 0x01, 0x00, 0x00]', () => {
-      const ls = buildLockingScript([
-        OP.OP_VER,
-        [0x00, 0x01, 0x00, 0x00],
-        OP.OP_EQUAL
-      ])
-      const spend = createSpend(ls, [], 256)
-      expect(spend.validate()).toBe(true)
+      expectValid([OP.OP_VER, [0x00, 0x01, 0x00, 0x00], OP.OP_EQUAL], 256)
     })
   })
 
@@ -806,7 +513,7 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
   describe('OP_LEFT + OP_RIGHT composition', () => {
     it('LEFT + RIGHT can reconstruct the original string', () => {
       // Take 'HelloWorld', LEFT 5 → 'Hello', original RIGHT 5 → 'World', CAT → 'HelloWorld'
-      const ls = buildLockingScript([
+      expectValid([
         strBytes('HelloWorld'),
         OP.OP_DUP,
         OP.OP_5,
@@ -818,8 +525,6 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
         strBytes('HelloWorld'),
         OP.OP_EQUAL
       ])
-      const spend = createSpend(ls)
-      expect(spend.validate()).toBe(true)
     })
   })
 
@@ -828,42 +533,16 @@ describe('Chronicle Opcode Tests (based on bitcoin-sv node v1.2.0 test suite)', 
   // ==========================================================================
   describe('OP_VERIF/OP_VERNOTIF edge cases', () => {
     it('OP_VERIF with tx version 2 matches [0x02, 0x00, 0x00, 0x00]', () => {
-      const ls = buildLockingScript([
-        le4(2),
-        OP.OP_VERIF,
-        OP.OP_TRUE,
-        OP.OP_ELSE,
-        OP.OP_FALSE,
-        OP.OP_ENDIF
-      ])
-      const spend = createSpend(ls, [], 2)
-      expect(spend.validate()).toBe(true)
+      expectValid([le4(2), OP.OP_VERIF, OP.OP_TRUE, OP.OP_ELSE, OP.OP_FALSE, OP.OP_ENDIF], 2)
     })
 
     it('OP_VERIF with empty stack item (0 bytes) does not match any version', () => {
-      const ls = buildLockingScript([
-        OP.OP_0, // pushes empty array
-        OP.OP_VERIF,
-        OP.OP_FALSE,
-        OP.OP_ELSE,
-        OP.OP_TRUE,
-        OP.OP_ENDIF
-      ])
-      const spend = createSpend(ls, [], 1)
-      expect(spend.validate()).toBe(true)
+      // OP_0 pushes empty array
+      expectValid([OP.OP_0, OP.OP_VERIF, OP.OP_FALSE, OP.OP_ELSE, OP.OP_TRUE, OP.OP_ENDIF])
     })
 
     it('OP_VERNOTIF with tx version 2: matching value goes to ELSE', () => {
-      const ls = buildLockingScript([
-        le4(2),
-        OP.OP_VERNOTIF,
-        OP.OP_FALSE,
-        OP.OP_ELSE,
-        OP.OP_TRUE,
-        OP.OP_ENDIF
-      ])
-      const spend = createSpend(ls, [], 2)
-      expect(spend.validate()).toBe(true)
+      expectValid([le4(2), OP.OP_VERNOTIF, OP.OP_FALSE, OP.OP_ELSE, OP.OP_TRUE, OP.OP_ENDIF], 2)
     })
   })
 })
