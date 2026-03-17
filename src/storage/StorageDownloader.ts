@@ -35,9 +35,9 @@ export class StorageDownloader {
     }
     const decodedResults: string[] = []
     const currentTime = Math.floor(Date.now() / 1000)
-    for (let i = 0; i < response.outputs.length; i++) {
-      const tx = Transaction.fromBEEF(response.outputs[i].beef)
-      const { fields } = PushDrop.decode(tx.outputs[response.outputs[i].outputIndex].lockingScript)
+    for (const output of response.outputs) {
+      const tx = Transaction.fromBEEF(output.beef)
+      const { fields } = PushDrop.decode(tx.outputs[output.outputIndex].lockingScript)
 
       const expiryTime = new Utils.Reader(fields[3]).readVarIntNum()
       if (expiryTime < currentTime) {
@@ -66,10 +66,10 @@ export class StorageDownloader {
       throw new Error('No one currently hosts this file!')
     }
 
-    for (let i = 0; i < downloadURLs.length; i++) {
+    for (const url of downloadURLs) {
       try {
         // The url is fetched
-        const result = await fetch(downloadURLs[i], { method: 'GET' })
+        const result = await fetch(url, { method: 'GET' })
 
         // If the request fails, continue to the next url
         if (!result.ok || result.status >= 400 || result.body == null) {
@@ -105,7 +105,7 @@ export class StorageDownloader {
           data,
           mimeType: result.headers.get('Content-Type')
         }
-      } catch (error) {
+      } catch {
         continue
       }
     }

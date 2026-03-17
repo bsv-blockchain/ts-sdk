@@ -68,7 +68,7 @@ export const isValidURL = (URL: string): boolean => {
   try {
     getHashFromURL(URL)
     return true
-  } catch (e) {
+  } catch {
     return false
   }
 }

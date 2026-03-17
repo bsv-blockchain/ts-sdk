@@ -55,7 +55,7 @@ export class KeyShares {
       const [x, y, t, i] = shareParts
       if (t === undefined) throw new Error('Threshold not found in share ' + idx.toString())
       if (i === undefined) throw new Error('Integrity not found in share ' + idx.toString())
-      const tInt = parseInt(t)
+      const tInt = Number.parseInt(t, 10)
       if (idx !== 0 && threshold !== tInt) { throw new Error('Threshold mismatch in share ' + idx.toString()) }
       if (idx !== 0 && integrity !== i) { throw new Error('Integrity mismatch in share ' + idx.toString()) }
       threshold = tInt
@@ -399,7 +399,7 @@ export default class PrivateKey extends BigNumber {
     let sharedSecret: Point
     if (typeof retrieveCachedSharedSecret === 'function') {
       const retrieved = retrieveCachedSharedSecret(this, publicKey)
-      if (typeof retrieved !== 'undefined') {
+      if (retrieved !== undefined) {
         sharedSecret = retrieved
       } else {
         sharedSecret = this.deriveSharedSecret(publicKey)
@@ -429,7 +429,7 @@ export default class PrivateKey extends BigNumber {
    * const shares = key.toKeyShares(2, 5)
    */
   toKeyShares (threshold: number, totalShares: number): KeyShares {
-    if (typeof threshold !== 'number' || typeof totalShares !== 'number') { throw new Error('threshold and totalShares must be numbers') }
+    if (typeof threshold !== 'number' || typeof totalShares !== 'number') { throw new TypeError('threshold and totalShares must be numbers') }
     if (threshold < 2) throw new Error('threshold must be at least 2')
     if (totalShares < 2) throw new Error('totalShares must be at least 2')
     if (threshold > totalShares) { throw new Error('threshold should be less than or equal to totalShares') }
