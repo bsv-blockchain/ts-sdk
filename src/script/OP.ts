@@ -3,15 +3,15 @@
  */
 const OP = {
   // push value
+  OP_0: 0x00, // when two op codes have the same value, the top one will be used in standard ASM output
   OP_FALSE: 0x00,
-  OP_0: 0x00,
   OP_PUSHDATA1: 0x4c,
   OP_PUSHDATA2: 0x4d,
   OP_PUSHDATA4: 0x4e,
   OP_1NEGATE: 0x4f,
   OP_RESERVED: 0x50,
-  OP_TRUE: 0x51,
   OP_1: 0x51,
+  OP_TRUE: 0x51,
   OP_2: 0x52,
   OP_3: 0x53,
   OP_4: 0x54,
