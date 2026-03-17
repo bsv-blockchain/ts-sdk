@@ -218,10 +218,9 @@ describe('MerklePath', () => {
   it('Serializes and deserializes a combined trimmed path', () => {
     const [pathA, pathB] = buildSplitPaths()
     pathA.combine(pathB)
-    let deserialized: MerklePath
-    expect(() => { deserialized = MerklePath.fromHex(pathA.toHex()) }).not.toThrow()
-    expect(deserialized!.computeRoot(BRC74TXID2)).toEqual(BRC74Root)
-    expect(deserialized!.computeRoot(BRC74TXID3)).toEqual(BRC74Root)
+    const deserialized = MerklePath.fromHex(pathA.toHex())
+    expect(deserialized.computeRoot(BRC74TXID2)).toEqual(BRC74Root)
+    expect(deserialized.computeRoot(BRC74TXID3)).toEqual(BRC74Root)
   })
   it('Constructs a compound path from all txids at level 0 only', () => {
     // A single-level compound path: all txids for a block given at level 0, no higher levels.
@@ -231,24 +230,20 @@ describe('MerklePath', () => {
     const tx2 = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
     const tx3 = 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
     const root4 = merkleHash(merkleHash(tx3 + tx2) + merkleHash(tx1 + tx0))
-    let mp: MerklePath
-    expect(() => {
-      mp = new MerklePath(100, [[
-        { offset: 0, txid: true, hash: tx0 },
-        { offset: 1, txid: true, hash: tx1 },
-        { offset: 2, txid: true, hash: tx2 },
-        { offset: 3, txid: true, hash: tx3 }
-      ]])
-    }).not.toThrow()
-    expect(mp!.computeRoot(tx0)).toEqual(root4)
-    expect(mp!.computeRoot(tx1)).toEqual(root4)
-    expect(mp!.computeRoot(tx2)).toEqual(root4)
-    expect(mp!.computeRoot(tx3)).toEqual(root4)
+    const mp = new MerklePath(100, [[
+      { offset: 0, txid: true, hash: tx0 },
+      { offset: 1, txid: true, hash: tx1 },
+      { offset: 2, txid: true, hash: tx2 },
+      { offset: 3, txid: true, hash: tx3 }
+    ]])
+    expect(mp.computeRoot(tx0)).toEqual(root4)
+    expect(mp.computeRoot(tx1)).toEqual(root4)
+    expect(mp.computeRoot(tx2)).toEqual(root4)
+    expect(mp.computeRoot(tx3)).toEqual(root4)
     // Serializing and deserializing a single-level compound path should also work
-    let deserialized: MerklePath
-    expect(() => { deserialized = MerklePath.fromHex(mp!.toHex()) }).not.toThrow()
-    expect(deserialized!.computeRoot(tx0)).toEqual(root4)
-    expect(deserialized!.computeRoot(tx3)).toEqual(root4)
+    const deserialized = MerklePath.fromHex(mp.toHex())
+    expect(deserialized.computeRoot(tx0)).toEqual(root4)
+    expect(deserialized.computeRoot(tx3)).toEqual(root4)
   })
   it('Rejects invalid bumps', () => {
     for (const invalid of invalidBumps) {
@@ -366,11 +361,10 @@ describe('MerklePath', () => {
     expect(compound.computeRoot(tx[8])).toBe(merkleroot)
 
     // Serialize and deserialize
-    let deserialized: MerklePath
-    expect(() => { deserialized = MerklePath.fromHex(compound.toHex()) }).not.toThrow()
-    expect(deserialized!.computeRoot(tx[2])).toBe(merkleroot)
-    expect(deserialized!.computeRoot(tx[5])).toBe(merkleroot)
-    expect(deserialized!.computeRoot(tx[8])).toBe(merkleroot)
+    const deserialized = MerklePath.fromHex(compound.toHex())
+    expect(deserialized.computeRoot(tx[2])).toBe(merkleroot)
+    expect(deserialized.computeRoot(tx[5])).toBe(merkleroot)
+    expect(deserialized.computeRoot(tx[8])).toBe(merkleroot)
 
     // Split the deserialized compound path into standalone per-txid proofs.
     // findOrComputeLeaf reconstructs sibling hashes that were trimmed away.
@@ -378,18 +372,19 @@ describe('MerklePath', () => {
       const levels = source.path.map((_, h) => {
         const sibOffset = (txOffset >> h) ^ 1
         if (h === 0) {
-          const sib = source.findOrComputeLeaf(0, sibOffset)!
+          const sib = source.findOrComputeLeaf(0, sibOffset)
+          if (sib == null) throw new Error('Missing sibling at level 0')
           return [{ offset: txOffset, txid: true, hash: txHash }, sib].sort((a, b) => a.offset - b.offset)
         }
         const sib = source.findOrComputeLeaf(h, sibOffset)
-        return sib != null ? [sib] : []
+        return sib == null ? [] : [sib]
       })
       return new MerklePath(source.blockHeight, levels)
     }
 
-    const splitTx2 = splitProof(deserialized!, 2, tx[2])
-    const splitTx5 = splitProof(deserialized!, 5, tx[5])
-    const splitTx8 = splitProof(deserialized!, 8, tx[8])
+    const splitTx2 = splitProof(deserialized, 2, tx[2])
+    const splitTx5 = splitProof(deserialized, 5, tx[5])
+    const splitTx8 = splitProof(deserialized, 8, tx[8])
 
     // Each standalone proof computes the same root — no data was lost through the pipeline
     expect(splitTx2.computeRoot(tx[2])).toBe(merkleroot)
