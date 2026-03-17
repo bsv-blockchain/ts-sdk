@@ -664,9 +664,8 @@ export default class BigNumber {
   neg (): BigNumber { return this.clone().ineg() }
   ineg (): this { if (this._magnitude !== 0n) this._sign = this._sign === 1 ? 0 : 1; return this }
 
-  private _iuop (num: BigNumber, op: (a: bigint, b: bigint) => bigint): this {
+  private _iuop (num: BigNumber, op: (a: bigint, b: bigint) => bigint, isXor: boolean = false): this {
     const newMag = op(this._magnitude, num._magnitude)
-    const isXor = op === ((a: bigint, b: bigint) => a ^ b)
     let targetNominalLength = this._nominalWordLength
     if (isXor) targetNominalLength = Math.max(this.length, num.length)
 
@@ -678,11 +677,11 @@ export default class BigNumber {
 
   iuor (num: BigNumber): this { return this._iuop(num, (a, b) => a | b) }
   iuand (num: BigNumber): this { return this._iuop(num, (a, b) => a & b) }
-  iuxor (num: BigNumber): this { return this._iuop(num, (a, b) => a ^ b) }
-  private _iop (num: BigNumber, op: (a: bigint, b: bigint) => bigint): this { this.assert(this._sign === 0 && num._sign === 0); return this._iuop(num, op) }
+  iuxor (num: BigNumber): this { return this._iuop(num, (a, b) => a ^ b, true) }
+  private _iop (num: BigNumber, op: (a: bigint, b: bigint) => bigint, isXor: boolean = false): this { this.assert(this._sign === 0 && num._sign === 0); return this._iuop(num, op, isXor) }
   ior (num: BigNumber): this { return this._iop(num, (a, b) => a | b) }
   iand (num: BigNumber): this { return this._iop(num, (a, b) => a & b) }
-  ixor (num: BigNumber): this { return this._iop(num, (a, b) => a ^ b) }
+  ixor (num: BigNumber): this { return this._iop(num, (a, b) => a ^ b, true) }
   private _uop_new (num: BigNumber, opName: 'iuor' | 'iuand' | 'iuxor'): BigNumber { if (this.length >= num.length) return this.clone()[opName](num); return num.clone()[opName](this) }
   or (num: BigNumber): BigNumber { this.assert(this._sign === 0 && num._sign === 0); return this._uop_new(num, 'iuor') }
   uor (num: BigNumber): BigNumber { return this._uop_new(num, 'iuor') }

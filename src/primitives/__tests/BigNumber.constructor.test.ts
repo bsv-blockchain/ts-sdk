@@ -117,11 +117,11 @@ describe('BN.js/Constructor', () => {
 
     it('should not accept decimal', () => {
       expect(() => {
-        new BigNumber('10.00', 10) // eslint-disable-line no-new
+        void new BigNumber('10.00', 10)
       }).toThrow(new Error('Invalid character'))
 
       expect(() => {
-        new BigNumber('16.00', 16) // eslint-disable-line no-new
+        void new BigNumber('16.00', 16)
       }).toThrow(/* new Error('Invalid character') */)
     })
 
@@ -137,7 +137,7 @@ describe('BN.js/Constructor', () => {
         'hexadecimal'
       ].forEach(function (str) {
         expect(() => {
-          new BigNumber(str, 16) // eslint-disable-line no-new
+          void new BigNumber(str, 16)
         }).toThrow(/* Invalid character in */)
       })
     })
