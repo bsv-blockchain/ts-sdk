@@ -219,7 +219,7 @@ const OP = {
 }
 
 for (const name in OP) {
-  OP[OP[name]] = name
+  if (OP[OP[name]] === undefined) OP[OP[name]] = name
 }
 
 export default OP
