@@ -6,14 +6,15 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | | |
 | --- | --- |
-| [ArcConfig](#interface-arcconfig) | [HttpClientRequestOptions](#interface-httpclientrequestoptions) |
+| [ArcConfig](#interface-arcconfig) | [HttpsModuleLike](#interface-httpsmodulelike) |
 | [BroadcastFailure](#interface-broadcastfailure) | [HttpsNodejs](#interface-httpsnodejs) |
 | [BroadcastResponse](#interface-broadcastresponse) | [MerklePathLeaf](#interface-merklepathleaf) |
 | [Broadcaster](#interface-broadcaster) | [NodejsHttpClientRequest](#interface-nodejshttpclientrequest) |
-| [ChainTracker](#interface-chaintracker) | [TransactionInput](#interface-transactioninput) |
-| [FeeModel](#interface-feemodel) | [TransactionOutput](#interface-transactionoutput) |
-| [FetchOptions](#interface-fetchoptions) | [WhatsOnChainConfig](#interface-whatsonchainconfig) |
-| [HttpClient](#interface-httpclient) |  |
+| [ChainTracker](#interface-chaintracker) | [NodejsRequestLike](#interface-nodejsrequestlike) |
+| [FeeModel](#interface-feemodel) | [TransactionInput](#interface-transactioninput) |
+| [FetchOptions](#interface-fetchoptions) | [TransactionOutput](#interface-transactionoutput) |
+| [HttpClient](#interface-httpclient) | [WhatsOnChainConfig](#interface-whatsonchainconfig) |
+| [HttpClientRequestOptions](#interface-httpclientrequestoptions) |  |
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -298,6 +299,21 @@ signal?: AbortSignal
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
 ---
+### Interface: HttpsModuleLike
+
+Common interface for Node.js https modules
+
+```ts
+export interface HttpsModuleLike {
+    request: (url: string, options: HttpClientRequestOptions, callback: (res: any) => void) => NodejsRequestLike;
+}
+```
+
+See also: [HttpClientRequestOptions](./transaction.md#interface-httpclientrequestoptions), [NodejsRequestLike](./transaction.md#interface-nodejsrequestlike)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Interface: HttpsNodejs
 
 Node Https module interface limited to options needed by ts-sdk
@@ -335,7 +351,22 @@ Nodejs result of the Node https.request call limited to options needed by ts-sdk
 export interface NodejsHttpClientRequest {
     write: (chunk: string) => void;
     on: (event: string, callback: (data: any) => void) => void;
-    end: (() => void) & (() => void);
+    end: () => void;
+}
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Interface: NodejsRequestLike
+
+Common interface for Node.js https module request objects
+
+```ts
+export interface NodejsRequestLike {
+    write: (chunk: any) => void;
+    on: (event: string, callback: (data: any) => void) => void;
+    end: () => void;
 }
 ```
 
@@ -2351,6 +2382,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 | [defaultBroadcaster](#function-defaultbroadcaster) |
 | [defaultChainTracker](#function-defaultchaintracker) |
 | [defaultHttpClient](#function-defaulthttpclient) |
+| [executeNodejsRequest](#function-executenodejsrequest) |
 | [isBroadcastFailure](#function-isbroadcastfailure) |
 | [isBroadcastResponse](#function-isbroadcastresponse) |
 
@@ -2391,6 +2423,31 @@ export function defaultHttpClient(): HttpClient
 ```
 
 See also: [HttpClient](./transaction.md#interface-httpclient)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Function: executeNodejsRequest
+
+Shared implementation for handling Node.js HTTP requests.
+Used by both NodejsHttpClient and BinaryNodejsHttpClient.
+
+```ts
+export function executeNodejsRequest(https: HttpsModuleLike, url: string, requestOptions: HttpClientRequestOptions, serializeData: (data: any) => any): Promise<HttpClientResponse> 
+```
+
+See also: [HttpClientRequestOptions](./transaction.md#interface-httpclientrequestoptions), [HttpClientResponse](./transaction.md#type-httpclientresponse), [HttpsModuleLike](./transaction.md#interface-httpsmodulelike)
+
+Argument Details
+
++ **https**
+  + The Node.js https module (or compatible)
++ **url**
+  + The URL to make the request to
++ **requestOptions**
+  + The request configuration
++ **serializeData**
+  + Function to serialize the request data for writing
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 

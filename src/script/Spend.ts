@@ -506,10 +506,13 @@ export default class Spend {
         case OP.OP_NOP:
         // OP_NOP1 (0xb0), OP_NOP9 (0xb8), OP_NOP10 (0xb9) are the only defined upgrade-NOP slots
         // in node v1.2.0. All other values above 0xb9 are FIRST_UNDEFINED_OP_VALUE and invalid.
+        // falls through
         case OP.OP_NOP1:
         // OP_NOP2 (0xb1) = OP_CHECKLOCKTIMEVERIFY: on BSV post-genesis treated as NOP
+        // falls through
         case OP.OP_CHECKLOCKTIMEVERIFY:
         // OP_NOP3 (0xb2) = OP_CHECKSEQUENCEVERIFY: on BSV post-genesis treated as NOP
+        // falls through
         case OP.OP_CHECKSEQUENCEVERIFY:
         case OP.OP_NOP9:
         case OP.OP_NOP10:
