@@ -113,7 +113,7 @@ export default class Certificate {
 
     // Write fields
     // Sort field names lexicographically
-    const fieldNames = Object.keys(this.fields).sort()
+    const fieldNames = Object.keys(this.fields).sort((a, b) => a.localeCompare(b))
     writer.writeVarIntNum(fieldNames.length)
     for (const fieldName of fieldNames) {
       const fieldValue = this.fields[fieldName]
