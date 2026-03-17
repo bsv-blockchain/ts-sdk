@@ -391,4 +391,28 @@ describe('MerklePath', () => {
     expect(splitTx5.computeRoot(tx[5])).toBe(merkleroot)
     expect(splitTx8.computeRoot(tx[8])).toBe(merkleroot)
   })
+  it('findOrComputeLeaf duplicates leaf0 when leaf1 carries both a hash and duplicate=true', () => {
+    // Covers the leaf1.duplicate === true branch inside findOrComputeLeaf.
+    // That branch is reached when leaf1.hash is non-null (bypassing the null-check above it)
+    // but leaf1.duplicate is also true — an unusual but valid interface state.
+    const tx0 = 'aa'.repeat(32)
+    const tx1 = 'bb'.repeat(32)
+
+    // Build a minimal valid path so the constructor does not throw.
+    const mp = new MerklePath(1, [[
+      { offset: 0, txid: true, hash: tx0 },
+      { offset: 1, hash: tx1 }
+    ]])
+
+    // Mutate: give the sibling leaf at offset 1 both a hash and duplicate=true.
+    // findOrComputeLeaf(1, 0) will:
+    //   - not find offset 0 in path[1] (path.length === 1, no higher levels)
+    //   - recurse to level 0: leaf0 = tx0 (offset 0), leaf1 = {hash:tx1, duplicate:true}
+    //   - leaf1.hash is non-null → skips the null-branch
+    //   - leaf1.duplicate === true → line 349: workinghash = hash(leaf0 + leaf0)
+    mp.path[0][1] = { offset: 1, hash: tx1, duplicate: true }
+
+    const result = mp.findOrComputeLeaf(1, 0)
+    expect(result?.hash).toBe(merkleHash(tx0 + tx0))
+  })
 })

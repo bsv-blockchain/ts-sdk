@@ -335,6 +335,10 @@ export default class MerklePath {
 
     const leaf1 = this.findOrComputeLeaf(h, l + 1)
     if (leaf1?.hash == null) {
+      // Explicit duplicate marker — duplicate leaf0 regardless of path depth.
+      if (leaf1?.duplicate === true) {
+        return { offset, hash: hash(leaf0.hash + leaf0.hash) }
+      }
       // For single-level paths, leaf0 may be the last odd node at height h — duplicate it.
       if (this.path.length === 1) {
         const maxOffset0 = this.path[0].reduce((max, lf) => Math.max(max, lf.offset), 0)
