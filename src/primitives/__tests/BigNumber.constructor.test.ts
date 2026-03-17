@@ -117,11 +117,11 @@ describe('BN.js/Constructor', () => {
 
     it('should not accept decimal', () => {
       expect(() => {
-        void new BigNumber('10.00', 10)
+        return new BigNumber('10.00', 10)
       }).toThrow(new Error('Invalid character'))
 
       expect(() => {
-        void new BigNumber('16.00', 16)
+        return new BigNumber('16.00', 16)
       }).toThrow(/* new Error('Invalid character') */)
     })
 
@@ -137,7 +137,7 @@ describe('BN.js/Constructor', () => {
         'hexadecimal'
       ].forEach(function (str) {
         expect(() => {
-          void new BigNumber(str, 16)
+          return new BigNumber(str, 16)
         }).toThrow(/* Invalid character in */)
       })
     })
