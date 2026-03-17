@@ -3,15 +3,15 @@
  */
 const OP = {
   // push value
+  OP_0: 0x00, // when two op codes have the same value, the top one will be used in standard ASM output
   OP_FALSE: 0x00,
-  OP_0: 0x00,
   OP_PUSHDATA1: 0x4c,
   OP_PUSHDATA2: 0x4d,
   OP_PUSHDATA4: 0x4e,
   OP_1NEGATE: 0x4f,
   OP_RESERVED: 0x50,
-  OP_TRUE: 0x51,
   OP_1: 0x51,
+  OP_TRUE: 0x51,
   OP_2: 0x52,
   OP_3: 0x53,
   OP_4: 0x54,
@@ -124,20 +124,24 @@ const OP = {
 
   // expansion
   OP_NOP1: 0xb0,
-  OP_NOP2: 0xb1, // Used on BTC for OP_CHECKLOCKTIMEVERIFY
-  OP_NOP3: 0xb2, // Used on BTC for OP_CHECKSEQUENCEVERIFY
-  OP_NOP4: 0xb3, // OP_NOP4 allocated to restore OP_SUBSTR in 2026 CHRONICLE upgrade
-  OP_SUBSTR: 0xb3, // OP_NOP4 allocated to restore OP_SUBSTR in 2026 CHRONICLE upgrade
-  OP_NOP5: 0xb4, // OP_NOP5 allocated to restore OP_LEFT in 2026 CHRONICLE upgrade
-  OP_LEFT: 0xb4, // OP_NOP5 allocated to restore OP_LEFT in 2026 CHRONICLE upgrade
-  OP_NOP6: 0xb5, // OP_NOP6 allocated to restore OP_RIGHT in 2026 CHRONICLE upgrade
-  OP_RIGHT: 0xb5, // OP_NOP6 allocated to restore OP_RIGHT in 2026 CHRONICLE upgrade
-  OP_NOP7: 0xb6, // OP_NOP7 allocated to restore OP_LSHIFTNUM in 2026 CHRONICLE upgrade
-  OP_LSHIFTNUM: 0xb6, // OP_NOP7 allocated to restore OP_LSHIFTNUM in 2026 CHRONICLE upgrade
-  OP_NOP8: 0xb7, // OP_NOP7 allocated to restore OP_RSHIFTNUM in 2026 CHRONICLE upgrade
-  OP_RSHIFTNUM: 0xb7, // OP_NOP7 allocated to restore OP_RSHIFTNUM in 2026 CHRONICLE upgrade
+  OP_CHECKLOCKTIMEVERIFY: 0xb1, // BIP65 - on BSV post-genesis acts as NOP
+  OP_NOP2: 0xb1, // alias for OP_CHECKLOCKTIMEVERIFY
+  OP_CHECKSEQUENCEVERIFY: 0xb2, // BIP112 - on BSV post-genesis acts as NOP
+  OP_NOP3: 0xb2, // alias for OP_CHECKSEQUENCEVERIFY
+  OP_SUBSTR: 0xb3, // restored in 2026 CHRONICLE upgrade (was OP_NOP4)
+  OP_NOP4: 0xb3, // alias for OP_SUBSTR
+  OP_LEFT: 0xb4, // restored in 2026 CHRONICLE upgrade (was OP_NOP5)
+  OP_NOP5: 0xb4, // alias for OP_LEFT
+  OP_RIGHT: 0xb5, // restored in 2026 CHRONICLE upgrade (was OP_NOP6)
+  OP_NOP6: 0xb5, // alias for OP_RIGHT
+  OP_LSHIFTNUM: 0xb6, // restored in 2026 CHRONICLE upgrade (was OP_NOP7)
+  OP_NOP7: 0xb6, // alias for OP_LSHIFTNUM
+  OP_RSHIFTNUM: 0xb7, // restored in 2026 CHRONICLE upgrade (was OP_NOP8)
+  OP_NOP8: 0xb7, // alias for OP_RSHIFTNUM
   OP_NOP9: 0xb8,
   OP_NOP10: 0xb9,
+  // 0xba–0xf9 are FIRST_UNDEFINED_OP_VALUE in node v1.2.0 and return SCRIPT_ERR_BAD_OPCODE
+  // when executed. The names below are retained for ASM parsing/serialisation only.
   OP_NOP11: 0xba,
   OP_NOP12: 0xbb,
   OP_NOP13: 0xbc,
@@ -203,7 +207,8 @@ const OP = {
   OP_NOP73: 0xf8,
   OP_NOP77: 0xfc,
 
-  // template matching params
+  // template matching params (not executable opcodes; 0xf9 was removed from node v1.2.0 opcodes.h
+  // but retained here for ASM round-trip compatibility)
   OP_SMALLDATA: 0xf9,
   OP_SMALLINTEGER: 0xfa,
   OP_PUBKEYS: 0xfb,
@@ -214,7 +219,7 @@ const OP = {
 }
 
 for (const name in OP) {
-  OP[OP[name]] = name
+  if (OP[OP[name]] === undefined) OP[OP[name]] = name
 }
 
 export default OP

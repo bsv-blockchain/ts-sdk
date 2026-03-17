@@ -419,9 +419,12 @@ export default class Spend {
       let i: number, ikey: number, isig: number, nKeysCount: number, nSigsCount: number, fOk: boolean
 
       switch (currentOpcode) {
-        case OP.OP_VER:
-          this.pushStackCopy(new BigNumber(this.transactionVersion).toScriptNum())
+        case OP.OP_VER: {
+          // Node v1.2.0: pushes tx_version as a 4-byte little-endian integer (to_le encoding)
+          const ver = this.transactionVersion
+          this.pushStack([ver & 0xff, (ver >>> 8) & 0xff, (ver >>> 16) & 0xff, (ver >>> 24) & 0xff])
           break
+        }
         case OP.OP_SUBSTR: {
           if (this.stack.length < 3) this.scriptEvaluationError('OP_SUBSTR requires at least three items to be on the stack.')
           const len = BigNumber.fromScriptNum(this.popStack(), !this.isRelaxed()).toNumber()
@@ -459,7 +462,7 @@ export default class Spend {
             this.scriptEvaluationError(`OP_RIGHT length (${len}) must be in range [0, ${size}]`)
           }
 
-          this.pushStack(buf.slice(size - len, len))
+          this.pushStack(buf.slice(size - len))
           break
         }
         case OP.OP_LSHIFTNUM: {
@@ -501,32 +504,18 @@ export default class Spend {
           break
 
         case OP.OP_NOP:
+        // OP_NOP1 (0xb0), OP_NOP9 (0xb8), OP_NOP10 (0xb9) are the only defined upgrade-NOP slots
+        // in node v1.2.0. All other values above 0xb9 are FIRST_UNDEFINED_OP_VALUE and invalid.
+        // falls through
         case OP.OP_NOP1:
-        case OP.OP_NOP2:
-        case OP.OP_NOP3:
-        // case OP.OP_NOP4: // Allocated to OP_SUBSTR
-        // case OP.OP_NOP5: // Allocated to OP_LEFT
-        // case OP.OP_NOP6: // Allocated to OP_RIGHT
-        // eslint-disable-next-line no-fallthrough
-        case OP.OP_NOP7:
-        case OP.OP_NOP8:
+        // OP_NOP2 (0xb1) = OP_CHECKLOCKTIMEVERIFY: on BSV post-genesis treated as NOP
+        // falls through
+        case OP.OP_CHECKLOCKTIMEVERIFY:
+        // OP_NOP3 (0xb2) = OP_CHECKSEQUENCEVERIFY: on BSV post-genesis treated as NOP
+        // falls through
+        case OP.OP_CHECKSEQUENCEVERIFY:
         case OP.OP_NOP9:
         case OP.OP_NOP10:
-        // eslint-disable-next-line no-fallthrough
-        case OP.OP_NOP11: case OP.OP_NOP12: case OP.OP_NOP13: case OP.OP_NOP14: case OP.OP_NOP15:
-        case OP.OP_NOP16: case OP.OP_NOP17: case OP.OP_NOP18: case OP.OP_NOP19: case OP.OP_NOP20:
-        case OP.OP_NOP21: case OP.OP_NOP22: case OP.OP_NOP23: case OP.OP_NOP24: case OP.OP_NOP25:
-        case OP.OP_NOP26: case OP.OP_NOP27: case OP.OP_NOP28: case OP.OP_NOP29: case OP.OP_NOP30:
-        case OP.OP_NOP31: case OP.OP_NOP32: case OP.OP_NOP33: case OP.OP_NOP34: case OP.OP_NOP35:
-        case OP.OP_NOP36: case OP.OP_NOP37: case OP.OP_NOP38: case OP.OP_NOP39: case OP.OP_NOP40:
-        case OP.OP_NOP41: case OP.OP_NOP42: case OP.OP_NOP43: case OP.OP_NOP44: case OP.OP_NOP45:
-        case OP.OP_NOP46: case OP.OP_NOP47: case OP.OP_NOP48: case OP.OP_NOP49: case OP.OP_NOP50:
-        case OP.OP_NOP51: case OP.OP_NOP52: case OP.OP_NOP53: case OP.OP_NOP54: case OP.OP_NOP55:
-        case OP.OP_NOP56: case OP.OP_NOP57: case OP.OP_NOP58: case OP.OP_NOP59: case OP.OP_NOP60:
-        case OP.OP_NOP61: case OP.OP_NOP62: case OP.OP_NOP63: case OP.OP_NOP64: case OP.OP_NOP65:
-        case OP.OP_NOP66: case OP.OP_NOP67: case OP.OP_NOP68: case OP.OP_NOP69: case OP.OP_NOP70:
-        case OP.OP_NOP71: case OP.OP_NOP72: case OP.OP_NOP73:
-        case OP.OP_NOP77:
           break
 
         case OP.OP_VERIF:
@@ -534,9 +523,13 @@ export default class Spend {
           fValue = false
           if (isScriptExecuting) {
             if (this.stack.length < 1) this.scriptEvaluationError('OP_VERIF and OP_VERNOTIF require at least one item on the stack when they are used!')
-            buf2 = new BigNumber(this.transactionVersion).toScriptNum()
             buf1 = this.popStack()
-            fValue = compareNumberArrays(buf1, buf2)
+            // Node v1.2.0: compares against 4-byte little-endian tx_version (only matches when item is exactly 4 bytes)
+            if (buf1.length === 4) {
+              const ver = this.transactionVersion
+              buf2 = [ver & 0xff, (ver >>> 8) & 0xff, (ver >>> 16) & 0xff, (ver >>> 24) & 0xff]
+              fValue = compareNumberArrays(buf1, buf2)
+            }
             if (currentOpcode === OP.OP_VERNOTIF) fValue = !fValue
           }
           this.ifStack.push(fValue)

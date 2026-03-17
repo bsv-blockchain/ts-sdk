@@ -37,119 +37,55 @@ describe('Chronicle Tests', () => {
   })
 
   /**
-   * At present only the first two test vectors added as real transaction (pre and post fork) compute a sighash known to match a valid signagure.
+   * At present only the first test vector added as real transaction (pre and post fork) compute a sighash known to match a valid signagure.
    * The remaining test vectors come from bitcoin-sv-staging repo as of 2025-06-23, but appear to be at least somewhat randomly generated.
    * The "scope" (SigHashType) values are all over the place.
    * Working with Teranode team to determine correct preimage values...
    */
-  it('sighashTestData', () => {
-    let log = ''
-    let i = -1
-    for (const t of sighashTestData) {
-      i++
-      const tx = Transaction.fromHex(t.rawTxHex)
-      const script = Script.fromHex(t.scriptHex)
-      const input = tx.inputs[t.inputIndex]
-      if (input.unlockingScript?.chunks.length != 2)
-        continue;
-      const otherInputs = [...tx.inputs]
-      otherInputs.splice(t.inputIndex, 1)
-      const params = {
-        sourceTXID: input.sourceTXID!,
-        sourceOutputIndex: input.sourceOutputIndex,
-        sourceSatoshis: t.satoshis,
-        transactionVersion: tx.version,
-        otherInputs,
-        outputs: tx.outputs,
-        inputIndex: t.inputIndex,
-        subscript: Script.fromHex(t.scriptHex),
-        inputSequence: input.sequence ?? 0xffffffff, // Default to max sequence number
-        lockTime: tx.lockTime,
-        scope: t.hashType,
-      }
-      let ok = false
-      let okReg = false
-      let okOTDA = false
-      {
-        const sighash = t.sighashReg
-        const buf = TransactionSignature.format(params)
-        const ret = Utils.toHex(Hash.hash256(buf).reverse())
-        if (ret === sighash) {
-          ok = true
-          okReg = true
-        }
-        if (!okReg)
-          log += `${i+1} Reg ${okReg} ${!okReg ? ret : ''}\n`
-      }
-      {
-        const sighash = t.sighashOTDA
-        const buf = TransactionSignature.formatOTDA(params)
-        const ret = Utils.toHex(Hash.hash256(buf).reverse())
-        if (ret === sighash) {
-          ok = true
-          okOTDA = true
-        }
-        if (!okOTDA)
-          log += `${i+1} OTDA ${okOTDA} ${!okOTDA ? ret : ''}\n`
-      }
-    }
-    //console.log(log)
-    //expect(log).toBe('')
-  })
 
   it('wip sighashTestData', () => {
-    let log = ''
-    let i = -1
-    for (const t of sighashTestDataWip) {
-      i++
-      const tx = Transaction.fromHex(t.rawTxHex)
-      const script = Script.fromHex(t.scriptHex)
-      const input = tx.inputs[t.inputIndex]
-      const otherInputs = [...tx.inputs]
-      otherInputs.splice(t.inputIndex, 1)
-      const params = {
-        sourceTXID: input.sourceTXID!,
-        sourceOutputIndex: input.sourceOutputIndex,
-        sourceSatoshis: t.satoshis,
-        transactionVersion: tx.version,
-        otherInputs,
-        outputs: tx.outputs,
-        inputIndex: t.inputIndex,
-        subscript: Script.fromHex(t.scriptHex),
-        inputSequence: input.sequence ?? 0xffffffff, // Default to max sequence number
-        lockTime: tx.lockTime,
-        scope: t.hashType,
-      }
-      let ok = false
-      let okReg = false
-      let okOTDA = false
-      {
-        const sighash = t.sighashReg
-        const buf = TransactionSignature.format(params)
-        const ret = Utils.toHex(Hash.hash256(buf).reverse())
-        if (ret === sighash) {
-          ok = true
-          okReg = true
-        }
-        if (!okReg)
-          log += `${i+1} Reg ${okReg} ${!okReg ? ret : ''}\n`
-      }
-      {
-        const sighash = t.sighashOTDA
-        const buf = TransactionSignature.formatOTDA(params)
-        const ret = Utils.toHex(Hash.hash256(buf).reverse())
-        if (ret === sighash) {
-          ok = true
-          okOTDA = true
-        }
-        if (!okOTDA)
-          log += `${i+1} OTDA ${okOTDA} ${!okOTDA ? ret : ''}\n`
-      }
-    }
+    const log = computeSighashLog(sighashTestDataWip)
     console.log(log)
     expect(log).toBe('')
   })
 })
+
+function computeSighashLog (
+  data: typeof sighashTestData,
+  filterByUnlockingChunks: boolean = false
+): string {
+  let log = ''
+  let i = -1
+  for (const t of data) {
+    i++
+    const tx = Transaction.fromHex(t.rawTxHex)
+    const input = tx.inputs[t.inputIndex]
+    if (filterByUnlockingChunks && input.unlockingScript?.chunks.length !== 2)
+      continue
+    const otherInputs = [...tx.inputs]
+    otherInputs.splice(t.inputIndex, 1)
+    const params = {
+      sourceTXID: input.sourceTXID!,
+      sourceOutputIndex: input.sourceOutputIndex,
+      sourceSatoshis: t.satoshis,
+      transactionVersion: tx.version,
+      otherInputs,
+      outputs: tx.outputs,
+      inputIndex: t.inputIndex,
+      subscript: Script.fromHex(t.scriptHex),
+      inputSequence: input.sequence ?? 0xffffffff,
+      lockTime: tx.lockTime,
+      scope: t.hashType,
+    }
+    const reg = Utils.toHex(Hash.hash256(TransactionSignature.format(params)).reverse())
+    if (reg !== t.sighashReg)
+      log += `${i+1} Reg false ${reg}\n`
+    const otda = Utils.toHex(Hash.hash256(TransactionSignature.formatOTDA(params)).reverse())
+    if (otda !== t.sighashOTDA)
+      log += `${i+1} OTDA false ${otda}\n`
+  }
+  return log
+}
 
 function verifyTruthy<T> (v: T | undefined): T {
   if (v == null) throw new Error('must have value')

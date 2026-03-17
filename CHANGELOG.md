@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [2.0.10 - 2026-03-17](#2010---2026-03-17)
 - [2.0.9 - 2026-03-16](#209---2026-03-16)
 - [2.0.8 - 2026-03-16](#208---2026-03-16)
 - [2.0.7 - 2026-03-10](#207---2026-03-10)
@@ -216,6 +217,27 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [2.0.10] - 2026-03-17
+
+### Fixed
+- **OP_RIGHT** (0xb5): Fixed incorrect slice — `buf.slice(size - len, len)` was returning the wrong bytes; corrected to `buf.slice(size - len)` to match the node's `data.shrink(size-len, len)`.
+- **OP_VER** (0x62): Changed encoding from script-number to 4-byte little-endian, matching the node's `to_le(tx_version, val.data())`.
+- **OP_VERIF / OP_VERNOTIF** (0x65, 0x66): Updated version comparison to use 4-byte little-endian encoding (matches only when the stack item is exactly 4 bytes), consistent with the node's Chronicle-era implementation.
+- Removed OP_NOP11–OP_NOP77 from the interpreter's NOP handler; in node v1.2.0 opcodes >= `FIRST_UNDEFINED_OP_VALUE` (0xba) return `SCRIPT_ERR_BAD_OPCODE`. These byte values are retained in `OP.ts` solely for ASM serialisation round-trips.
+
+### Added
+- Canonical opcode alias names from node v1.2.0: `OP_CHECKLOCKTIMEVERIFY` (0xb1), `OP_CHECKSEQUENCEVERIFY` (0xb2), plus Chronicle-restored aliases `OP_SUBSTR` (0xb3), `OP_LEFT` (0xb4), `OP_RIGHT` (0xb5), `OP_LSHIFTNUM` (0xb6), `OP_RSHIFTNUM` (0xb7).
+- `ChronicleOpcodes.test.ts` — 74 new tests based on the [bitcoin-sv node v1.2.0 chronicle_upgrade_tests](https://github.com/bitcoin-sv/bitcoin-sv/tree/172c8fa38cce30cf4df0327b33c7418ea6289de8/test/functional/chronicle_upgrade_tests) covering:
+  - OP_VER 4-byte LE encoding and version matching
+  - OP_VERIF / OP_VERNOTIF branching with exact 4-byte comparison
+  - Restored Chronicle opcodes: OP_SUBSTR, OP_LEFT, OP_RIGHT, OP_2MUL, OP_2DIV, OP_LSHIFTNUM, OP_RSHIFTNUM
+  - Undefined opcodes (>= 0xba) correctly error instead of acting as NOPs
+  - Valid NOPs (OP_NOP1, CLTV, CSV, NOP9, NOP10) still function
+  - OP_LEFT + OP_RIGHT composition round-trip via OP_CAT
+  - Edge cases for version matching and script number sizes
 
 ---
 

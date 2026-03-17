@@ -6,6 +6,7 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 | |
 | --- |
+| [FormatPreimageParams](#interface-formatpreimageparams) |
 | [ScriptChunk](#interface-scriptchunk) |
 | [ScriptTemplate](#interface-scripttemplate) |
 | [ScriptTemplateUnlock](#interface-scripttemplateunlock) |
@@ -14,6 +15,28 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 
 ---
 
+### Interface: FormatPreimageParams
+
+Parameters for formatting the transaction preimage
+
+```ts
+export interface FormatPreimageParams {
+    tx: Transaction;
+    inputIndex: number;
+    signatureScope: number;
+    sourceTXID: string;
+    sourceSatoshis: number;
+    lockingScript: Script;
+    otherInputs: Transaction["inputs"];
+    inputSequence?: number;
+}
+```
+
+See also: [Script](./script.md#class-script), [Transaction](./transaction.md#class-transaction)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ### Interface: ScriptChunk
 
 A representation of a chunk of a script, which includes an opcode. For push operations, the associated data to push onto the stack is also included.
@@ -942,6 +965,59 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ---
 ## Functions
 
+| |
+| --- |
+| [computeSignatureScope](#function-computesignaturescope) |
+| [formatPreimage](#function-formatpreimage) |
+| [resolveSourceDetails](#function-resolvesourcedetails) |
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+
+### Function: computeSignatureScope
+
+Computes the signature scope flags from the given signing parameters.
+
+```ts
+export function computeSignatureScope(signOutputs: "all" | "none" | "single", anyoneCanPay: boolean): number 
+```
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Function: formatPreimage
+
+Formats the transaction preimage for signing.
+
+```ts
+export function formatPreimage(params: FormatPreimageParams): number[] 
+```
+
+See also: [FormatPreimageParams](./script.md#interface-formatpreimageparams)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
+### Function: resolveSourceDetails
+
+Resolves and validates the source transaction details needed for signing.
+Returns the resolved sourceTXID, sourceSatoshis, lockingScript, and otherInputs.
+
+```ts
+export function resolveSourceDetails(tx: Transaction, inputIndex: number, providedSourceSatoshis?: number, providedLockingScript?: Script): {
+    sourceTXID: string;
+    sourceSatoshis: number;
+    lockingScript: Script;
+    otherInputs: typeof tx.inputs;
+} 
+```
+
+See also: [Script](./script.md#class-script), [Transaction](./transaction.md#class-transaction)
+
+Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
+
+---
 ## Types
 
 ## Enums
