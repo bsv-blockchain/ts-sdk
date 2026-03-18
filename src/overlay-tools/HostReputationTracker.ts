@@ -67,12 +67,14 @@ export class HostReputationTracker {
     const now = Date.now()
     entry.totalFailures += 1
     entry.consecutiveFailures += 1
-    const msg =
-      typeof reason === 'string'
-        ? reason
-        : reason instanceof Error
-          ? reason.message
-          : undefined
+    let msg: string | undefined
+    if (typeof reason === 'string') {
+      msg = reason
+    } else if (reason instanceof Error) {
+      msg = reason.message
+    } else {
+      msg = undefined
+    }
     const immediate =
       typeof msg === 'string' &&
       (msg.includes('ERR_NAME_NOT_RESOLVED') ||
@@ -93,12 +95,13 @@ export class HostReputationTracker {
       entry.backoffUntil = now + backoffDuration
     }
     entry.lastUpdatedAt = now
-    entry.lastError =
-      typeof reason === 'string'
-        ? reason
-        : reason instanceof Error
-          ? reason.message
-          : undefined
+    if (typeof reason === 'string') {
+      entry.lastError = reason
+    } else if (reason instanceof Error) {
+      entry.lastError = reason.message
+    } else {
+      entry.lastError = undefined
+    }
     this.saveToStorage()
   }
 
@@ -133,13 +136,13 @@ export class HostReputationTracker {
 
   snapshot (host: string): HostReputationEntry | undefined {
     const entry = this.stats.get(host)
-    return entry != null ? { ...entry } : undefined
+    return entry == null ? undefined : { ...entry }
   }
 
   private getStorage (): any {
     try {
       const g: any = typeof globalThis === 'object' ? globalThis : undefined
-      if (g == null || g.localStorage == null) return undefined
+      if (g?.localStorage == null) return undefined
       return g.localStorage
     } catch {
       return undefined

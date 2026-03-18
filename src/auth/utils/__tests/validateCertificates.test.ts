@@ -1,7 +1,8 @@
 import { validateCertificates } from '../../../auth/utils/validateCertificates'
 import { VerifiableCertificate } from '../../../auth/certificates/VerifiableCertificate'
-import { ProtoWallet } from '../../../wallet/index'
+import { ProtoWallet, WalletInterface } from '../../../wallet/index'
 import { PrivateKey } from '../../../primitives/index'
+import { AuthMessage } from '../../../auth/types'
 
 let mockVerify = jest.fn(async () => await Promise.resolve(true))
 let mockDecryptFields = jest.fn(
@@ -40,8 +41,8 @@ jest.mock('../../../auth/certificates/VerifiableCertificate', () => {
 })
 
 describe('validateCertificates', () => {
-  let verifierWallet
-  let message
+  let verifierWallet: WalletInterface
+  let message: AuthMessage
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -53,8 +54,10 @@ describe('validateCertificates', () => {
       async () => await Promise.resolve({ field1: 'decryptedValue1' })
     )
 
-    verifierWallet = new ProtoWallet(new PrivateKey(1))
+    verifierWallet = new ProtoWallet(new PrivateKey(1)) as unknown as WalletInterface
     message = {
+      version: '1.0',
+      messageType: 'certificateResponse',
       identityKey: 'valid_subject',
       certificates: [
         {
@@ -65,7 +68,7 @@ describe('validateCertificates', () => {
           revocationOutpoint: 'outpoint',
           fields: { field1: 'encryptedData1' },
           decryptedFields: {}
-        }
+        } as any
       ]
     }
   })
@@ -76,9 +79,9 @@ describe('validateCertificates', () => {
     ).resolves.not.toThrow()
 
     expect(VerifiableCertificate).toHaveBeenCalledTimes(
-      message.certificates.length
+      message.certificates!.length
     )
-    expect(mockVerify).toHaveBeenCalledTimes(message.certificates.length)
+    expect(mockVerify).toHaveBeenCalledTimes(message.certificates!.length)
     expect(mockDecryptFields).toHaveBeenCalledWith(verifierWallet, undefined, undefined, undefined)
   })
 
@@ -147,9 +150,9 @@ describe('validateCertificates', () => {
       revocationOutpoint: 'outpoint',
       fields: { field1: 'encryptedData1' },
       decryptedFields: {}
-    }
+    } as any
 
-    message.certificates.push(anotherCertificate)
+    message.certificates!.push(anotherCertificate)
 
     await expect(
       validateCertificates(verifierWallet, message)

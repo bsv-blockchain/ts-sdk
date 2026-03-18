@@ -266,7 +266,11 @@ export default class Spend {
     if (this.stack.length === 0) {
       this.scriptEvaluationError('Attempted to pop from an empty stack.')
     }
-    const item = this.stack.pop() as number[]
+    const item = this.stack.pop()
+    if (item === undefined) {
+      this.scriptEvaluationError('Attempted to pop from an empty stack.')
+      return [] // unreachable; scriptEvaluationError always throws
+    }
     this.stackMem -= item.length
     return item
   }
@@ -290,7 +294,11 @@ export default class Spend {
     if (this.altStack.length === 0) {
       this.scriptEvaluationError('Attempted to pop from an empty alt stack.')
     }
-    const item = this.altStack.pop() as number[]
+    const item = this.altStack.pop()
+    if (item === undefined) {
+      this.scriptEvaluationError('Attempted to pop from an empty alt stack.')
+      return [] // unreachable; scriptEvaluationError always throws
+    }
     this.altStackMem -= item.length
     return item
   }
@@ -308,7 +316,7 @@ export default class Spend {
         this.scriptEvaluationError('The signature must have a low S value.')
         return false
       }
-    } catch (e) {
+    } catch {
       this.scriptEvaluationError('The signature format is invalid.')
       return false
     }
@@ -340,7 +348,7 @@ export default class Spend {
     }
     try {
       PublicKey.fromDER(buf as number[]) // This can throw for stricter DER rules
-    } catch (e) {
+    } catch {
       this.scriptEvaluationError('The public key is in an unknown format.')
       return false
     }
@@ -395,7 +403,7 @@ export default class Spend {
     const operation = currentScript.chunks[this.programCounter]
 
     const currentOpcode = operation.op
-    if (typeof currentOpcode === 'undefined') {
+    if (currentOpcode === undefined) {
       this.scriptEvaluationError(`Missing opcode in ${this.context} at pc=${this.programCounter}.`) // Error thrown
     }
     if (Array.isArray(operation.data) && operation.data.length > maxScriptElementSize) {
@@ -547,7 +555,7 @@ export default class Spend {
           break
         case OP.OP_ELSE:
           if (this.ifStack.length === 0) this.scriptEvaluationError('OP_ELSE requires a preceeding OP_IF.')
-          this.ifStack[this.ifStack.length - 1] = !this.ifStack[this.ifStack.length - 1]
+          this.ifStack[this.ifStack.length - 1] = !(this.ifStack[this.ifStack.length - 1])
           break
         case OP.OP_ENDIF:
           if (this.ifStack.length === 0) this.scriptEvaluationError('OP_ENDIF requires a preceeding OP_IF.')
@@ -682,7 +690,7 @@ export default class Spend {
           // stack is [... rest, x1, x2]
           // We want [... rest, x2_copy, x1, x2]
           this.ensureStackMem(buf1.length)
-          this.stack.splice(this.stack.length - 2, 0, buf1.slice()) // Insert copy of x2 before x1
+          this.stack.splice(-2, 0, buf1.slice()) // Insert copy of x2 before x1
           this.stackMem += buf1.length // Account for the new copy
           break
         case OP.OP_SIZE:
@@ -769,7 +777,7 @@ export default class Spend {
             case OP.OP_NEGATE: bn = bn.neg(); break
             case OP.OP_ABS: if (bn.isNeg()) bn = bn.neg(); break
             case OP.OP_NOT: bn = new BigNumber(bn.cmpn(0) === 0 ? 1 : 0); break
-            case OP.OP_0NOTEQUAL: bn = new BigNumber(bn.cmpn(0) !== 0 ? 1 : 0); break
+            case OP.OP_0NOTEQUAL: bn = new BigNumber(bn.cmpn(0) === 0 ? 0 : 1); break
           }
           this.pushStack(bn.toScriptNum())
           break
@@ -812,7 +820,7 @@ export default class Spend {
             case OP.OP_BOOLOR: resultBnArithmetic = new BigNumber((bn1.cmpn(0) !== 0 || bn2.cmpn(0) !== 0) ? 1 : 0); break
             case OP.OP_NUMEQUAL: resultBnArithmetic = new BigNumber(bn1.cmp(bn2) === 0 ? 1 : 0); break
             case OP.OP_NUMEQUALVERIFY: resultBnArithmetic = new BigNumber(bn1.cmp(bn2) === 0 ? 1 : 0); break
-            case OP.OP_NUMNOTEQUAL: resultBnArithmetic = new BigNumber(bn1.cmp(bn2) !== 0 ? 1 : 0); break
+            case OP.OP_NUMNOTEQUAL: resultBnArithmetic = new BigNumber(bn1.cmp(bn2) === 0 ? 0 : 1); break
             case OP.OP_LESSTHAN: resultBnArithmetic = new BigNumber(bn1.cmp(bn2) < 0 ? 1 : 0); break
             case OP.OP_GREATERTHAN: resultBnArithmetic = new BigNumber(bn1.cmp(bn2) > 0 ? 1 : 0); break
             case OP.OP_LESSTHANOREQUAL: resultBnArithmetic = new BigNumber(bn1.cmp(bn2) <= 0 ? 1 : 0); break
@@ -875,7 +883,7 @@ export default class Spend {
 
               pubkey = PublicKey.fromDER(bufPubkey)
               fSuccess = this.verifySignature(sig, pubkey, subscript)
-            } catch (e) {
+            } catch {
               fSuccess = false
             }
           }
@@ -949,7 +957,7 @@ export default class Spend {
                 sig = TransactionSignature.fromChecksigFormat(bufSig)
                 pubkey = PublicKey.fromDER(bufPubkey)
                 fOk = this.verifySignature(sig, pubkey, subscript)
-              } catch (e) {
+              } catch {
                 fOk = false
               }
             }
