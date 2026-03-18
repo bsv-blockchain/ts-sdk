@@ -6,13 +6,11 @@ import * as Utils from '../../primitives/utils.js'
 import {
   WalletInterface,
   ListOutputsResult,
-  WalletDecryptResult,
   WalletEncryptResult,
   CreateActionResult,
   SignActionResult
 } from '../../wallet/Wallet.interfaces.js'
 import Transaction from '../../transaction/Transaction.js'
-import { Beef } from '../../transaction/Beef.js'
 import { mock } from 'node:test'
 
 // --- Constants for Mock Values ---
@@ -303,7 +301,7 @@ describe('localKVStore', () => {
       const existingOutput = { outpoint: existingOutpoint, txid: 'oldTxId', vout: 0, lockingScript: 'oldScriptHex' } // Added script
       const mockBEEF = [1, 2, 3, 4, 5, 6]
       const signableRef = 'signableTxRef123'
-      const signableTx = []
+      const signableTx: any[] = []
       const updatedTxId = 'updatedTxId'
 
       const valueArray = Array.from(testRawValueBuffer)
@@ -397,7 +395,7 @@ describe('localKVStore', () => {
       const existingOutput2 = { outpoint: existingOutpoint2, txid: 'oldTxId2', vout: 1, lockingScript: 's2' }
       const mockBEEF = [1, 2, 3, 4, 5, 6]
       const signableRef = 'signableTxRefMulti'
-      const signableTx = []
+      const signableTx: any[] = []
       const updatedTxId = 'updatedTxIdMulti'
       const mockTxObject = {} // Dummy TX object
 
@@ -564,7 +562,7 @@ describe('localKVStore', () => {
       const existingOutput2 = { outpoint: existingOutpoint2, txid: 'removeTxId2', vout: 1, lockingScript: 's2' }
       const mockBEEF = Buffer.from('mockBEEFRemove')
       const signableRef = 'signableTxRefRemove'
-      const signableTx = []
+      const signableTx: any[] = []
       const removalTxId = 'removalTxId'
       const mockTxObject = {}
 
@@ -628,7 +626,7 @@ describe('localKVStore', () => {
       const existingOutput1 = { outpoint: existingOutpoint1, txid: 'failRemoveTxId1', vout: 0, lockingScript: 's1' }
       const mockBEEF = Buffer.from('mockBEEFFailRemove')
       const signableRef = 'signableTxRefFailRemove'
-      const signableTx = []
+      const signableTx: any[] = []
       const mockTxObject = {}
 
       mockWallet.listOutputs.mockResolvedValue({ outputs: [existingOutput1], totalOutputs: 1, BEEF: mockBEEF } as any)

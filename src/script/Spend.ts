@@ -42,8 +42,8 @@ function isMinimallyEncodedHelper (
     return false
   }
   if (buf.length > 0) {
-    if ((buf.at(-1)! & 0x7f) === 0) {
-      if (buf.length <= 1 || (buf.at(-2)! & 0x80) === 0) {
+    if ((buf[buf.length - 1] & 0x7f) === 0) {
+      if (buf.length <= 1 || (buf[buf.length - 2] & 0x80) === 0) {
         return false
       }
     }
@@ -266,9 +266,10 @@ export default class Spend {
     if (this.stack.length === 0) {
       this.scriptEvaluationError('Attempted to pop from an empty stack.')
     }
-    const item = this.stack.pop()!
+    const item = this.stack.pop()
     if (item === undefined) {
       this.scriptEvaluationError('Attempted to pop from an empty stack.')
+      return [] // unreachable; scriptEvaluationError always throws
     }
     this.stackMem -= item.length
     return item
@@ -293,9 +294,10 @@ export default class Spend {
     if (this.altStack.length === 0) {
       this.scriptEvaluationError('Attempted to pop from an empty alt stack.')
     }
-    const item = this.altStack.pop()!
+    const item = this.altStack.pop()
     if (item === undefined) {
       this.scriptEvaluationError('Attempted to pop from an empty alt stack.')
+      return [] // unreachable; scriptEvaluationError always throws
     }
     this.altStackMem -= item.length
     return item
@@ -553,7 +555,7 @@ export default class Spend {
           break
         case OP.OP_ELSE:
           if (this.ifStack.length === 0) this.scriptEvaluationError('OP_ELSE requires a preceeding OP_IF.')
-          this.ifStack[this.ifStack.length - 1] = !this.ifStack.at(-1)!
+          this.ifStack[this.ifStack.length - 1] = !(this.ifStack[this.ifStack.length - 1])
           break
         case OP.OP_ENDIF:
           if (this.ifStack.length === 0) this.scriptEvaluationError('OP_ENDIF requires a preceeding OP_IF.')
@@ -1049,7 +1051,7 @@ export default class Spend {
           let signbit = 0x00
 
           if (rawnum.length > 0) {
-            signbit = rawnum.at(-1)! & 0x80 // Store sign bit
+            signbit = rawnum[rawnum.length - 1] & 0x80 // Store sign bit
             rawnum[rawnum.length - 1] &= 0x7f // Remove sign bit for padding
           }
 
