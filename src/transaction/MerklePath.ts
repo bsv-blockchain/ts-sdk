@@ -482,4 +482,82 @@ export default class MerklePath {
       dropOffsetsFromLevel(dropOffsets, h)
     }
   }
+
+  /**
+   * Extracts a minimal compound MerklePath covering only the specified transaction IDs.
+   *
+   * Given a compound MerklePath (e.g. all block txids at level 0, or a trimmed
+   * compound path), this method reconstructs the sibling hashes at each tree level
+   * for every requested txid using findOrComputeLeaf, builds a per-txid proof for
+   * each one, then combines them with combine() into a single trimmed compound path.
+   *
+   * The extracted path is verified to compute the same Merkle root as the source.
+   *
+   * @param {string[]} txids - Transaction IDs to extract proofs for.
+   * @returns {MerklePath} - A new trimmed compound MerklePath covering only the requested txids.
+   * @throws {Error} - If no txids are provided, a txid is not found, or the roots do not match.
+   *
+   * @example
+   * // Full block compound path (all txids at level 0)
+   * const fullBlock = new MerklePath(height, [allTxidsAtLevel0])
+   * // Extract a smaller compound proof covering just two transactions
+   * const twoTxProof = fullBlock.extract([txid1, txid2])
+   * twoTxProof.computeRoot(txid1) // === fullBlock.computeRoot()
+   */
+  extract (txids: string[]): MerklePath {
+    if (txids.length === 0) {
+      throw new Error('At least one txid must be provided to extract')
+    }
+
+    const originalRoot = this.computeRoot()
+    const maxOffset = this.path[0].reduce((max, l) => Math.max(max, l.offset), 0)
+    const treeHeight = Math.max(this.path.length, 32 - Math.clz32(maxOffset))
+
+    let compound: MerklePath | null = null
+
+    for (const txid of txids) {
+      const txOffset = this.indexOf(txid)
+      const levels: Array<Array<{ offset: number, hash?: string, txid?: boolean, duplicate?: boolean }>> = []
+
+      for (let h = 0; h < treeHeight; h++) {
+        const sibOffset = (txOffset >> h) ^ 1
+        if (h === 0) {
+          const sib = this.findOrComputeLeaf(0, sibOffset)
+          const level: Array<{ offset: number, hash?: string, txid?: boolean, duplicate?: boolean }> =
+            [{ offset: txOffset, txid: true, hash: txid }]
+          if (sib != null) level.push(sib)
+          level.sort((a, b) => a.offset - b.offset)
+          levels.push(level)
+        } else {
+          const sib = this.findOrComputeLeaf(h, sibOffset)
+          if (sib != null) {
+            levels.push([sib])
+          } else if ((txOffset >> h) === (maxOffset >> h)) {
+            // Last odd node at this height — Bitcoin Merkle duplicates it
+            levels.push([{ offset: sibOffset, duplicate: true }])
+          } else {
+            levels.push([])
+          }
+        }
+      }
+
+      const individual = new MerklePath(this.blockHeight, levels)
+      if (compound === null) {
+        compound = new MerklePath(this.blockHeight, levels.map(l => [...l]))
+      } else {
+        compound.combine(individual)
+      }
+    }
+
+    // compound cannot be null here since txids.length > 0
+    const extracted = compound!
+    const extractedRoot = extracted.computeRoot()
+    if (extractedRoot !== originalRoot) {
+      throw new Error(
+        `Extracted path root ${extractedRoot} does not match original root ${originalRoot}`
+      )
+    }
+
+    return extracted
+  }
 }
