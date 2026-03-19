@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [2.0.13 - 2026-03-19](#2013---2026-03-19)
 - [2.0.10 - 2026-03-17](#2010---2026-03-17)
 - [2.0.9 - 2026-03-16](#209---2026-03-16)
 - [2.0.8 - 2026-03-16](#208---2026-03-16)
@@ -217,6 +218,18 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [2.0.13] - 2026-03-19
+
+### Added
+- `MerklePath.extract(txids: string[]): MerklePath` — given a compound `MerklePath` (e.g. a full-block path with all txids at level 0, or any trimmed compound path), extracts a minimal compound proof covering only the requested transaction IDs.
+  - For each txid the method walks every tree level and reconstructs the required sibling hashes using `findOrComputeLeaf`, correctly handling odd-level Bitcoin Merkle duplication at every height.
+  - The resulting per-txid proofs are combined with `combine()` (which also calls `trim()`) into a single compact compound path.
+  - The extracted path is verified against the source path's Merkle root before being returned; a mismatch throws.
+  - Typical usage: build a full-block compound path once, then call `extract` to hand lightweight sub-proofs to individual transaction consumers without retaining the full block data.
+  - 7 new tests added to `MerklePath.test.ts` covering: single-txid extraction, multi-txid extraction, hex round-trip, size reduction, extraction from a trimmed multi-level compound path, empty-input error, and unknown-txid error.
 
 ---
 

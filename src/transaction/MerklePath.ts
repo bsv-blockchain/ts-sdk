@@ -482,4 +482,159 @@ export default class MerklePath {
       dropOffsetsFromLevel(dropOffsets, h)
     }
   }
+
+  /**
+   * Cached leaf finder for extract(). Uses Map-based indexes for O(1) lookups
+   * and caches computed intermediate hashes to avoid redundant work.
+   */
+  private cachedFindLeaf (
+    height: number,
+    offset: number,
+    sourceIndex: Array<Map<number, MerklePathLeaf>>,
+    hashCache: Map<string, MerklePathLeaf | undefined>,
+    maxOffset: number
+  ): MerklePathLeaf | undefined {
+    const key = `${height}:${offset}`
+    if (hashCache.has(key)) return hashCache.get(key)
+
+    const doHash = (m: string): string =>
+      toHex(hash256(toArray(m, 'hex').reverse()).reverse())
+
+    let leaf: MerklePathLeaf | undefined = height < sourceIndex.length
+      ? sourceIndex[height].get(offset)
+      : undefined
+
+    if (leaf != null) {
+      hashCache.set(key, leaf)
+      return leaf
+    }
+
+    if (height === 0) {
+      hashCache.set(key, undefined)
+      return undefined
+    }
+
+    const h = height - 1
+    const l = offset << 1
+    const leaf0 = this.cachedFindLeaf(h, l, sourceIndex, hashCache, maxOffset)
+    if (leaf0?.hash == null || leaf0.hash === '') {
+      hashCache.set(key, undefined)
+      return undefined
+    }
+
+    const leaf1 = this.cachedFindLeaf(h, l + 1, sourceIndex, hashCache, maxOffset)
+    if (leaf1?.hash == null) {
+      if (leaf1?.duplicate === true || (this.path.length === 1 && l === (maxOffset >> h))) {
+        leaf = { offset, hash: doHash(leaf0.hash + leaf0.hash) }
+        hashCache.set(key, leaf)
+        return leaf
+      }
+      hashCache.set(key, undefined)
+      return undefined
+    }
+
+    const workinghash = leaf1.duplicate === true
+      ? doHash(leaf0.hash + leaf0.hash)
+      : doHash((leaf1.hash ?? '') + (leaf0.hash ?? ''))
+    leaf = { offset, hash: workinghash }
+    hashCache.set(key, leaf)
+    return leaf
+  }
+
+  /**
+   * Extracts a minimal compound MerklePath covering only the specified transaction IDs.
+   *
+   * Given a compound MerklePath (e.g. all block txids at level 0, or a trimmed
+   * compound path), this method reconstructs the sibling hashes at each tree level
+   * for every requested txid using cached Map-indexed lookups, then assembles them
+   * into a single trimmed compound path.
+   *
+   * The extracted path is verified to compute the same Merkle root as the source.
+   *
+   * @param {string[]} txids - Transaction IDs to extract proofs for.
+   * @returns {MerklePath} - A new trimmed compound MerklePath covering only the requested txids.
+   * @throws {Error} - If no txids are provided, a txid is not found, or the roots do not match.
+   *
+   * @example
+   * // Full block compound path (all txids at level 0)
+   * const fullBlock = new MerklePath(height, [allTxidsAtLevel0])
+   * // Extract a smaller compound proof covering just two transactions
+   * const twoTxProof = fullBlock.extract([txid1, txid2])
+   * twoTxProof.computeRoot(txid1) // === fullBlock.computeRoot()
+   */
+  extract (txids: string[]): MerklePath {
+    if (txids.length === 0) {
+      throw new Error('At least one txid must be provided to extract')
+    }
+
+    const originalRoot = this.computeRoot()
+    const maxOffset = this.path[0].reduce((max, l) => Math.max(max, l.offset), 0)
+    const treeHeight = Math.max(this.path.length, 32 - Math.clz32(maxOffset))
+
+    // Build O(1) lookup indexes for the source path
+    const sourceIndex: Array<Map<number, MerklePathLeaf>> = new Array(this.path.length)
+    for (let h = 0; h < this.path.length; h++) {
+      const map = new Map<number, MerklePathLeaf>()
+      for (const leaf of this.path[h]) map.set(leaf.offset, leaf)
+      sourceIndex[h] = map
+    }
+
+    const hashCache = new Map<string, MerklePathLeaf | undefined>()
+
+    // Build txid-to-offset index for O(1) lookup
+    const txidToOffset = new Map<string, number>()
+    for (const leaf of this.path[0]) {
+      if (leaf.hash != null) txidToOffset.set(leaf.hash, leaf.offset)
+    }
+
+    // Collect all needed leaves per level
+    const neededPerLevel: Array<Map<number, MerklePathLeaf>> = new Array(treeHeight)
+    for (let h = 0; h < treeHeight; h++) neededPerLevel[h] = new Map()
+
+    for (const txid of txids) {
+      const txOffset = txidToOffset.get(txid)
+      if (txOffset === undefined) {
+        throw new Error(`Transaction ID ${txid} not found in the Merkle Path`)
+      }
+
+      // Level 0: the txid leaf + its sibling
+      neededPerLevel[0].set(txOffset, { offset: txOffset, txid: true, hash: txid })
+      const sib0Offset = txOffset ^ 1
+      if (!neededPerLevel[0].has(sib0Offset)) {
+        const sib = this.cachedFindLeaf(0, sib0Offset, sourceIndex, hashCache, maxOffset)
+        if (sib != null) neededPerLevel[0].set(sib0Offset, sib)
+      }
+
+      // Higher levels: just the sibling at each height
+      for (let h = 1; h < treeHeight; h++) {
+        const sibOffset = (txOffset >> h) ^ 1
+        if (neededPerLevel[h].has(sibOffset)) continue
+        const sib = this.cachedFindLeaf(h, sibOffset, sourceIndex, hashCache, maxOffset)
+        if (sib != null) {
+          neededPerLevel[h].set(sibOffset, sib)
+        } else if ((txOffset >> h) === (maxOffset >> h)) {
+          neededPerLevel[h].set(sibOffset, { offset: sibOffset, duplicate: true })
+        }
+      }
+    }
+
+    // Build sorted compound path
+    const compoundPath: Array<Array<{ offset: number, hash?: string, txid?: boolean, duplicate?: boolean }>> = new Array(treeHeight)
+    for (let h = 0; h < treeHeight; h++) {
+      compoundPath[h] = Array.from(neededPerLevel[h].values())
+        .sort((a, b) => a.offset - b.offset)
+    }
+
+    const compound = new MerklePath(this.blockHeight, compoundPath)
+    compound.trim()
+
+    const extractedRoot = compound.computeRoot()
+    if (extractedRoot !== originalRoot) {
+      throw new Error(
+        `Extracted path root ${extractedRoot} does not match original root ${originalRoot}`
+      )
+    }
+
+    return compound
+  }
 }
