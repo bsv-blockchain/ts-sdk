@@ -383,7 +383,7 @@ isValidURL = (URL: string): boolean => {
         getHashFromURL(URL);
         return true;
     }
-    catch (e) {
+    catch {
         return false;
     }
 }

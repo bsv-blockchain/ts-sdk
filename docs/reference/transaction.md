@@ -1374,6 +1374,7 @@ export default class MerklePath {
     async verify(txid: string, chainTracker: ChainTracker): Promise<boolean> 
     combine(other: MerklePath): void 
     trim(): void 
+    extract(txids: string[]): MerklePath 
 }
 ```
 
@@ -1417,6 +1418,45 @@ Argument Details
 Throws
 
 - If the transaction ID is not part of the Merkle Path.
+
+#### Method extract
+
+Extracts a minimal compound MerklePath covering only the specified transaction IDs.
+
+Given a compound MerklePath (e.g. all block txids at level 0, or a trimmed
+compound path), this method reconstructs the sibling hashes at each tree level
+for every requested txid using findOrComputeLeaf, builds a per-txid proof for
+each one, then combines them with combine() into a single trimmed compound path.
+
+The extracted path is verified to compute the same Merkle root as the source.
+
+```ts
+extract(txids: string[]): MerklePath 
+```
+See also: [MerklePath](./transaction.md#class-merklepath)
+
+Returns
+
+- A new trimmed compound MerklePath covering only the requested txids.
+
+Argument Details
+
++ **txids**
+  + Transaction IDs to extract proofs for.
+
+Throws
+
+- If no txids are provided, a txid is not found, or the roots do not match.
+
+Example
+
+```ts
+// Full block compound path (all txids at level 0)
+const fullBlock = new MerklePath(height, [allTxidsAtLevel0])
+// Extract a smaller compound proof covering just two transactions
+const twoTxProof = fullBlock.extract([txid1, txid2])
+twoTxProof.computeRoot(txid1) // === fullBlock.computeRoot()
+```
 
 #### Method findOrComputeLeaf
 
