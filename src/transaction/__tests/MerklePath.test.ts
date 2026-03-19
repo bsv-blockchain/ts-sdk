@@ -391,6 +391,86 @@ describe('MerklePath', () => {
     expect(splitTx5.computeRoot(tx[5])).toBe(merkleroot)
     expect(splitTx8.computeRoot(tx[8])).toBe(merkleroot)
   })
+  describe('extract()', () => {
+    it('extracts a single-txid proof from a full block compound path', () => {
+      const { height, merkleroot, tx } = BLOCK_125632
+      const leafs = tx.map((hash, offset) => ({ hash, txid: true, offset }))
+      if (leafs.length % 2) leafs.push({ offset: leafs.length, duplicate: true } as any)
+      const fullBlock = new MerklePath(height, [leafs])
+
+      const extracted = fullBlock.extract([tx[2]])
+      expect(extracted.computeRoot(tx[2])).toBe(merkleroot)
+    })
+
+    it('extracts a multi-txid compound proof from a full block compound path', () => {
+      const { height, merkleroot, tx } = BLOCK_125632
+      const leafs = tx.map((hash, offset) => ({ hash, txid: true, offset }))
+      if (leafs.length % 2) leafs.push({ offset: leafs.length, duplicate: true } as any)
+      const fullBlock = new MerklePath(height, [leafs])
+
+      const extracted = fullBlock.extract([tx[2], tx[5], tx[8]])
+      expect(extracted.computeRoot(tx[2])).toBe(merkleroot)
+      expect(extracted.computeRoot(tx[5])).toBe(merkleroot)
+      expect(extracted.computeRoot(tx[8])).toBe(merkleroot)
+    })
+
+    it('extracted path serializes and deserializes correctly', () => {
+      const { height, merkleroot, tx } = BLOCK_125632
+      const leafs = tx.map((hash, offset) => ({ hash, txid: true, offset }))
+      if (leafs.length % 2) leafs.push({ offset: leafs.length, duplicate: true } as any)
+      const fullBlock = new MerklePath(height, [leafs])
+
+      const extracted = fullBlock.extract([tx[2], tx[8]])
+      const roundTripped = MerklePath.fromHex(extracted.toHex())
+      expect(roundTripped.computeRoot(tx[2])).toBe(merkleroot)
+      expect(roundTripped.computeRoot(tx[8])).toBe(merkleroot)
+    })
+
+    it('extracted path is smaller than the full block path', () => {
+      const { height, tx } = BLOCK_125632
+      const leafs = tx.map((hash, offset) => ({ hash, txid: true, offset }))
+      if (leafs.length % 2) leafs.push({ offset: leafs.length, duplicate: true } as any)
+      const fullBlock = new MerklePath(height, [leafs])
+
+      const extracted = fullBlock.extract([tx[2], tx[5]])
+      expect(extracted.toBinary().length).toBeLessThan(fullBlock.toBinary().length)
+    })
+
+    it('extract from a trimmed multi-level compound path also works', () => {
+      const { height, merkleroot, tx } = BLOCK_125632
+      const [pathA, pathB] = buildSplitPaths()
+      pathA.combine(pathB)
+      // pathA is now a trimmed multi-level compound path for tx[2] and tx[3]
+      const txid2 = BRC74TXID2
+      const compound = new MerklePath(BRC74JSON.blockHeight, BRC74JSON.path)
+      const extracted = compound.extract([txid2])
+      expect(extracted.computeRoot(txid2)).toBe(compound.computeRoot(txid2))
+      // BLOCK_125632 variant
+      const leafs = tx.map((hash, offset) => ({ hash, txid: true, offset }))
+      if (leafs.length % 2) leafs.push({ offset: leafs.length, duplicate: true } as any)
+      const fullBlock = new MerklePath(height, [leafs])
+      const ex = fullBlock.extract([tx[0], tx[10]])
+      expect(ex.computeRoot(tx[0])).toBe(merkleroot)
+      expect(ex.computeRoot(tx[10])).toBe(merkleroot)
+    })
+
+    it('throws when no txids are provided', () => {
+      const { height, tx } = BLOCK_125632
+      const leafs = tx.map((hash, offset) => ({ hash, txid: true, offset }))
+      if (leafs.length % 2) leafs.push({ offset: leafs.length, duplicate: true } as any)
+      const fullBlock = new MerklePath(height, [leafs])
+      expect(() => fullBlock.extract([])).toThrow('At least one txid must be provided')
+    })
+
+    it('throws when a txid is not in the path', () => {
+      const { height, tx } = BLOCK_125632
+      const leafs = tx.map((hash, offset) => ({ hash, txid: true, offset }))
+      if (leafs.length % 2) leafs.push({ offset: leafs.length, duplicate: true } as any)
+      const fullBlock = new MerklePath(height, [leafs])
+      expect(() => fullBlock.extract(['deadbeef'.repeat(8)])).toThrow()
+    })
+  })
+
   it('findOrComputeLeaf duplicates leaf0 when leaf1 carries both a hash and duplicate=true', () => {
     // Covers the leaf1.duplicate === true branch inside findOrComputeLeaf.
     // That branch is reached when leaf1.hash is non-null (bypassing the null-check above it)
