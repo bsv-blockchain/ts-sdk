@@ -14,7 +14,7 @@ export interface UploaderConfig {
   storageURL?: string
   /** Explicit provider list. Takes precedence over `storageURL`. */
   storageURLs?: string[]
-  /** Minimum replicas to store the file on. Defaults to 3. */
+  /** Minimum replicas to store the file on. Defaults to 1. */
   resilienceLevel?: number
   wallet: WalletInterface
 }
@@ -124,12 +124,12 @@ export class StorageUploader {
       hosts = [...DEFAULT_UHRP_SERVERS]
     }
 
-    const requestedLevel = config.resilienceLevel ?? 3
+    const requestedLevel = config.resilienceLevel ?? 1
     if (!Number.isInteger(requestedLevel) || requestedLevel < 1) {
       throw new Error('resilienceLevel must be a positive integer.')
     }
 
-    // Legacy `storageURL` callers must not start demanding 3 replicas.
+    // Legacy `storageURL` callers must not start demanding extra replicas.
     this.resilienceLevel = legacySingleHost ? 1 : requestedLevel
     this.hosts = hosts
     this.baseURL = hosts[0]

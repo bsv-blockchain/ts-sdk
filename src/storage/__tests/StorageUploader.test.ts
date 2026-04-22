@@ -313,7 +313,7 @@ describe('StorageUploader — multi-provider behavior', () => {
   it('defaults to DEFAULT_UHRP_SERVERS when no hosts are configured', () => {
     const uploader = new StorageUploader({ wallet: walletClient })
     expect((uploader as any).hosts).toEqual(DEFAULT_UHRP_SERVERS)
-    expect((uploader as any).resilienceLevel).toBe(3)
+    expect((uploader as any).resilienceLevel).toBe(1)
   })
 
   it('clamps resilienceLevel to 1 for legacy storageURL callers', () => {

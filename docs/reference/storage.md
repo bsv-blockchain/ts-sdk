@@ -228,7 +228,7 @@ See also: [WalletInterface](./wallet.md#interface-walletinterface)
 
 #### Property resilienceLevel
 
-Minimum replicas to store the file on. Defaults to 3.
+Minimum replicas to store the file on. Defaults to 1.
 
 ```ts
 resilienceLevel?: number
