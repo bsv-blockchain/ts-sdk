@@ -5,7 +5,6 @@ import * as StorageUtils from './StorageUtils.js'
 /** Default UHRP storage providers used when the caller passes no host list. */
 export const DEFAULT_UHRP_SERVERS: string[] = [
   'https://nanostore.babbage.systems',
-  'https://uhrp-lite.babbage.systems',
   'https://bsv-storage-cloudflare.dev-a3e.workers.dev'
 ]
 

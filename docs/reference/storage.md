@@ -439,7 +439,6 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ```ts
 DEFAULT_UHRP_SERVERS: string[] = [
     "https://nanostore.babbage.systems",
-    "https://uhrp-lite.babbage.systems",
     "https://bsv-storage-cloudflare.dev-a3e.workers.dev"
 ]
 ```
