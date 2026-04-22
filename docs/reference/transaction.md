@@ -1425,8 +1425,8 @@ Extracts a minimal compound MerklePath covering only the specified transaction I
 
 Given a compound MerklePath (e.g. all block txids at level 0, or a trimmed
 compound path), this method reconstructs the sibling hashes at each tree level
-for every requested txid using findOrComputeLeaf, builds a per-txid proof for
-each one, then combines them with combine() into a single trimmed compound path.
+for every requested txid using cached Map-indexed lookups, then assembles them
+into a single trimmed compound path.
 
 The extracted path is verified to compute the same Merkle root as the source.
 
