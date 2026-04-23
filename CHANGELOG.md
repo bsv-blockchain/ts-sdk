@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
+- [2.0.14 - 2026-04-23](#2014---2026-04-23)
 - [2.0.13 - 2026-03-19](#2013---2026-03-19)
 - [2.0.10 - 2026-03-17](#2010---2026-03-17)
 - [2.0.9 - 2026-03-16](#209---2026-03-16)
@@ -218,6 +219,13 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 ### Security
+
+---
+
+## [2.0.14] - 2026-04-23
+
+### Fixed
+- **GlobalKVStore**: Reject lookup queries that do not include at least one real selector (`key`, `controller`, `protocolID`, or non-empty `tags`) before contacting overlay resolvers.
 
 ---
 
