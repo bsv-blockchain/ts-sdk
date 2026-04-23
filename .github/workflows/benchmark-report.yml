@@ -39,7 +39,7 @@ jobs:
 
       - name: Install dependencies (master)
         working-directory: master
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Build master
         working-directory: master

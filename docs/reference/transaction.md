@@ -2455,8 +2455,8 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Function: defaultHttpClient
 
 Returns a default HttpClient implementation based on the environment that it is run on.
-This method will attempt to use `window.fetch` if available (in browser environments).
-If running in a Node environment, it falls back to using the Node `https` module
+This method will attempt to use `window.fetch` if available (in browser environments),
+then `globalThis.fetch` (service workers, Deno, Node 18+), then the Node `https` module.
 
 ```ts
 export function defaultHttpClient(): HttpClient 
