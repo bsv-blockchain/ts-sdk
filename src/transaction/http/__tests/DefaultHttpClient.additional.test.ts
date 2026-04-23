@@ -7,10 +7,17 @@
 // allowing us to control whether `https` throws on require.
 
 describe('defaultHttpClient — noHttpClient fallback paths', () => {
+  let savedFetch: typeof globalThis.fetch | undefined
+
+  beforeEach(() => {
+    savedFetch = globalThis.fetch
+  })
+
   afterEach(() => {
     if ('window' in globalThis) {
       delete (globalThis as { window?: unknown }).window
     }
+    globalThis.fetch = savedFetch as typeof globalThis.fetch
     jest.resetModules()
   })
 
@@ -25,10 +32,11 @@ describe('defaultHttpClient — noHttpClient fallback paths', () => {
       throw new Error('https module not available')
     })
 
-    // window must be absent so the fetch branch is skipped
+    // window and globalThis.fetch must be absent so the fetch branches are skipped
     if ('window' in globalThis) {
       delete (globalThis as { window?: unknown }).window
     }
+    delete (globalThis as { fetch?: unknown }).fetch
 
     let defaultHttpClient: any
 
@@ -61,6 +69,7 @@ describe('defaultHttpClient — noHttpClient fallback paths', () => {
     if ('window' in globalThis) {
       delete (globalThis as { window?: unknown }).window
     }
+    delete (globalThis as { fetch?: unknown }).fetch
 
     let client: any
 
@@ -111,10 +120,17 @@ describe('defaultHttpClient — noHttpClient fallback paths', () => {
 // --------------------------------------------------------------------------
 
 describe('binaryHttpClient — noHttpClient fallback paths', () => {
+  let savedFetch: typeof globalThis.fetch | undefined
+
+  beforeEach(() => {
+    savedFetch = globalThis.fetch
+  })
+
   afterEach(() => {
     if ('window' in globalThis) {
       delete (globalThis as { window?: unknown }).window
     }
+    globalThis.fetch = savedFetch as typeof globalThis.fetch
     jest.resetModules()
   })
 
@@ -126,6 +142,7 @@ describe('binaryHttpClient — noHttpClient fallback paths', () => {
     if ('window' in globalThis) {
       delete (globalThis as { window?: unknown }).window
     }
+    delete (globalThis as { fetch?: unknown }).fetch
 
     let binaryHttpClient: any
 
@@ -153,6 +170,7 @@ describe('binaryHttpClient — noHttpClient fallback paths', () => {
     if ('window' in globalThis) {
       delete (globalThis as { window?: unknown }).window
     }
+    delete (globalThis as { fetch?: unknown }).fetch
 
     let client: any
 

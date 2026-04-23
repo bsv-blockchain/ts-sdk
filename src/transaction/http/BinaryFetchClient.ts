@@ -99,10 +99,13 @@ export function binaryHttpClient(): HttpClient {
   }
 
   if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
-    // Use fetch in a browser environment
+    // Browser tab/page context
     return new BinaryFetchClient(window.fetch.bind(window))
+  } else if (typeof globalThis.fetch === 'function') {
+    // Service workers, Deno, Node 18+ (any environment with global fetch)
+    return new BinaryFetchClient(globalThis.fetch.bind(globalThis))
   } else if (typeof require !== 'undefined') {
-    // Use Node https module
+    // Older Node.js — use https module
     // eslint-disable-next-line
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
