@@ -4948,6 +4948,7 @@ export default class TransactionSignature extends Signature {
     static formatBip143(params: TransactionSignatureFormatParams): Uint8Array 
     static format(params: TransactionSignatureFormatParams): number[] 
     static formatBytes(params: TransactionSignatureFormatParams): Uint8Array 
+    static usesOtdaSingleBug(params: TransactionSignatureFormatParams): boolean
     static fromChecksigFormat(buf: number[]): TransactionSignature 
     constructor(r: BigNumber, s: BigNumber, scope: number) 
     public hasLowS(): boolean 

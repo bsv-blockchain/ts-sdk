@@ -4,6 +4,9 @@
       "dom",
       "ESNext"
     ],
+    "types": [
+      "node"
+    ],
     "module": "NodeNext",
     "target": "esnext",
     "moduleResolution": "NodeNext",
@@ -11,6 +14,7 @@
     "rootDir": "./",
     "baseUrl": "./",
     "strict": false,
+    "ignoreDeprecations": "6.0",
     "isolatedModules": true,
     "strictNullChecks": false,
     "downlevelIteration": false,
@@ -31,6 +35,7 @@
   ],
   "exclude": [
     "dist",
-    "*/**/__tests"
+    "**/__tests__/**",
+    "**/__tests/**"
   ]
 }
