@@ -372,7 +372,7 @@ defaultIdentity: DisplayableIdentity = {
     abbreviatedKey: "",
     badgeIconURL: "XUUV39HVPkpmMzYNTx7rpKzJvXfeiVyQWg2vfSpjBAuhunTCA9uG",
     badgeLabel: "Not verified by anyone you trust.",
-    badgeClickURL: "https://projectbabbage.com/docs/unknown-identity"
+    badgeClickURL: "https://bsv-blockchain.github.io/ts-sdk/reference/identity/"
 }
 ```
 

@@ -381,7 +381,7 @@ export class IdentityClient {
         avatarURL = decryptedFields.icon
         badgeLabel = `Entity certified by ${certifierInfo.name}`
         badgeIconURL = certifierInfo.iconUrl
-        badgeClickURL = 'https://projectbabbage.com/docs/registrant' // TODO: Make this doc page exist
+        badgeClickURL = 'https://bsv-blockchain.github.io/ts-sdk/reference/identity/' // TODO: Make this doc page exist
         break
       case KNOWN_IDENTITY_TYPES.coolCert:
         name = decryptedFields.cool === 'true' ? 'Cool Person!' : 'Not cool!'
@@ -392,14 +392,14 @@ export class IdentityClient {
         badgeLabel =
           'Represents the ability for anyone to access this information.'
         badgeIconURL = 'XUUV39HVPkpmMzYNTx7rpKzJvXfeiVyQWg2vfSpjBAuhunTCA9uG'
-        badgeClickURL = 'https://projectbabbage.com/docs/anyone-identity' // TODO: Make this doc page exist
+        badgeClickURL = 'https://bsv-blockchain.github.io/ts-sdk/reference/identity/' // TODO: Make this doc page exist
         break
       case KNOWN_IDENTITY_TYPES.self:
         name = 'You'
         avatarURL = 'XUT9jHGk2qace148jeCX5rDsMftkSGYKmigLwU2PLLBc7Hm63VYR'
         badgeLabel = 'Represents your ability to access this information.'
         badgeIconURL = 'XUUV39HVPkpmMzYNTx7rpKzJvXfeiVyQWg2vfSpjBAuhunTCA9uG'
-        badgeClickURL = 'https://projectbabbage.com/docs/self-identity' // TODO: Make this doc page exist
+        badgeClickURL = 'https://bsv-blockchain.github.io/ts-sdk/reference/identity/' // TODO: Make this doc page exist
         break
       default: {
         const parsed = IdentityClient.tryToParseGenericIdentity(

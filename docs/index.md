@@ -29,6 +29,8 @@ const { WalletClient, PrivateKey, Transaction } = require("@bsv/sdk");
 
 This interface is what most application developers will use to interact with the BSV blockchain.
 
+BSV Desktop and BSV Browser are the BSV Association reference implementations for BRC-100. Vendor distributions, including Babbage's Metanet Desktop / Metanet Explorer and Hudos Browser, can implement the same interface with their own branding and service defaults.
+
 🚀 **[WalletClient Quickstart](https://fast.brc.dev/)**
 
 - Run SDK code examples without any setup
@@ -53,7 +55,7 @@ Finally, you can deep dive into the details of the interface and types in the re
 - [Primitives](./reference/primitives.md)
 - [Script](./reference/script.md)
 - [Transaction](./reference/transaction.md)
-- [Mutual Authenitcation](./reference/auth.md)
+- [Mutual Authentication](./reference/auth.md)
 - [Identity](./reference/identity.md)
 - [Overlay Tools](./reference/overlay-tools.md)
 - [Registry](./reference/registry.md)

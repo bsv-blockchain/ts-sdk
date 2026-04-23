@@ -209,7 +209,7 @@ describe('IdentityClient (additional coverage)', () => {
       expect(result.name).toBe('ACME Corp')
       expect(result.avatarURL).toBe('acme-icon.png')
       expect(result.badgeLabel).toBe('Entity certified by RegistryCertifier')
-      expect(result.badgeClickURL).toBe('https://projectbabbage.com/docs/registrant')
+      expect(result.badgeClickURL).toBe('https://bsv-blockchain.github.io/ts-sdk/reference/identity/')
     })
 
     it('parses coolCert with cool=true', () => {
@@ -245,7 +245,7 @@ describe('IdentityClient (additional coverage)', () => {
       expect(result.name).toBe('Anyone')
       expect(result.avatarURL).toBe('XUT4bpQ6cpBaXi1oMzZsXfpkWGbtp2JTUYAoN7PzhStFJ6wLfoeR')
       expect(result.badgeLabel).toBe('Represents the ability for anyone to access this information.')
-      expect(result.badgeClickURL).toBe('https://projectbabbage.com/docs/anyone-identity')
+      expect(result.badgeClickURL).toBe('https://bsv-blockchain.github.io/ts-sdk/reference/identity/')
     })
 
     it('parses self identity type', () => {
@@ -259,7 +259,7 @@ describe('IdentityClient (additional coverage)', () => {
       expect(result.name).toBe('You')
       expect(result.avatarURL).toBe('XUT9jHGk2qace148jeCX5rDsMftkSGYKmigLwU2PLLBc7Hm63VYR')
       expect(result.badgeLabel).toBe('Represents your ability to access this information.')
-      expect(result.badgeClickURL).toBe('https://projectbabbage.com/docs/self-identity')
+      expect(result.badgeClickURL).toBe('https://bsv-blockchain.github.io/ts-sdk/reference/identity/')
     })
 
     it('produces empty abbreviatedKey when subject is empty string', () => {
