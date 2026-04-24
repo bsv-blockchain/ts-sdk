@@ -3,7 +3,6 @@ import BigNumber from './BigNumber.js'
 import * as Hash from './Hash.js'
 import { toArray, Writer } from './utils.js'
 import Script from '../script/Script.js'
-import OP from '../script/OP.js'
 import TransactionInput from '../transaction/TransactionInput.js'
 import TransactionOutput from '../transaction/TransactionOutput.js'
 
@@ -56,8 +55,8 @@ export default class TransactionSignature extends Signature {
     const isNone = (params.scope & 31) === TransactionSignature.SIGHASH_NONE
     const isAll = (params.scope & 31) === TransactionSignature.SIGHASH_ALL || (!isSingle && !isNone)
 
-    const subscript = new Script([...params.subscript.chunks])
-    subscript.findAndDelete(new Script().writeOpCode(OP.OP_CODESEPARATOR))
+    const subscript = Script.fromBinary(params.subscript.toBinary())
+    subscript.removeCodeseparators()
 
     const currentInput = {
       sourceTXID: params.sourceTXID,
@@ -330,6 +329,15 @@ export default class TransactionSignature extends Signature {
     }
 
     return new Uint8Array(0)
+  }
+
+  static usesOtdaSingleBug (params: TransactionSignatureFormatParams): boolean {
+    const hasForkId = (params.scope & TransactionSignature.SIGHASH_FORKID) !== 0
+    const hasChronicle = params.ignoreChronicle !== true && (params.scope & TransactionSignature.SIGHASH_CHRONICLE) !== 0
+    const usesOtda = !hasForkId || (hasForkId && hasChronicle)
+    return usesOtda &&
+      (params.scope & 31) === TransactionSignature.SIGHASH_SINGLE &&
+      params.inputIndex >= params.outputs.length
   }
 
   // The format used in a tx

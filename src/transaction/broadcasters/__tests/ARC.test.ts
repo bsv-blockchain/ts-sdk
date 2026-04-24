@@ -36,13 +36,33 @@ describe('ARC Broadcaster', () => {
     transaction = new Transaction()
   })
 
+  async function withoutGlobalFetch<T> (callback: () => Promise<T>): Promise<T> {
+    const originalFetchDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'fetch')
+    Object.defineProperty(globalThis, 'fetch', {
+      configurable: true,
+      writable: true,
+      value: undefined
+    })
+    try {
+      return await callback()
+    } finally {
+      if (originalFetchDescriptor !== undefined) {
+        Object.defineProperty(globalThis, 'fetch', originalFetchDescriptor)
+      } else {
+        delete (globalThis as { fetch?: unknown }).fetch
+      }
+    }
+  }
+
   it('should broadcast successfully using window.fetch', async () => {
     // Mocking window.fetch
     const mockFetch = mockedFetch(successResponse)
     global.window = { fetch: mockFetch } as unknown as Window & typeof globalThis
 
-    const broadcaster = new ARC(URL)
-    const response = await broadcaster.broadcast(transaction)
+    const response = await withoutGlobalFetch(async () => {
+      const broadcaster = new ARC(URL)
+      return await broadcaster.broadcast(transaction)
+    })
 
     expect(mockFetch).toHaveBeenCalled()
     expect(response).toEqual({
@@ -59,8 +79,10 @@ describe('ARC Broadcaster', () => {
       delete (globalThis as { window?: unknown }).window // ✅ Explicit property check
     }
 
-    const broadcaster = new ARC(URL)
-    const response = await broadcaster.broadcast(transaction)
+    const response = await withoutGlobalFetch(async () => {
+      const broadcaster = new ARC(URL)
+      return await broadcaster.broadcast(transaction)
+    })
 
     expect(response).toEqual({
       status: 'success',
