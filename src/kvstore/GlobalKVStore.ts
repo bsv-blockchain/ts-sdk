@@ -106,15 +106,31 @@ export class GlobalKVStore {
    * @returns {Promise<KVStoreEntry | KVStoreEntry[] | undefined>} Single entry for key+controller queries, array for all other queries
    */
   async get (query: KVStoreQuery, options: KVStoreGetOptions = {}): Promise<KVStoreEntry | KVStoreEntry[] | undefined> {
-    if (Object.keys(query).length === 0) {
-      throw new Error('Must specify either key, controller, or protocolID')
-    }
+    this.validateQuerySelectors(query)
     if (query.key != null && query.controller != null) {
       // Specific key+controller query - return single entry
       const entries = await this.queryOverlay(query, options)
       return entries.length > 0 ? entries[0] : undefined
     }
     return await this.queryOverlay(query, options)
+  }
+
+  /**
+   * Ensures lookup pagination and ordering options are only used with a real KV selector.
+   *
+   * @param {KVStoreQuery} query - Query parameters sent to overlay.
+   * @throws {Error} If the query does not include a valid selector.
+   */
+  private validateQuerySelectors (query: KVStoreQuery): void {
+    const hasSelector =
+      (typeof query.key === 'string' && query.key.length > 0) ||
+      (typeof query.controller === 'string' && query.controller.length > 0) ||
+      (Array.isArray(query.protocolID) && query.protocolID.length === 2) ||
+      (Array.isArray(query.tags) && query.tags.length > 0)
+
+    if (!hasSelector) {
+      throw new Error('Must specify at least one selector: key, controller, protocolID, or tags')
+    }
   }
 
   /**

@@ -249,7 +249,8 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 ### Interface: KVStoreQuery
 
 Query parameters for KVStore lookups from overlay services.
-Used when searching for existing key-value pairs in the network.
+Must include at least one selector: key, controller, protocolID, or non-empty tags.
+Pagination and ordering fields only refine selector-based lookups.
 
 ```ts
 export interface KVStoreQuery {

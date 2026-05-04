@@ -577,7 +577,30 @@ describe('GlobalKVStore', () => {
 
     describe('sad paths', () => {
       it('rejects when no query parameters provided', async () => {
-        await expect(kvStore.get({})).rejects.toThrow('Must specify either key, controller, or protocolID')
+        await expect(kvStore.get({})).rejects.toThrow(
+          'Must specify at least one selector: key, controller, protocolID, or tags'
+        )
+      })
+
+      it('rejects pagination-only queries before resolving overlay hosts', async () => {
+        await expect(kvStore.get({ limit: 10 })).rejects.toThrow(
+          'Must specify at least one selector: key, controller, protocolID, or tags'
+        )
+        expect(mockResolver.query).not.toHaveBeenCalled()
+      })
+
+      it('rejects ordering-only queries before resolving overlay hosts', async () => {
+        await expect(kvStore.get({ sortOrder: 'desc' })).rejects.toThrow(
+          'Must specify at least one selector: key, controller, protocolID, or tags'
+        )
+        expect(mockResolver.query).not.toHaveBeenCalled()
+      })
+
+      it('rejects empty tag selector queries before resolving overlay hosts', async () => {
+        await expect(kvStore.get({ tags: [] })).rejects.toThrow(
+          'Must specify at least one selector: key, controller, protocolID, or tags'
+        )
+        expect(mockResolver.query).not.toHaveBeenCalled()
       })
 
       it('propagates overlay errors', async () => {
