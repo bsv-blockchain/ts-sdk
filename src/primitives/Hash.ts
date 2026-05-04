@@ -327,7 +327,7 @@ function zero8 (word: string): string {
 
 function bytesToHex (data: Uint8Array): string {
   let res = ''
-  for (const b of data) res += (b.toString(16).padStart(2, '0') as string)
+  for (const b of data) res += (b.toString(16).padStart(2, '0'))
   return res
 }
 

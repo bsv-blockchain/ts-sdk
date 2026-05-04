@@ -335,14 +335,11 @@ export default class Script {
    * @returns This script instance for chaining.
    */
   removeCodeseparators (): Script {
-    this.invalidateSerializationCaches()
-    const chunks: ScriptChunk[] = []
-    for (let i = 0; i < this.chunks.length; i++) {
-      if (this.chunks[i].op !== OP.OP_CODESEPARATOR) {
-        chunks.push(this.chunks[i])
-      }
-    }
-    this.chunks = chunks
+    const bytes = this.toUint8Array()
+    this.rawBytesCache = Uint8Array.from(Script.removeOpcodeBytes(bytes, OP.OP_CODESEPARATOR))
+    this.hexCache = undefined
+    this._chunks = []
+    this.parsed = false
     return this
   }
 
@@ -585,18 +582,22 @@ export default class Script {
         const end = Math.min(pos + len, length)
         chunks.push({
           data: Script.copyRange(bytes, pos, end),
-          op
+          op,
+          invalidLength: end - pos !== len
         })
         pos = end
       } else if (op === OP.OP_PUSHDATA1) {
-        const len = pos < length ? bytes[pos++] ?? 0 : 0
+        const hasLength = pos < length
+        const len = hasLength ? bytes[pos++] ?? 0 : 0
         const end = Math.min(pos + len, length)
         chunks.push({
           data: Script.copyRange(bytes, pos, end),
-          op
+          op,
+          invalidLength: !hasLength || end - pos !== len
         })
         pos = end
       } else if (op === OP.OP_PUSHDATA2) {
+        const hasLength = pos + 1 < length
         const b0 = bytes[pos] ?? 0
         const b1 = bytes[pos + 1] ?? 0
         const len = b0 | (b1 << 8)
@@ -604,10 +605,12 @@ export default class Script {
         const end = Math.min(pos + len, length)
         chunks.push({
           data: Script.copyRange(bytes, pos, end),
-          op
+          op,
+          invalidLength: !hasLength || end - pos !== len
         })
         pos = end
       } else if (op === OP.OP_PUSHDATA4) {
+        const hasLength = pos + 3 < length
         const len =
           ((bytes[pos] ?? 0) |
             ((bytes[pos + 1] ?? 0) << 8) |
@@ -618,7 +621,8 @@ export default class Script {
         const end = Math.min(pos + len, length)
         chunks.push({
           data: Script.copyRange(bytes, pos, end),
-          op
+          op,
+          invalidLength: !hasLength || end - pos !== len
         })
         pos = end
       } else {
@@ -627,6 +631,48 @@ export default class Script {
     }
 
     return chunks
+  }
+
+  private static removeOpcodeBytes (bytes: ArrayLike<number>, opcode: number): number[] {
+    const out: number[] = []
+    const length = bytes.length
+    let pos = 0
+
+    while (pos < length) {
+      const start = pos
+      const op = bytes[pos++] ?? 0
+      let dataStart = pos
+      let dataLength = 0
+
+      if (op > 0 && op < OP.OP_PUSHDATA1) {
+        dataLength = op
+      } else if (op === OP.OP_PUSHDATA1) {
+        if (pos < length) dataLength = bytes[pos++] ?? 0
+        dataStart = pos
+      } else if (op === OP.OP_PUSHDATA2) {
+        if (pos + 1 < length) dataLength = (bytes[pos] ?? 0) | ((bytes[pos + 1] ?? 0) << 8)
+        pos = Math.min(pos + 2, length)
+        dataStart = pos
+      } else if (op === OP.OP_PUSHDATA4) {
+        if (pos + 3 < length) {
+          dataLength =
+            ((bytes[pos] ?? 0) |
+              ((bytes[pos + 1] ?? 0) << 8) |
+              ((bytes[pos + 2] ?? 0) << 16) |
+              ((bytes[pos + 3] ?? 0) << 24)) >>> 0
+        }
+        pos = Math.min(pos + 4, length)
+        dataStart = pos
+      }
+
+      const end = Math.min(dataStart + dataLength, length)
+      if (op !== opcode) {
+        for (let i = start; i < end; i++) out.push(bytes[i] ?? 0)
+      }
+      pos = end
+    }
+
+    return out
   }
 
   private static copyRange (
