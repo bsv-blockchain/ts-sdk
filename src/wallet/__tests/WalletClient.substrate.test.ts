@@ -9,6 +9,11 @@
 
 import WalletClient from '../WalletClient'
 import type { WalletInterface } from '../Wallet.interfaces'
+import WindowCWISubstrate from '../substrates/window.CWI'
+import XDMSubstrate from '../substrates/XDM'
+import WalletWireTransceiver from '../substrates/WalletWireTransceiver'
+import HTTPWalletJSON from '../substrates/HTTPWalletJSON'
+import ReactNativeWebView from '../substrates/ReactNativeWebView'
 
 // ---------------------------------------------------------------------------
 // Helper: create a fully-mocked substrate and an already-connected WalletClient
@@ -749,8 +754,13 @@ describe('WalletClient.listOutputs – substrate delegation', () => {
 
 describe('WalletClient.connectToSubstrate – error when no substrate available', () => {
   it('throws a descriptive error when auto-substrate fails to connect', async () => {
-    // The 'auto' substrate string means connectToSubstrate will try real substrates.
-    // All of them will fail in a test environment, so an error should be thrown.
+    const unavailable = jest.fn().mockRejectedValue(new Error('unavailable'))
+    jest.spyOn(WindowCWISubstrate.prototype, 'getVersion').mockImplementation(unavailable)
+    jest.spyOn(WalletWireTransceiver.prototype, 'getVersion').mockImplementation(unavailable)
+    jest.spyOn(HTTPWalletJSON.prototype, 'getVersion').mockImplementation(unavailable)
+    jest.spyOn(ReactNativeWebView.prototype, 'getVersion').mockImplementation(unavailable)
+    jest.spyOn(XDMSubstrate.prototype, 'getVersion').mockImplementation(unavailable)
+
     const client = new WalletClient('auto', 'test.origin')
     await expect(client.connectToSubstrate()).rejects.toThrow(
       'No wallet available over any communication substrate'

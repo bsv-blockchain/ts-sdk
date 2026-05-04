@@ -1,6 +1,7 @@
 node_modules
 /dist
 /coverage
+/artifacts
 
 eslint-debug-output.txt
 file_list.txt

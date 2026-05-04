@@ -4,6 +4,47 @@ import P2PKH from '../dist/esm/src/script/templates/P2PKH.js'
 import MerklePath from '../dist/esm/src/transaction/MerklePath.js'
 import { runBenchmark } from './lib/benchmark-runner.js'
 
+function randomHash () {
+  const bytes = new Uint8Array(32)
+  for (let i = 0; i < 32; i++) bytes[i] = Math.floor(Math.random() * 256)
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
+}
+
+function buildFullBlockPath (count) {
+  const txids = []
+  const leaves = []
+  for (let i = 0; i < count; i++) {
+    const hash = randomHash()
+    txids.push(hash)
+    leaves.push({ offset: i, hash, txid: true })
+  }
+  if (count % 2 === 1) leaves.push({ offset: count, duplicate: true })
+  return {
+    mp: new MerklePath(1, [leaves]),
+    txids
+  }
+}
+
+function pickRandom (arr, n) {
+  const copy = [...arr]
+  const result = []
+  for (let i = 0; i < n && copy.length > 0; i++) {
+    const index = Math.floor(Math.random() * copy.length)
+    result.push(copy.splice(index, 1)[0])
+  }
+  return result
+}
+
+function merkleExtractCase (path, extractCount) {
+  const targets = pickRandom(path.txids, extractCount)
+  const extracted = path.mp.extract(targets)
+  for (const txid of targets) {
+    if (extracted.computeRoot(txid) !== path.mp.computeRoot(txid)) {
+      throw new Error('MerklePath.extract produced an invalid root')
+    }
+  }
+}
+
 async function deepInputChain () {
   const privateKey = new PrivateKey(1)
   const publicKey = privateKey.toPublicKey()
@@ -195,10 +236,29 @@ async function nestedInputs () {
 
 async function main () {
   const options = { samples: 3, minSampleMs: 150, warmupIterations: 1 }
+  const merklePath101 = buildFullBlockPath(101)
+  const merklePath501 = buildFullBlockPath(501)
+  const merklePath999 = buildFullBlockPath(999)
+
   await runBenchmark('deep chain verify', () => deepInputChain(), options)
   await runBenchmark('wide transaction verify', () => wideInputSet(), options)
   await runBenchmark('large tx verify', () => largeInputsOutputs(), options)
   await runBenchmark('nested inputs verify', () => nestedInputs(), options)
+  await runBenchmark('MerklePath.extract 101 txids / 1 target', () => {
+    merkleExtractCase(merklePath101, 1)
+  }, { samples: 5, minSampleMs: 100, warmupIterations: 1 })
+  await runBenchmark('MerklePath.extract 101 txids / 10 targets', () => {
+    merkleExtractCase(merklePath101, 10)
+  }, { samples: 5, minSampleMs: 100, warmupIterations: 1 })
+  await runBenchmark('MerklePath.extract 501 txids / 10 targets', () => {
+    merkleExtractCase(merklePath501, 10)
+  }, { samples: 5, minSampleMs: 100, warmupIterations: 1 })
+  await runBenchmark('MerklePath.extract 999 txids / 50 targets', () => {
+    merkleExtractCase(merklePath999, 50)
+  }, { samples: 5, minSampleMs: 100, warmupIterations: 1 })
+  await runBenchmark('MerklePath.extract 999 txids / 100 targets', () => {
+    merkleExtractCase(merklePath999, 100)
+  }, { samples: 3, minSampleMs: 100, warmupIterations: 1 })
 }
 
 main().catch((err) => {

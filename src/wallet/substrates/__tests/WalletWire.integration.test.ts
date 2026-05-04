@@ -578,7 +578,8 @@ describe('WalletWire Integration Tests', () => {
         counterparty: counterpartyKey.toPublicKey().toString(),
         verifier: verifierKey.toPublicKey().toString(),
         protocolID,
-        keyID
+        keyID,
+        proofType: 0
       })
       expect(revelation.encryptedLinkageProof).toBeDefined()
       expect(revelation.proofType).toBeDefined()

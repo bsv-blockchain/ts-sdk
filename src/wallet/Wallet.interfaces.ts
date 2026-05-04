@@ -645,6 +645,7 @@ export interface RevealCounterpartyKeyLinkageArgs {
  * @param {PubKeyHex} verifier - The public key of the verifier requesting the linkage information.
  * @param {WalletProtocol} protocolID - The security level and protocol string associated with the linkage information to reveal.
  * @param {KeyIDStringUnder800Bytes} keyID - The key ID associated with the linkage information to reveal.
+ * @param {0|1} [proofType] - Optional proof type. Defaults to 1. Use 0 only for legacy no-proof payloads.
  * @param {DescriptionString5to50Bytes} [privilegedReason] - Optional. Reason provided for privileged access, required if this is a privileged operation.
  * @param {BooleanDefaultFalse} [privileged] - Optional. Whether this is a privileged request.
  */
@@ -653,6 +654,7 @@ export interface RevealSpecificKeyLinkageArgs {
   verifier: PubKeyHex
   protocolID: WalletProtocol
   keyID: KeyIDStringUnder800Bytes
+  proofType?: 0 | 1
   privilegedReason?: DescriptionString5to50Bytes
   privileged?: BooleanDefaultFalse
 }

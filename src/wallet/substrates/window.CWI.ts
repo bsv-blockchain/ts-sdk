@@ -287,10 +287,11 @@ export default class WindowCWISubstrate implements WalletInterface {
 
   async revealSpecificKeyLinkage(
     args: {
-      counterparty: PubKeyHex
+      counterparty: PubKeyHex | 'self' | 'anyone'
       verifier: PubKeyHex
       protocolID: [SecurityLevel, ProtocolString5To400Bytes]
       keyID: KeyIDStringUnder800Bytes
+      proofType?: 0 | 1
       privilegedReason?: DescriptionString5to50Bytes
       privileged?: BooleanDefaultFalse
     },

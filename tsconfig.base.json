@@ -21,7 +21,10 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "resolveJsonModule": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "types": [
+      "node"
+    ]
   },
   "files": [
     "mod.ts"
@@ -31,6 +34,8 @@
   ],
   "exclude": [
     "dist",
-    "*/**/__tests"
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx"
   ]
 }

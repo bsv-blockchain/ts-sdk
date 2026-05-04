@@ -501,7 +501,8 @@ describe('ProtoWallet', () => {
         counterparty: counterpartyKey.toPublicKey().toString(),
         verifier: verifierKey.toPublicKey().toString(),
         protocolID,
-        keyID
+        keyID,
+        proofType: 0
       })
 
       // Verifier decrypts the encrypted linkage

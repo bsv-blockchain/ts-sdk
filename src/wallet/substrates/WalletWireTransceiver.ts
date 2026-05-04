@@ -1189,10 +1189,11 @@ export default class WalletWireTransceiver implements WalletInterface {
 
   async revealSpecificKeyLinkage(
     args: {
-      counterparty: PubKeyHex
+      counterparty: PubKeyHex | 'self' | 'anyone'
       verifier: PubKeyHex
       protocolID: [SecurityLevel, ProtocolString5To400Bytes]
       keyID: KeyIDStringUnder800Bytes
+      proofType?: 0 | 1
       privilegedReason?: DescriptionString5to50Bytes
       privileged?: BooleanDefaultFalse
     },
@@ -1218,6 +1219,7 @@ export default class WalletWireTransceiver implements WalletInterface {
       )
     )
     paramWriter.write(Utils.toArray(args.verifier, 'hex'))
+    if (args.proofType !== undefined) paramWriter.writeUInt8(args.proofType)
     const result = await this.transmit(
       'revealSpecificKeyLinkage',
       originator,
