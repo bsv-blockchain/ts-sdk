@@ -1,5 +1,9 @@
 # BSV SDK
 
+> **⚠️ This repository is being archived.**
+>
+> Development has moved to the [ts-stack monorepo](https://github.com/bsv-blockchain/ts-stack/tree/main/packages/sdk). Open issues will be migrated there. This repository will be archived in the coming days — please open new issues and PRs in the monorepo going forward.
+
 [![codecov](https://codecov.io/gh/bsv-blockchain/ts-sdk/branch/master/graph/badge.svg)](https://codecov.io/gh/bsv-blockchain/ts-sdk)
 [![npm version](https://badge.fury.io/js/@bsv%2Fsdk.svg)](https://badge.fury.io/js/@bsv%2Fsdk)
 [![Build Status](https://github.com/bsv-blockchain/ts-sdk/actions/workflows/push.yaml/badge.svg)](https://github.com/bsv-blockchain/ts-sdk/actions/workflows/push.yaml)
