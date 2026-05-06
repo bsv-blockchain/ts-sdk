@@ -32,10 +32,11 @@ import {
 } from './Wallet.interfaces.js'
 import { constantTimeEquals, toArray } from '../primitives/utils.js'
 import {
+  CreateSpecificKeyLinkageProofArgs,
   createSpecificKeyLinkageProof,
   normalizeSpecificKeyLinkageCounterparty,
   serializeSpecificKeyLinkageProofPayload
-} from './brc97/index.js'
+} from './brc69/index.js'
 
 /**
  * A ProtoWallet is precursor to a full wallet, capable of performing all foundational cryptographic operations.
@@ -46,6 +47,13 @@ import {
  */
 export class ProtoWallet {
   keyDeriver?: KeyDeriverApi
+
+  private static readonly specificKeyLinkageProofPayloadFactory = (
+    args: CreateSpecificKeyLinkageProofArgs
+  ): number[] =>
+    serializeSpecificKeyLinkageProofPayload(
+      createSpecificKeyLinkageProof(args)
+    )
 
   constructor (rootKeyOrKeyDeriver?: PrivateKey | 'anyone' | KeyDeriverApi) {
     if (typeof (rootKeyOrKeyDeriver as KeyDeriver).identityKey !== 'string') {
@@ -165,7 +173,7 @@ export class ProtoWallet {
     })
     const proofPlaintext = proofType === 0
       ? [0]
-      : serializeSpecificKeyLinkageProofPayload(createSpecificKeyLinkageProof({
+      : ProtoWallet.specificKeyLinkageProofPayloadFactory({
         proverPrivateKey: this.keyDeriver.rootKey,
         statement: {
           prover: identityKey,
@@ -174,7 +182,7 @@ export class ProtoWallet {
           keyID: args.keyID,
           linkage
         }
-      }))
+      })
     const { ciphertext: encryptedLinkageProof } = await this.encrypt({
       plaintext: proofPlaintext,
       protocolID: [

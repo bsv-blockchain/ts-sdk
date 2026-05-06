@@ -680,7 +680,7 @@ export interface RevealCounterpartyKeyLinkageResult extends KeyLinkageResult {
 export interface RevealSpecificKeyLinkageResult extends KeyLinkageResult {
   protocolID: WalletProtocol
   keyID: KeyIDStringUnder800Bytes
-  proofType: Byte
+  proofType: 0 | 1
 }
 
 /**

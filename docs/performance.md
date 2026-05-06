@@ -5,7 +5,7 @@ The benchmark scripts measure extremely large number operations and script numbe
 ## BRC-69 Method 2 Production ZK
 
 The current BRC-69 Method 2 production proof path is tracked separately in
-[BRC-69 Method 2 Production ZK Status](./brc97-production-status.md).
+[BRC-69 Method 2 Production ZK Status](./brc69-production-status.md).
 
 As of the 2026-05-04 full production validation run, the whole statement proof
 generates and verifies under the production STARK profile. It is not yet

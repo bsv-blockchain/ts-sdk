@@ -304,7 +304,7 @@ export default class WindowCWISubstrate implements WalletInterface {
     keyID: KeyIDStringUnder800Bytes
     encryptedLinkage: Byte[]
     encryptedLinkageProof: Byte[]
-    proofType: Byte
+    proofType: 0 | 1
   }> {
     return await this.CWI.revealSpecificKeyLinkage(args, originator)
   }

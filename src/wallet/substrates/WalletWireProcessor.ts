@@ -1534,6 +1534,9 @@ export default class WalletWireProcessor implements WalletWire {
               throw new Error('Unsupported specific key linkage proof type')
             }
             args.proofType = proofType
+            if (!paramsReader.eof()) {
+              throw new Error('Unexpected trailing revealSpecificKeyLinkage request bytes')
+            }
           }
 
           // Call the method

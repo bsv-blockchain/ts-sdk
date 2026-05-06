@@ -270,7 +270,7 @@ export default class WalletClient implements WalletInterface {
       keyID: KeyIDStringUnder800Bytes
       encryptedLinkage: Byte[]
       encryptedLinkageProof: Byte[]
-      proofType: Byte
+      proofType: 0 | 1
     }> {
     await this.connectToSubstrate()
     return await (this.substrate as WalletInterface).revealSpecificKeyLinkage(

@@ -197,7 +197,7 @@ export default class HTTPWalletJSON implements WalletInterface {
     keyID: KeyIDStringUnder800Bytes
     encryptedLinkage: Byte[]
     encryptedLinkageProof: Byte[]
-    proofType: Byte
+    proofType: 0 | 1
   }> {
     return await this.api('revealSpecificKeyLinkage', args) as {
       prover: PubKeyHex
@@ -207,7 +207,7 @@ export default class HTTPWalletJSON implements WalletInterface {
       keyID: KeyIDStringUnder800Bytes
       encryptedLinkage: Byte[]
       encryptedLinkageProof: Byte[]
-      proofType: Byte
+      proofType: 0 | 1
     }
   }
 

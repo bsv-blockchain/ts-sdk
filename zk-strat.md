@@ -45,7 +45,7 @@ failure is performance/size, not proof verification:
 
 ```text
 artifact base:
-  artifacts/brc97-full-production-96gb-14h-narrow-hmac-20260504T012025Z
+  artifacts/brc69-full-production-96gb-14h-narrow-hmac-20260504T012025Z
 
 environment:
   Node: v22.21.1
@@ -462,8 +462,8 @@ top-level production metrics `transcriptDomain`, while their verifiers
 correctly used fixed field-op domains:
 
 ```text
-BRC97_SECP256K1_FIELD_OPS_V1:linear
-BRC97_SECP256K1_FIELD_OPS_V1:mul
+BRC69_SECP256K1_FIELD_OPS_V1:linear
+BRC69_SECP256K1_FIELD_OPS_V1:mul
 ```
 
 The field-op provers now lock both transcript domain and public input digest

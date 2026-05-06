@@ -1206,7 +1206,7 @@ export default class WalletWireTransceiver implements WalletInterface {
     keyID: KeyIDStringUnder800Bytes
     encryptedLinkage: Byte[]
     encryptedLinkageProof: Byte[]
-    proofType: Byte
+    proofType: 0 | 1
   }> {
     const paramWriter = new Utils.Writer()
     paramWriter.write(
@@ -1241,6 +1241,12 @@ export default class WalletWireTransceiver implements WalletInterface {
       encryptedLinkageProofLength
     )
     const proofType = resultReader.readUInt8()
+    if (proofType !== 0 && proofType !== 1) {
+      throw new Error('Unsupported specific key linkage proof type')
+    }
+    if (!resultReader.eof()) {
+      throw new Error('Unexpected trailing revealSpecificKeyLinkage result bytes')
+    }
     return {
       prover,
       verifier,

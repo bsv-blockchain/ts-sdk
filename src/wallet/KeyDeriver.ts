@@ -7,7 +7,7 @@ import {
   Point
 } from '../primitives/index.js'
 import { WalletProtocol, PubKeyHex } from './Wallet.interfaces.js'
-import { computeInvoiceNumber } from './brc97/index.js'
+import { computeInvoiceNumber } from './keyLinkage.js'
 
 export type Counterparty = PublicKey | PubKeyHex | 'self' | 'anyone'
 
