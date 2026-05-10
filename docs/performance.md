@@ -2,15 +2,11 @@
 
 The benchmark scripts measure extremely large number operations and script number serialization performance.
 
-## BRC-69 Method 2 Production ZK
+## BRC-69 Method 2 Whole-Statement ZK
 
-The current BRC-69 Method 2 production proof path is tracked separately in
-[BRC-69 Method 2 Production ZK Status](./brc69-production-status.md).
-
-As of the 2026-05-04 full production validation run, the whole statement proof
-generates and verifies under the production STARK profile. It is not yet
-production-acceptable for wallet-facing use because the proof is 10.94MB against
-the 1.5MB max-invoice cap and proving takes about 68.3 minutes.
+The current BRC-69 Method 2 proof path, production validation run, bottlenecks,
+and soundness notes are tracked in one place:
+[BRC-69 Method 2 Whole-Statement ZK](./brc69-production-status.md).
 
 All results below were gathered on Node.js v22.16.0 using the `dist` build of the SDK. Each benchmark was executed with 200,000-digit inputs to stress the implementation.
 

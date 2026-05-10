@@ -502,7 +502,7 @@ export function collectBRC69ProductionMetrics (
     verified: wholeVerify?.value,
     notes: [
       prove
-        ? 'Production lookup/equality bus is embedded as hidden accumulator and endpoint columns in each committed segment. Hidden segment endpoints are linked by constant-column openings in the shared transcript; per-segment bus totals are not public.'
+        ? 'Production lookup/equality bus is embedded as hidden accumulator and endpoint columns in each committed segment. Hidden segment endpoints are linked by cross-trace quotient constraints in the shared transcript; per-segment bus totals are not public.'
         : 'Production lookup/equality bus shape measured from segment-local accumulator columns; proof skipped by metrics options.'
     ]
   })

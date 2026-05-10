@@ -227,7 +227,7 @@
     "build": "npm run build:ts && npm run build:umd",
     "build:ts": "tsc -b && tsconfig-to-dual-package tsconfig.cjs.json",
     "build:umd": "rspack --config rspack.config.js",
-    "brc69:metrics": "npm run build:ts && node --max-old-space-size=8192 scripts/brc69-metrics.js",
+    "brc69:metrics": "npm run build:ts && node --max-old-space-size=98304 scripts/brc69-metrics.js",
     "dev": "tsc -b -w",
     "prepublish": "npm run build",
     "doc": "ts2md",

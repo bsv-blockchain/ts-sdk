@@ -852,10 +852,14 @@ export interface RevealSpecificKeyLinkageArgs {
     verifier: PubKeyHex;
     protocolID: WalletProtocol;
     keyID: KeyIDStringUnder800Bytes;
+    proofType?: 0 | 1;
     privilegedReason?: DescriptionString5to50Bytes;
     privileged?: BooleanDefaultFalse;
 }
 ```
+
+`proofType` defaults to `1`, the BRC-69 Method 2 whole-statement proof payload.
+Use `0` only for legacy no-proof payloads.
 
 See also: [BooleanDefaultFalse](./wallet.md#type-booleandefaultfalse), [DescriptionString5to50Bytes](./wallet.md#type-descriptionstring5to50bytes), [KeyIDStringUnder800Bytes](./wallet.md#type-keyidstringunder800bytes), [PubKeyHex](./wallet.md#type-pubkeyhex), [WalletCounterparty](./wallet.md#type-walletcounterparty), [WalletProtocol](./wallet.md#type-walletprotocol)
 
@@ -868,11 +872,11 @@ Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](
 export interface RevealSpecificKeyLinkageResult extends KeyLinkageResult {
     protocolID: WalletProtocol;
     keyID: KeyIDStringUnder800Bytes;
-    proofType: Byte;
+    proofType: 0 | 1;
 }
 ```
 
-See also: [Byte](./wallet.md#type-byte), [KeyIDStringUnder800Bytes](./wallet.md#type-keyidstringunder800bytes), [KeyLinkageResult](./wallet.md#interface-keylinkageresult), [WalletProtocol](./wallet.md#type-walletprotocol)
+See also: [KeyIDStringUnder800Bytes](./wallet.md#type-keyidstringunder800bytes), [KeyLinkageResult](./wallet.md#interface-keylinkageresult), [WalletProtocol](./wallet.md#type-walletprotocol)
 
 Links: [API](#api), [Interfaces](#interfaces), [Classes](#classes), [Functions](#functions), [Types](#types), [Enums](#enums), [Variables](#variables)
 
@@ -2449,13 +2453,14 @@ export default class HTTPWalletJSON implements WalletInterface {
         encryptedLinkageProof: number[];
     }> 
     async revealSpecificKeyLinkage(args: {
-        counterparty: PubKeyHex;
+        counterparty: PubKeyHex | "self" | "anyone";
         verifier: PubKeyHex;
         protocolID: [
             SecurityLevel,
             ProtocolString5To400Bytes
         ];
         keyID: KeyIDStringUnder800Bytes;
+        proofType?: 0 | 1;
         privilegedReason?: DescriptionString5to50Bytes;
         privileged?: BooleanDefaultFalse;
     }): Promise<{
@@ -2469,7 +2474,7 @@ export default class HTTPWalletJSON implements WalletInterface {
         keyID: KeyIDStringUnder800Bytes;
         encryptedLinkage: Byte[];
         encryptedLinkageProof: Byte[];
-        proofType: Byte;
+        proofType: 0 | 1;
     }> 
     async encrypt(args: {
         seekPermission?: BooleanDefaultTrue;
@@ -3013,13 +3018,14 @@ export default class WalletClient implements WalletInterface {
         encryptedLinkageProof: Byte[];
     }> 
     async revealSpecificKeyLinkage(args: {
-        counterparty: PubKeyHex;
+        counterparty: PubKeyHex | "self" | "anyone";
         verifier: PubKeyHex;
         protocolID: [
             SecurityLevel,
             ProtocolString5To400Bytes
         ];
         keyID: KeyIDStringUnder800Bytes;
+        proofType?: 0 | 1;
         privilegedReason?: DescriptionString5to50Bytes;
         privileged?: BooleanDefaultFalse;
     }): Promise<{
@@ -3033,7 +3039,7 @@ export default class WalletClient implements WalletInterface {
         keyID: KeyIDStringUnder800Bytes;
         encryptedLinkage: Byte[];
         encryptedLinkageProof: Byte[];
-        proofType: Byte;
+        proofType: 0 | 1;
     }> 
     async encrypt(args: {
         plaintext: Byte[];
@@ -3273,13 +3279,14 @@ export default class WalletWireTransceiver implements WalletInterface {
         encryptedLinkageProof: number[];
     }> 
     async revealSpecificKeyLinkage(args: {
-        counterparty: PubKeyHex;
+        counterparty: PubKeyHex | "self" | "anyone";
         verifier: PubKeyHex;
         protocolID: [
             SecurityLevel,
             ProtocolString5To400Bytes
         ];
         keyID: KeyIDStringUnder800Bytes;
+        proofType?: 0 | 1;
         privilegedReason?: DescriptionString5to50Bytes;
         privileged?: BooleanDefaultFalse;
     }, originator?: OriginatorDomainNameStringUnder250Bytes): Promise<{
@@ -3293,7 +3300,7 @@ export default class WalletWireTransceiver implements WalletInterface {
         keyID: KeyIDStringUnder800Bytes;
         encryptedLinkage: Byte[];
         encryptedLinkageProof: Byte[];
-        proofType: Byte;
+        proofType: 0 | 1;
     }> 
     async encrypt(args: {
         seekPermission?: BooleanDefaultTrue;
@@ -3639,13 +3646,14 @@ export default class WindowCWISubstrate implements WalletInterface {
         encryptedLinkageProof: Byte[];
     }> 
     async revealSpecificKeyLinkage(args: {
-        counterparty: PubKeyHex;
+        counterparty: PubKeyHex | "self" | "anyone";
         verifier: PubKeyHex;
         protocolID: [
             SecurityLevel,
             ProtocolString5To400Bytes
         ];
         keyID: KeyIDStringUnder800Bytes;
+        proofType?: 0 | 1;
         privilegedReason?: DescriptionString5to50Bytes;
         privileged?: BooleanDefaultFalse;
     }, originator?: OriginatorDomainNameStringUnder250Bytes): Promise<{
@@ -3659,7 +3667,7 @@ export default class WindowCWISubstrate implements WalletInterface {
         keyID: KeyIDStringUnder800Bytes;
         encryptedLinkage: Byte[];
         encryptedLinkageProof: Byte[];
-        proofType: Byte;
+        proofType: 0 | 1;
     }> 
     async encrypt(args: {
         plaintext: Byte[];

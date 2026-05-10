@@ -79,4 +79,4 @@ Finally, you can deep dive into the details of the interface and types in the re
 ## Performance Reports
 
 - [Benchmarks](./performance.md)
-- [BRC-69 Method 2 Production ZK Status](./brc69-production-status.md)
+- [BRC-69 Method 2 Whole-Statement ZK](./brc69-production-status.md)
