@@ -1,5 +1,9 @@
 # BSV SDK
 
+> **⚠️ This repository is being archived.**
+>
+> Development has moved to the [ts-stack monorepo](https://github.com/bsv-blockchain/ts-stack/tree/main/packages/sdk). Open issues will be migrated there. This repository will be archived in the coming days — please open new issues and PRs in the monorepo going forward.
+
 [![codecov](https://codecov.io/gh/bsv-blockchain/ts-sdk/branch/master/graph/badge.svg)](https://codecov.io/gh/bsv-blockchain/ts-sdk)
 [![npm version](https://badge.fury.io/js/@bsv%2Fsdk.svg)](https://badge.fury.io/js/@bsv%2Fsdk)
 [![Build Status](https://github.com/bsv-blockchain/ts-sdk/actions/workflows/push.yaml/badge.svg)](https://github.com/bsv-blockchain/ts-sdk/actions/workflows/push.yaml)
@@ -7,6 +11,8 @@
 BSV BLOCKCHAIN | Software Development Kit for JavaScript and TypeScript
 
 Welcome to the BSV Blockchain Libraries Project, the comprehensive TypeScript SDK designed to provide an updated and unified layer for developing scalable applications on the BSV Blockchain. This SDK addresses the limitations of previous tools by offering a fresh, peer-to-peer approach, adhering to SPV, and ensuring privacy and scalability.
+
+For application-to-wallet integrations, the SDK exposes the BRC-100 `WalletClient` interface. BSV Desktop and BSV Browser are the BSV Association reference implementations for this interface; vendor distributions such as Babbage's Metanet Desktop / Metanet Explorer and Hudos Browser can implement the same interface with their own branding and service defaults.
 
 ## Table of Contents
 

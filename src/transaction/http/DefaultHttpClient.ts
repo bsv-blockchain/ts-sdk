@@ -4,8 +4,8 @@ import { FetchHttpClient } from './FetchHttpClient.js'
 
 /**
  * Returns a default HttpClient implementation based on the environment that it is run on.
- * This method will attempt to use `window.fetch` if available (in browser environments).
- * If running in a Node environment, it falls back to using the Node `https` module
+ * This method will attempt to use `window.fetch` if available (in browser environments),
+ * then `globalThis.fetch` (service workers, Deno, Node 18+), then the Node `https` module.
  */
 export function defaultHttpClient(): HttpClient {
   const noHttpClient: HttpClient = {
@@ -15,10 +15,13 @@ export function defaultHttpClient(): HttpClient {
   }
 
   if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
-    // Use fetch in a browser environment
+    // Browser tab/page context
     return new FetchHttpClient(window.fetch.bind(window))
+  } else if (typeof globalThis.fetch === 'function') {
+    // Service workers, Deno, Node 18+ (any environment with global fetch)
+    return new FetchHttpClient(globalThis.fetch.bind(globalThis))
   } else if (typeof require !== 'undefined') {
-    // Use Node https module
+    // Older Node.js — use https module
     // eslint-disable-next-line
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires

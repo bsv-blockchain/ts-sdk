@@ -14,16 +14,36 @@ describe('WhatsOnChain ChainTracker', () => {
     }
   }
 
+  async function withoutGlobalFetch<T> (callback: () => Promise<T>): Promise<T> {
+    const originalFetchDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'fetch')
+    Object.defineProperty(globalThis, 'fetch', {
+      configurable: true,
+      writable: true,
+      value: undefined
+    })
+    try {
+      return await callback()
+    } finally {
+      if (originalFetchDescriptor !== undefined) {
+        Object.defineProperty(globalThis, 'fetch', originalFetchDescriptor)
+      } else {
+        delete (globalThis as { fetch?: unknown }).fetch
+      }
+    }
+  }
+
   it('should verify merkleroot successfully using window.fetch', async () => {
     // Mocking window.fetch
     const mockFetch = mockedFetch(successResponse)
     global.window = { fetch: mockFetch } as any
 
-    const chainTracker = new WhatsOnChain(network)
-    const response = await chainTracker.isValidRootForHeight(
-      merkleroot,
-      height
-    )
+    const response = await withoutGlobalFetch(async () => {
+      const chainTracker = new WhatsOnChain(network)
+      return await chainTracker.isValidRootForHeight(
+        merkleroot,
+        height
+      )
+    })
 
     expect(mockFetch).toHaveBeenCalled()
     expect(response).toEqual(true)
@@ -34,11 +54,13 @@ describe('WhatsOnChain ChainTracker', () => {
     mockedHttps(successResponse)
     if (typeof global.window !== 'undefined') global.window = {} as any
 
-    const chainTracker = new WhatsOnChain(network)
-    const response = await chainTracker.isValidRootForHeight(
-      merkleroot,
-      height
-    )
+    const response = await withoutGlobalFetch(async () => {
+      const chainTracker = new WhatsOnChain(network)
+      return await chainTracker.isValidRootForHeight(
+        merkleroot,
+        height
+      )
+    })
 
     expect(response).toEqual(true)
   })

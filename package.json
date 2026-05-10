@@ -1,6 +1,6 @@
 {
   "name": "@bsv/sdk",
-  "version": "2.0.14",
+  "version": "2.0.16",
   "type": "module",
   "description": "BSV Blockchain Software Development Kit",
   "main": "dist/cjs/mod.js",
@@ -252,14 +252,14 @@
   },
   "homepage": "https://github.com/bsv-blockchain/ts-sdk#readme",
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
+    "@eslint/js": "^10.0.1",
     "@jest/globals": "^30.3.0",
     "@rspack/cli": "^2.0.0",
     "@rspack/core": "^2.0.0",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.12.2",
-    "eslint": "^9.39.4",
-    "globals": "^16.5.0",
+    "@types/node": "^25.6.0",
+    "eslint": "^10.2.1",
+    "globals": "^17.5.0",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
     "ts-jest": "^29.4.9",
@@ -267,7 +267,7 @@
     "ts-standard": "^12.0.2",
     "ts2md": "^0.2.8",
     "tsconfig-to-dual-package": "^1.2.0",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.0"
   },
   "ts-standard": {

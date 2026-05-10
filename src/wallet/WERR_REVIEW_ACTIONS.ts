@@ -2,7 +2,7 @@ import { AtomicBEEF, OutpointString, ReviewActionResult, SendWithResult, TXIDHex
 
 /**
  * When a `createAction` or `signAction` is completed in undelayed mode (`acceptDelayedBroadcast`: false),
- * any unsucccessful result will return the results by way of this exception to ensure attention is
+ * any unsuccessful result will return the results by way of this exception to ensure attention is
  * paid to processing errors.
  */
 export class WERR_REVIEW_ACTIONS extends Error {
@@ -10,7 +10,7 @@ export class WERR_REVIEW_ACTIONS extends Error {
   isError: boolean = true
 
   /**
-   * All parameters correspond to their comparable `createAction` or `signSction` results
+   * All parameters correspond to their comparable `createAction` or `signAction` results
    * with the exception of `reviewActionResults`;
    * which contains more details, particularly for double spend results.
    */

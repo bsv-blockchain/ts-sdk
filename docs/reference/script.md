@@ -45,6 +45,7 @@ A representation of a chunk of a script, which includes an opcode. For push oper
 export default interface ScriptChunk {
     op: number;
     data?: number[];
+    invalidLength?: boolean;
 }
 ```
 
@@ -804,10 +805,14 @@ export default class Spend {
     stack: number[][];
     altStack: number[][];
     ifStack: boolean[];
+    elseStack: boolean[];
     memoryLimit: number;
     stackMem: number;
     altStackMem: number;
     isRelaxedOverride: boolean;
+    verifyFlags?: Set<string>;
+    executedOpCount: number;
+    returningFromConditional: boolean;
     constructor(params: {
         sourceTXID: string;
         sourceOutputIndex: number;
@@ -822,6 +827,7 @@ export default class Spend {
         lockTime: number;
         memoryLimit?: number;
         isRelaxed?: boolean;
+        verifyFlags?: string | string[];
     }) 
     reset(): void 
     step(): boolean 
@@ -848,6 +854,7 @@ constructor(params: {
     lockTime: number;
     memoryLimit?: number;
     isRelaxed?: boolean;
+    verifyFlags?: string | string[];
 }) 
 ```
 See also: [LockingScript](./script.md#class-lockingscript), [TransactionInput](./transaction.md#interface-transactioninput), [TransactionOutput](./transaction.md#interface-transactionoutput), [UnlockingScript](./script.md#class-unlockingscript)

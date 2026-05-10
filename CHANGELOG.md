@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file. The format 
 ## Table of Contents
 
 - [Unreleased](#unreleased)
-- [2.0.14 - 2026-04-23](#2014---2026-04-23)
+- [2.0.16 - 2026-04-23](#2016---2026-04-23)
+- [2.0.15 - 2026-04-23](#2015---2026-04-23)
+- [2.0.14 - 2026-04-22](#2014---2026-04-22)
 - [2.0.13 - 2026-03-19](#2013---2026-03-19)
 - [2.0.10 - 2026-03-17](#2010---2026-03-17)
 - [2.0.9 - 2026-03-16](#209---2026-03-16)
@@ -222,10 +224,32 @@ All notable changes to this project will be documented in this file. The format 
 
 ---
 
-## [2.0.14] - 2026-04-23
+## [2.0.16] - 2026-04-23
 
 ### Fixed
 - **GlobalKVStore**: Reject lookup queries that do not include at least one real selector (`key`, `controller`, `protocolID`, or non-empty `tags`) before contacting overlay resolvers.
+
+---
+
+## [2.0.15] - 2026-04-23
+
+### Added
+- Added checksum-authenticated normative script, transaction, and sighash vector coverage from bitcoin-sv and Teranode.
+
+### Fixed
+- Aligned script interpreter flag, era, Chronicle, legacy signature encoding, code separator, and script resource-limit behavior with node reference vectors.
+
+---
+
+## [2.0.14] - 2026-04-22
+
+### Added
+- Added multi-provider storage uploads with `DEFAULT_UHRP_SERVERS`, configurable `resilienceLevel`, and public `StorageUploader.estimateCost()` quote previews.
+- Added `RenewResiliencyError` to surface partial per-host renewal outcomes when a multi-host renewal does not meet the required resilience threshold.
+
+### Changed
+- Updated `StorageUploader.publishFile()` to collect bounded cheapest-first quotes and upload to the cheapest hosts until the resilience target is met.
+- Updated storage lookup, listing, and renewal flows to support host-scoped multi-host management for resilient uploads.
 
 ---
 
