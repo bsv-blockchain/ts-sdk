@@ -8,6 +8,7 @@ import { hmacSha256 } from '../circuit/Sha256.js'
 import { sha256 } from '../../../primitives/Hash.js'
 import { toArray } from '../../../primitives/utils.js'
 import { SecpPoint } from '../circuit/Types.js'
+import { AirDefinition } from '../stark/Air.js'
 import {
   LookupBusPublicInput,
   LOOKUP_BUS_LAYOUT,
@@ -17,7 +18,6 @@ import {
   buildLookupBusAir
 } from '../stark/LookupBus.js'
 import {
-  MultiTraceCrossConstraintInput,
   MultiTraceStarkDiagnostic,
   MultiTraceStarkProof,
   StarkProverOptions,
@@ -63,16 +63,13 @@ import {
   buildBRC69ProductionScalarTrace
 } from './BRC69ProductionScalar.js'
 import {
-  assertMethod2LookupShaHmacReadyForMethod2
-} from './Method2LookupShaHmac.js'
-import {
-  METHOD2_LOOKUP_BATCHED_HMAC_SHA256_LAYOUT,
-  Method2LookupBatchedHmacSha256PublicInput,
-  Method2LookupBatchedHmacSha256Trace,
-  buildMethod2LookupBatchedHmacSha256Air,
-  buildMethod2LookupBatchedHmacSha256Trace,
-  validateMethod2LookupBatchedHmacSha256PublicInput
-} from './Method2LookupBatchedHmacSha256.js'
+  METHOD2_COMPACT_HMAC_SHA256_LAYOUT,
+  Method2CompactHmacSha256PublicInput,
+  Method2CompactHmacSha256Trace,
+  buildMethod2CompactHmacSha256Air,
+  buildMethod2CompactHmacSha256Trace,
+  validateMethod2CompactHmacSha256PublicInput
+} from './Method2CompactHmacSha256.js'
 import {
   BRC69_METHOD2_LINK_BRIDGE_LAYOUT,
   BRC69Method2LinkBridgePublicInput,
@@ -86,7 +83,6 @@ import {
   BRC69SegmentBusEmission,
   BRC69SegmentBusPublicInput,
   assertBRC69SegmentBusBalanced,
-  brc69SegmentBusWrappedLayout,
   wrapBRC69SegmentBusAir,
   wrapBRC69SegmentBusTrace
 } from './BRC69SegmentBus.js'
@@ -101,7 +97,7 @@ import {
 import { F, FieldElement } from '../stark/Field.js'
 
 export const BRC69_METHOD2_WHOLE_STATEMENT_TRANSCRIPT_DOMAIN =
-  'BRC69_METHOD2_WHOLE_STATEMENT_AIR_V1'
+  'BRC69_METHOD2_WHOLE_STATEMENT_AIR'
 export const BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS = {
   blowupFactor: 16,
   numQueries: 48,
@@ -126,13 +122,11 @@ export interface BRC69Method2WholeStatementInput {
   linkage?: number[]
 }
 
-export type BRC69Method2HmacMode = 'lookup'
-
 export type BRC69Method2HmacPublicInput =
-  Method2LookupBatchedHmacSha256PublicInput
+  Method2CompactHmacSha256PublicInput
 
 export type BRC69Method2HmacTrace =
-  Method2LookupBatchedHmacSha256Trace
+  Method2CompactHmacSha256Trace
 
 export interface BRC69Method2WholeStatementPublicInput {
   publicA: SecpPoint
@@ -140,7 +134,6 @@ export interface BRC69Method2WholeStatementPublicInput {
   invoice: number[]
   linkage: number[]
   preprocessedTableRoot: number[]
-  hmacMode: BRC69Method2HmacMode
   bus: BRC69SegmentBusPublicInput
   scalar: BRC69ProductionScalarPublicInput
   lookup: LookupBusPublicInput
@@ -161,8 +154,12 @@ export interface BRC69Method2WholeStatement {
   bridgeTrace: BRC69Method2LinkBridgeTrace
   busSegments: Record<string, {
     rows: FieldElement[][]
-    air: ReturnType<typeof wrapBRC69SegmentBusAir>
+    air: AirDefinition
   }>
+  wholeSegment: {
+    rows: FieldElement[][]
+    air: AirDefinition
+  }
 }
 
 export interface BRC69Method2WholeStatementMetrics {
@@ -187,8 +184,6 @@ export interface BRC69Method2WholeStatementDiagnostic {
 export function buildBRC69Method2WholeStatement (
   input: BRC69Method2WholeStatementInput
 ): BRC69Method2WholeStatement {
-  const hmacMode: BRC69Method2HmacMode = 'lookup'
-  assertMethod2LookupShaHmacReadyForMethod2()
   const publicA = scalarMultiply(input.scalar)
   const lookup = buildProductionRadix11LookupPrototype(input.scalar, input.baseB)
   const scalarTrace = buildBRC69ProductionScalarTrace(lookup)
@@ -198,7 +193,7 @@ export function buildBRC69Method2WholeStatement (
   const compressionTrace = buildBRC69ProductionCompressionTrace(privateS)
   const key = compressPoint(privateS)
   const linkage = input.linkage ?? hmacSha256(key, input.invoice)
-  const hmacTrace = buildMethod2LookupBatchedHmacSha256Trace(
+  const hmacTrace = buildMethod2CompactHmacSha256Trace(
     key,
     input.invoice,
     linkage
@@ -212,7 +207,6 @@ export function buildBRC69Method2WholeStatement (
     preprocessedTableRoot: productionRadix11TableRoot(
       buildProductionRadix11PointPairTable(input.baseB)
     ),
-    hmacMode,
     scalar: scalarTrace.publicInput,
     lookup: lookup.trace.publicInput,
     ec: ecTrace.publicInput,
@@ -254,6 +248,13 @@ export function buildBRC69Method2WholeStatement (
     bus
   }
   validateBRC69Method2WholeStatementPublicInput(publicInput)
+  const typedBusSegments = Object.fromEntries(
+    Object.entries(busSegments).map(([name, segment]) => [
+      name,
+      { rows: segment.rows, air: segment.air }
+    ])
+  ) as Record<string, { rows: FieldElement[][], air: AirDefinition }>
+  const wholeSegment = buildBRC69Method2WholeStatementSegment(typedBusSegments)
   return {
     publicInput,
     lookup,
@@ -263,12 +264,8 @@ export function buildBRC69Method2WholeStatement (
     compressionTrace,
     hmacTrace,
     bridgeTrace,
-    busSegments: Object.fromEntries(
-      Object.entries(busSegments).map(([name, segment]) => [
-        name,
-        { rows: segment.rows, air: segment.air }
-      ])
-    )
+    busSegments: typedBusSegments,
+    wholeSegment
   }
 }
 
@@ -278,42 +275,15 @@ export function proveBRC69Method2WholeStatement (
 ): MultiTraceStarkProof {
   return proveMultiTraceStark([
     {
-      name: 'scalar',
-      air: statement.busSegments.scalar.air,
-      traceRows: statement.busSegments.scalar.rows
-    },
-    {
-      name: 'lookup',
-      air: statement.busSegments.lookup.air,
-      traceRows: statement.busSegments.lookup.rows
-    },
-    {
-      name: 'ec',
-      air: statement.busSegments.ec.air,
-      traceRows: statement.busSegments.ec.rows
-    },
-    {
-      name: 'compression',
-      air: statement.busSegments.compression.air,
-      traceRows: statement.busSegments.compression.rows
-    },
-    {
-      name: 'hmac',
-      air: statement.busSegments.hmac.air,
-      traceRows: statement.busSegments.hmac.rows
-    },
-    {
-      name: 'bridge',
-      air: statement.busSegments.bridge.air,
-      traceRows: statement.busSegments.bridge.rows
+      name: 'whole',
+      air: statement.wholeSegment.air,
+      traceRows: statement.wholeSegment.rows
     }
   ], {
     ...BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS,
     ...options,
     transcriptDomain: BRC69_METHOD2_WHOLE_STATEMENT_TRANSCRIPT_DOMAIN
-  }, buildBRC69Method2SegmentBusCrossConstraintsFromPublicInput(
-    statement.publicInput
-  ))
+  })
 }
 
 export function verifyBRC69Method2WholeStatement (
@@ -322,7 +292,7 @@ export function verifyBRC69Method2WholeStatement (
 ): boolean {
   try {
     validateBRC69Method2WholeStatementPublicInput(publicInput)
-    if (!multiTraceProofMeetsProductionProfile(proof)) return false
+    if (!multiTraceProofMeetsProofType1Shape(proof)) return false
     const challengeDigest =
       brc69Method2WholeStatementBusChallengeDigest(publicInput)
     if (!bytesEqual(challengeDigest, publicInput.bus.challengeDigest)) {
@@ -331,8 +301,7 @@ export function verifyBRC69Method2WholeStatement (
     return verifyMultiTraceStark(
       brc69Method2WholeStatementVerifierSegments(publicInput, challengeDigest),
       proof,
-      multiTraceVerifierOptions(),
-      buildBRC69Method2SegmentBusCrossConstraintsFromPublicInput(publicInput))
+      multiTraceVerifierOptions())
   } catch {
     return false
   }
@@ -344,11 +313,11 @@ export function diagnoseBRC69Method2WholeStatement (
 ): BRC69Method2WholeStatementDiagnostic {
   try {
     validateBRC69Method2WholeStatementPublicInput(publicInput)
-    if (!multiTraceProofMeetsProductionProfile(proof)) {
+    if (!multiTraceProofMeetsProofType1Shape(proof)) {
       return {
         ok: false,
-        stage: 'production-profile',
-        detail: 'proof does not meet the BRC69 Method 2 production profile'
+        stage: 'proof-shape',
+        detail: 'proof does not meet the BRC69 Method 2 proof type 1 shape'
       }
     }
     const challengeDigest =
@@ -363,8 +332,7 @@ export function diagnoseBRC69Method2WholeStatement (
     const multiTrace = diagnoseMultiTraceStark(
       brc69Method2WholeStatementVerifierSegments(publicInput, challengeDigest),
       proof,
-      multiTraceVerifierOptions(),
-      buildBRC69Method2SegmentBusCrossConstraintsFromPublicInput(publicInput)
+      multiTraceVerifierOptions()
     )
     return {
       ok: multiTrace.ok,
@@ -448,9 +416,6 @@ export function validateBRC69Method2WholeStatementPublicInput (
   }
   assertBytes(publicInput.invoice, undefined, 'invoice')
   assertBytes(publicInput.linkage, 32, 'linkage')
-  if (publicInput.hmacMode !== 'lookup') {
-    throw new Error('BRC69 Method 2 whole-statement HMAC mode must be lookup')
-  }
   if (!pointsEqual(publicInput.ec.publicA, publicInput.publicA)) {
     throw new Error('BRC69 Method 2 multi-trace EC public A mismatch')
   }
@@ -463,7 +428,7 @@ export function validateBRC69Method2WholeStatementPublicInput (
   if (!bytesEqual(publicInput.hmac.linkage, publicInput.linkage)) {
     throw new Error('BRC69 Method 2 multi-trace linkage mismatch')
   }
-  validateMethod2HmacPublicInput(publicInput.hmacMode, publicInput.hmac)
+  validateMethod2CompactHmacSha256PublicInput(publicInput.hmac)
   if (!bytesEqual(
     publicInput.preprocessedTableRoot,
     productionRadix11TableRoot(buildProductionRadix11PointPairTable(
@@ -483,47 +448,13 @@ export function validateBRC69Method2WholeStatementPublicInput (
   validateDeterministicLookupTable(publicInput)
 }
 
-function validateMethod2HmacPublicInput (
-  mode: BRC69Method2HmacMode,
-  publicInput: BRC69Method2HmacPublicInput
-): void {
-  if (mode !== 'lookup') {
-    throw new Error('BRC69 Method 2 whole-statement HMAC mode must be lookup')
-  }
-  validateMethod2LookupBatchedHmacSha256PublicInput(publicInput)
-}
-
-function buildMethod2HmacAir (
-  mode: BRC69Method2HmacMode,
-  publicInput: BRC69Method2HmacPublicInput
-): ReturnType<typeof buildMethod2LookupBatchedHmacSha256Air> {
-  if (mode !== 'lookup') {
-    throw new Error('BRC69 Method 2 whole-statement HMAC mode must be lookup')
-  }
-  return buildMethod2LookupBatchedHmacSha256Air(publicInput)
-}
-
-function hmacTraceMode (
+function assertCompactHmacTrace (
   trace: BRC69Method2HmacTrace
-): BRC69Method2HmacMode {
-  if (trace.publicInput.relation !== 'lookup-batched-hmac-sha256') {
-    throw new Error('BRC69 Method 2 whole-statement HMAC trace must be lookup')
+): void {
+  validateMethod2CompactHmacSha256PublicInput(trace.publicInput)
+  if (trace.layout.width !== METHOD2_COMPACT_HMAC_SHA256_LAYOUT.width) {
+    throw new Error('BRC69 Method 2 whole-statement HMAC trace must be compact')
   }
-  return 'lookup'
-}
-
-function hmacTraceWidth (mode: BRC69Method2HmacMode): number {
-  if (mode !== 'lookup') {
-    throw new Error('BRC69 Method 2 whole-statement HMAC mode must be lookup')
-  }
-  return METHOD2_LOOKUP_BATCHED_HMAC_SHA256_LAYOUT.width
-}
-
-function hmacKeyByteOffset (mode: BRC69Method2HmacMode): number {
-  if (mode !== 'lookup') {
-    throw new Error('BRC69 Method 2 whole-statement HMAC mode must be lookup')
-  }
-  return METHOD2_LOOKUP_BATCHED_HMAC_SHA256_LAYOUT.keyBytes
 }
 
 function multiTraceVerifierOptions (): StarkVerifierOptions {
@@ -536,7 +467,24 @@ function multiTraceVerifierOptions (): StarkVerifierOptions {
 function brc69Method2WholeStatementVerifierSegments (
   publicInput: BRC69Method2WholeStatementPublicInput,
   challengeDigest: number[]
-): Array<{ name: string, air: ReturnType<typeof wrapBRC69SegmentBusAir> }> {
+): Array<{ name: string, air: AirDefinition }> {
+  const busSegments = brc69Method2WholeStatementBusVerifierSegments(
+    publicInput,
+    challengeDigest
+  )
+  return [{
+    name: 'whole',
+    air: buildBRC69Method2WholeStatementAir(busSegments)
+  }]
+}
+
+function brc69Method2WholeStatementBusVerifierSegments (
+  publicInput: BRC69Method2WholeStatementPublicInput,
+  challengeDigest: number[]
+): Array<{
+    name: typeof BRC69_METHOD2_BUS_SEGMENT_ORDER[number]
+    air: AirDefinition
+  }> {
   const proofTraceLength = brc69Method2WholeStatementBusProofTraceLength(publicInput)
   return [
     {
@@ -565,6 +513,20 @@ function brc69Method2WholeStatementVerifierSegments (
         emissionCount: publicInput.bus.segments.lookup.emissionCount,
         publicStart: publicInput.bus.segments.lookup.publicStart,
         publicEnd: publicInput.bus.segments.lookup.publicEnd
+      })
+    },
+    {
+      name: 'bridge',
+      air: wrapBRC69SegmentBusAir({
+        name: 'bridge',
+        air: buildBRC69Method2LinkBridgeAir(publicInput.bridge),
+        baseTraceLength: publicInput.bridge.traceLength,
+        traceLength: proofTraceLength,
+        emissions: bridgeBusEmissions(publicInput.bridge),
+        challengeDigest,
+        emissionCount: publicInput.bus.segments.bridge.emissionCount,
+        publicStart: publicInput.bus.segments.bridge.publicStart,
+        publicEnd: publicInput.bus.segments.bridge.publicEnd
       })
     },
     {
@@ -599,28 +561,14 @@ function brc69Method2WholeStatementVerifierSegments (
       name: 'hmac',
       air: wrapBRC69SegmentBusAir({
         name: 'hmac',
-        air: buildMethod2HmacAir(publicInput.hmacMode, publicInput.hmac),
+        air: buildMethod2CompactHmacSha256Air(publicInput.hmac),
         baseTraceLength: publicInput.hmac.traceLength,
         traceLength: proofTraceLength,
-        emissions: hmacBusEmissions(publicInput.hmacMode),
+        emissions: hmacBusEmissions(),
         challengeDigest,
         emissionCount: publicInput.bus.segments.hmac.emissionCount,
         publicStart: publicInput.bus.segments.hmac.publicStart,
         publicEnd: publicInput.bus.segments.hmac.publicEnd
-      })
-    },
-    {
-      name: 'bridge',
-      air: wrapBRC69SegmentBusAir({
-        name: 'bridge',
-        air: buildBRC69Method2LinkBridgeAir(publicInput.bridge),
-        baseTraceLength: publicInput.bridge.traceLength,
-        traceLength: proofTraceLength,
-        emissions: bridgeBusEmissions(publicInput.bridge),
-        challengeDigest,
-        emissionCount: publicInput.bus.segments.bridge.emissionCount,
-        publicStart: publicInput.bus.segments.bridge.publicStart,
-        publicEnd: publicInput.bus.segments.bridge.publicEnd
       })
     }
   ]
@@ -690,18 +638,147 @@ function buildBusWrappedSegments (input: {
     rows: input.compressionTrace.rows,
     emissions: compressionBusEmissions()
   })
+  assertCompactHmacTrace(input.hmacTrace)
   wrap('hmac', {
-    air: buildMethod2HmacAir(
-      hmacTraceMode(input.hmacTrace),
-      input.hmacTrace.publicInput
-    ),
+    air: buildMethod2CompactHmacSha256Air(input.hmacTrace.publicInput),
     rows: input.hmacTrace.rows,
-    emissions: hmacBusEmissions(hmacTraceMode(input.hmacTrace))
+    emissions: hmacBusEmissions()
   })
   if (start.accumulator0 !== 0n || start.accumulator1 !== 0n) {
     throw new Error('BRC69 Method 2 segment bus does not balance')
   }
   return out as Record<string, ReturnType<typeof wrapBRC69SegmentBusTrace>>
+}
+
+function buildBRC69Method2WholeStatementSegment (
+  busSegments: Record<string, { rows: FieldElement[][], air: AirDefinition }>
+): { rows: FieldElement[][], air: AirDefinition } {
+  const ordered = BRC69_METHOD2_BUS_SEGMENT_ORDER.map(name => {
+    const segment = busSegments[name]
+    if (segment === undefined) {
+      throw new Error(`BRC69 Method 2 whole-statement segment missing: ${name}`)
+    }
+    return { name, ...segment }
+  })
+  const traceLength = ordered[0].rows.length
+  if (!ordered.every(segment => segment.rows.length === traceLength)) {
+    throw new Error('BRC69 Method 2 whole-statement segments must share a trace length')
+  }
+  const rows = Array.from({ length: traceLength }, (_, rowIndex) => {
+    const row: FieldElement[] = []
+    for (const segment of ordered) {
+      row.push(...segment.rows[rowIndex])
+    }
+    return row
+  })
+  return {
+    rows,
+    air: buildBRC69Method2WholeStatementAir(ordered.map(segment => ({
+      name: segment.name,
+      air: segment.air
+    })))
+  }
+}
+
+function buildBRC69Method2WholeStatementAir (
+  segments: Array<{
+    name: typeof BRC69_METHOD2_BUS_SEGMENT_ORDER[number]
+    air: AirDefinition
+  }>
+): AirDefinition {
+  const orderedNames = segments.map(segment => segment.name)
+  if (orderedNames.join(',') !== BRC69_METHOD2_BUS_SEGMENT_ORDER.join(',')) {
+    throw new Error('BRC69 Method 2 whole-statement segment order mismatch')
+  }
+  let offset = 0
+  const parts = segments.map(segment => {
+    const current = {
+      ...segment,
+      offset,
+      end: offset + segment.air.traceWidth
+    }
+    offset = current.end
+    return current
+  })
+  const boundaryConstraints = parts.flatMap(part =>
+    part.air.boundaryConstraints.map(constraint => ({
+      ...constraint,
+      column: constraint.column + part.offset
+    }))
+  )
+  const fullBoundaryColumns = parts.flatMap(part =>
+    (part.air.fullBoundaryColumns ?? []).map(column => ({
+      ...column,
+      column: column.column + part.offset
+    }))
+  )
+  const unmaskedColumns = parts.flatMap(part =>
+    (part.air.unmaskedColumns ?? []).map(column => column + part.offset)
+  )
+  const currentScratch = parts.map(part =>
+    new Array<FieldElement>(part.air.traceWidth)
+  )
+  const nextScratch = parts.map(part =>
+    new Array<FieldElement>(part.air.traceWidth)
+  )
+  return {
+    traceWidth: offset,
+    transitionDegree: Math.max(
+      2,
+      ...parts.map(part => part.air.transitionDegree ?? 2)
+    ),
+    publicInputDigest: sha256(toArray(stableJson({
+      id: 'BRC69_METHOD2_WHOLE_STATEMENT_SINGLE_TRACE_AIR',
+      transcriptDomain: BRC69_METHOD2_WHOLE_STATEMENT_TRANSCRIPT_DOMAIN,
+      segments: parts.map(part => ({
+        name: part.name,
+        offset: part.offset,
+        traceWidth: part.air.traceWidth,
+        publicInputDigest: part.air.publicInputDigest ?? []
+      }))
+    }), 'utf8')),
+    boundaryConstraints,
+    fullBoundaryColumns,
+    unmaskedColumns,
+    evaluateTransition: (current, next, step) => {
+      const constraints: FieldElement[] = []
+      for (let partIndex = 0; partIndex < parts.length; partIndex++) {
+        const part = parts[partIndex]
+        const currentPart = currentScratch[partIndex]
+        const nextPart = nextScratch[partIndex]
+        for (let column = 0; column < part.air.traceWidth; column++) {
+          currentPart[column] = current[part.offset + column]
+          nextPart[column] = next[part.offset + column]
+        }
+        constraints.push(...part.air.evaluateTransition(
+          currentPart,
+          nextPart,
+          step
+        ))
+      }
+      appendSameTraceBusEndpointConstraints(constraints, current, parts)
+      return constraints
+    }
+  }
+}
+
+function appendSameTraceBusEndpointConstraints (
+  constraints: FieldElement[],
+  row: FieldElement[],
+  parts: Array<{ offset: number, air: AirDefinition }>
+): void {
+  for (let index = 0; index + 1 < parts.length; index++) {
+    const left = parts[index]
+    const right = parts[index + 1]
+    constraints.push(F.sub(
+      row[left.offset + left.air.traceWidth - 5],
+      row[right.offset + right.air.traceWidth - 7]
+    ))
+    constraints.push(F.sub(
+      row[left.offset + left.air.traceWidth - 4],
+      row[right.offset + right.air.traceWidth - 6]
+    ))
+  }
 }
 
 function brc69Method2WholeStatementBusProofTraceLength (
@@ -858,10 +935,8 @@ function compressionBusEmissions (): BRC69SegmentBusEmission[] {
   return emissions
 }
 
-function hmacBusEmissions (
-  mode: BRC69Method2HmacMode
-): BRC69SegmentBusEmission[] {
-  const keyOffset = hmacKeyByteOffset(mode)
+function hmacBusEmissions (): BRC69SegmentBusEmission[] {
+  const keyOffset = METHOD2_COMPACT_HMAC_SHA256_LAYOUT.keyBytes
   return Array.from({ length: 33 }, (_, byteIndex) => ({
     row: 0,
     kind: BRC69_SEGMENT_BUS_KIND_TARGET,
@@ -917,82 +992,6 @@ function finalEcLaneRow (
   const item = rows[rows.length - 1]
   if (item === undefined) throw new Error('BRC69 EC final row is missing')
   return item.row + item.rows - 1
-}
-
-function buildBRC69Method2SegmentBusCrossConstraintsFromPublicInput (
-  publicInput: BRC69Method2WholeStatementPublicInput
-): MultiTraceCrossConstraintInput[] {
-  return buildBRC69Method2SegmentBusCrossConstraintsFromWidths({
-    scalar: BRC69_PRODUCTION_SCALAR_LAYOUT.width,
-    lookup: LOOKUP_BUS_LAYOUT.width,
-    bridge: BRC69_METHOD2_LINK_BRIDGE_LAYOUT.width,
-    ec: PRODUCTION_EC_LAYOUT.width,
-    compression: BRC69_PRODUCTION_COMPRESSION_LAYOUT.width,
-    hmac: hmacTraceWidth(publicInput.hmacMode)
-  }, {
-    scalar: publicInput.bus.segments.scalar.selectorCount ??
-      publicInput.bus.segments.scalar.emissionCount,
-    lookup: publicInput.bus.segments.lookup.selectorCount ??
-      publicInput.bus.segments.lookup.emissionCount,
-    bridge: publicInput.bus.segments.bridge.selectorCount ??
-      publicInput.bus.segments.bridge.emissionCount,
-    ec: publicInput.bus.segments.ec.selectorCount ??
-      publicInput.bus.segments.ec.emissionCount,
-    compression: publicInput.bus.segments.compression.selectorCount ??
-      publicInput.bus.segments.compression.emissionCount,
-    hmac: publicInput.bus.segments.hmac.selectorCount ??
-      publicInput.bus.segments.hmac.emissionCount
-  })
-}
-
-function buildBRC69Method2SegmentBusCrossConstraintsFromWidths (
-  widths: Record<typeof BRC69_METHOD2_BUS_SEGMENT_ORDER[number], number>,
-  selectorCounts: Record<typeof BRC69_METHOD2_BUS_SEGMENT_ORDER[number], number>
-): MultiTraceCrossConstraintInput[] {
-  const values: Array<{
-    left: typeof BRC69_METHOD2_BUS_SEGMENT_ORDER[number]
-    right: typeof BRC69_METHOD2_BUS_SEGMENT_ORDER[number]
-    leftColumn: number
-    rightColumn: number
-  }> = []
-  const degreeBound = BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.maskDegree + 1
-  for (let index = 0; index + 1 < BRC69_METHOD2_BUS_SEGMENT_ORDER.length; index++) {
-    const left = BRC69_METHOD2_BUS_SEGMENT_ORDER[index]
-    const right = BRC69_METHOD2_BUS_SEGMENT_ORDER[index + 1]
-    const leftLayout = brc69SegmentBusWrappedLayout(
-      widths[left],
-      selectorCounts[left]
-    )
-    const rightLayout = brc69SegmentBusWrappedLayout(
-      widths[right],
-      selectorCounts[right]
-    )
-    values.push({
-      left,
-      right,
-      leftColumn: leftLayout.end0,
-      rightColumn: rightLayout.start0
-    }, {
-      left,
-      right,
-      leftColumn: leftLayout.end1,
-      rightColumn: rightLayout.start1
-    })
-  }
-  return [{
-    name: 'bus-endpoint-chain',
-    refs: BRC69_METHOD2_BUS_SEGMENT_ORDER.map(segment => ({
-      alias: segment,
-      segment
-    })),
-    degreeBound,
-    evaluate: ({ rows }) => values.map(value =>
-      F.sub(
-        rows[value.left][value.leftColumn],
-        rows[value.right][value.rightColumn]
-      )
-    )
-  }]
 }
 
 function validateBusContributions (
@@ -1053,13 +1052,12 @@ function brc69Method2WholeStatementBusChallengeDigest (
   BRC69Method2WholeStatementPublicInput
 ): number[] {
   return sha256(toArray(stableJson({
-    id: 'BRC69_METHOD2_WHOLE_STATEMENT_BUS_CHALLENGE_V1',
+    id: 'BRC69_METHOD2_WHOLE_STATEMENT_BUS_CHALLENGE',
     publicA: publicInput.publicA,
     baseB: publicInput.baseB,
     invoice: publicInput.invoice,
     linkage: publicInput.linkage,
     preprocessedTableRoot: publicInput.preprocessedTableRoot,
-    hmacMode: publicInput.hmacMode,
     scalar: publicInput.scalar,
     lookup: publicInput.lookup,
     ec: publicInput.ec,
@@ -1069,14 +1067,14 @@ function brc69Method2WholeStatementBusChallengeDigest (
   }), 'utf8'))
 }
 
-function multiTraceProofMeetsProductionProfile (
+function multiTraceProofMeetsProofType1Shape (
   proof: MultiTraceStarkProof
 ): boolean {
   if (proof.transcriptDomain !== BRC69_METHOD2_WHOLE_STATEMENT_TRANSCRIPT_DOMAIN) {
     return false
   }
-  if (proof.segments.length !== 6) return false
-  if ((proof.crossProofs ?? []).length !== 1) return false
+  if (proof.segments.length !== 1 || proof.segments[0].name !== 'whole') return false
+  if ((proof.crossProofs ?? []).length !== 0) return false
   if ((proof.constantColumnProofs ?? []).length !== 0) return false
   return proof.segments.every(segment =>
     segment.proof.blowupFactor ===

@@ -24,7 +24,7 @@ import {
   verifyStark
 } from '../brc69/stark/index'
 
-describe('BRC-69 Method 2 multi-trace statement', () => {
+describe('BRC-69 Method 2 whole-statement proof', () => {
   it('builds production-shaped segment traces without verifier-facing secrets', () => {
     const statement = brc69Method2WholeStatementDeterministicFixture()
     const metrics = brc69Method2WholeStatementMetrics(statement)
@@ -49,6 +49,11 @@ describe('BRC-69 Method 2 multi-trace statement', () => {
       .every(segment => segment.rows === metrics.segments.lookup.rows))
       .toBe(true)
     expect(metrics.totalCommittedCells).toBeLessThan(50000000)
+    expect(statement.wholeSegment.rows).toHaveLength(metrics.segments.lookup.rows)
+    expect(statement.wholeSegment.air.traceWidth).toBe(
+      Object.values(metrics.segments)
+        .reduce((total, segment) => total + segment.width, 0)
+    )
     expect(statement.publicInput.preprocessedTableRoot).toHaveLength(32)
     expect(Object.values(statement.publicInput.bus.segments)
       .reduce((total, segment) => total + segment.emissionCount, 0))
@@ -237,15 +242,8 @@ describe('BRC-69 Method 2 multi-trace statement', () => {
     const weakProof = {
       transcriptDomain: BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.transcriptDomain,
       contextDigest: new Array(32).fill(0),
-      segments: [
-        'scalar',
-        'lookup',
-        'ec',
-        'compression',
-        'hmac',
-        'bridge'
-      ].map(name => ({
-        name,
+      segments: [{
+        name: 'whole',
         proof: {
           blowupFactor:
             BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.blowupFactor,
@@ -255,7 +253,9 @@ describe('BRC-69 Method 2 multi-trace statement', () => {
           maskDegree: BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.maskDegree,
           cosetOffset: BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.cosetOffset
         }
-      }))
+      }],
+      crossProofs: [],
+      constantColumnProofs: []
     } as unknown as MultiTraceStarkProof
 
     expect(verifyBRC69Method2WholeStatement(

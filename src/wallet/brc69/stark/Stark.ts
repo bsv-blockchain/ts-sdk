@@ -1239,6 +1239,10 @@ function serializeStarkProofInternal (
 ): number[] {
   validateStarkProofShape(proof)
   const writer = new Writer()
+  const merkleHashes = starkMerklePathDictionary(proof)
+  const merkleHashIndex = new Map(
+    merkleHashes.map((hash, index) => [bytesKey(hash), index])
+  )
   writer.writeVarIntNum(proof.traceLength)
   writer.writeVarIntNum(proof.traceWidth)
   writer.writeVarIntNum(proof.blowupFactor)
@@ -1254,10 +1258,11 @@ function serializeStarkProofInternal (
   writeHash(writer, proof.traceRoot)
   writeHash(writer, proof.traceCombinationRoot)
   writeHash(writer, proof.compositionRoot)
-  writeTraceOpenings(writer, proof.traceLowDegreeOpenings)
-  writeTraceOpenings(writer, proof.traceOpenings)
-  writeTraceOpenings(writer, proof.nextTraceOpenings)
-  writeTraceOpenings(writer, proof.compositionOpenings)
+  writeHashDictionary(writer, merkleHashes)
+  writeCompactTraceOpenings(writer, proof.traceLowDegreeOpenings, merkleHashIndex)
+  writeCompactTraceOpenings(writer, proof.traceOpenings, merkleHashIndex)
+  writeCompactTraceOpenings(writer, proof.nextTraceOpenings, merkleHashIndex)
+  writeCompactTraceOpenings(writer, proof.compositionOpenings, merkleHashIndex)
   const traceFriBytes = serializeFriProof(proof.traceFriProof)
   writer.writeVarIntNum(traceFriBytes.length)
   writer.write(traceFriBytes)
@@ -1437,10 +1442,11 @@ function parseStarkProofInternal (
   const traceRoot = readHash(reader)
   const traceCombinationRoot = readHash(reader)
   const compositionRoot = readHash(reader)
-  const traceLowDegreeOpenings = readTraceOpenings(reader)
-  const traceOpenings = readTraceOpenings(reader)
-  const nextTraceOpenings = readTraceOpenings(reader)
-  const compositionOpenings = readTraceOpenings(reader)
+  const merkleHashes = readHashDictionary(reader)
+  const traceLowDegreeOpenings = readCompactTraceOpenings(reader, merkleHashes)
+  const traceOpenings = readCompactTraceOpenings(reader, merkleHashes)
+  const nextTraceOpenings = readCompactTraceOpenings(reader, merkleHashes)
+  const compositionOpenings = readCompactTraceOpenings(reader, merkleHashes)
   const traceFriLength = reader.readVarIntNum()
   const traceFriProof = parseFriProof(reader.read(traceFriLength))
   const friLength = reader.readVarIntNum()
@@ -3115,6 +3121,124 @@ function readMerklePath (reader: StarkBinaryReader): MerklePathItem[] {
     path.push({
       siblingOnLeft: direction === 1,
       sibling: readHash(reader)
+    })
+  }
+  return path
+}
+
+function starkMerklePathDictionary (proof: StarkProof): MerkleHash[] {
+  const hashes: MerkleHash[] = []
+  const seen = new Set<string>()
+  const addPath = (path: MerklePathItem[]): void => {
+    for (const item of path) {
+      const key = bytesKey(item.sibling)
+      if (!seen.has(key)) {
+        seen.add(key)
+        hashes.push(item.sibling)
+      }
+    }
+  }
+  const addOpenings = (openings: TraceRowOpening[]): void => {
+    for (const opening of openings) addPath(opening.path)
+  }
+  addOpenings(proof.traceLowDegreeOpenings)
+  addOpenings(proof.traceOpenings)
+  addOpenings(proof.nextTraceOpenings)
+  addOpenings(proof.compositionOpenings)
+  return hashes
+}
+
+function writeHashDictionary (
+  writer: Writer,
+  hashes: MerkleHash[]
+): void {
+  writer.writeVarIntNum(hashes.length)
+  for (const hash of hashes) writeHash(writer, hash)
+}
+
+function readHashDictionary (reader: StarkBinaryReader): MerkleHash[] {
+  const length = reader.readVarIntNum()
+  if (length > 1048576) throw new Error('Merkle hash dictionary too large')
+  const hashes: MerkleHash[] = []
+  for (let i = 0; i < length; i++) hashes.push(readHash(reader))
+  return hashes
+}
+
+function writeCompactTraceOpenings (
+  writer: Writer,
+  openings: TraceRowOpening[],
+  merkleHashIndex: Map<string, number>
+): void {
+  writer.writeVarIntNum(openings.length)
+  for (const opening of openings) {
+    writer.writeVarIntNum(opening.rowIndex)
+    writer.writeVarIntNum(opening.row.length)
+    for (const value of opening.row) writeField(writer, value)
+    writeCompactMerklePath(writer, opening.path, merkleHashIndex)
+  }
+}
+
+function readCompactTraceOpenings (
+  reader: StarkBinaryReader,
+  merkleHashes: MerkleHash[]
+): TraceRowOpening[] {
+  const length = reader.readVarIntNum()
+  if (length > 1048576) throw new Error('Too many STARK openings')
+  const openings: TraceRowOpening[] = []
+  for (let i = 0; i < length; i++) {
+    const rowIndex = reader.readVarIntNum()
+    const rowLength = reader.readVarIntNum()
+    if (rowLength > STARK_MAX_TRACE_WIDTH) {
+      throw new Error('STARK opening row too wide')
+    }
+    const row: FieldElement[] = []
+    for (let column = 0; column < rowLength; column++) {
+      row.push(readField(reader))
+    }
+    openings.push({
+      rowIndex,
+      row,
+      path: readCompactMerklePath(reader, merkleHashes)
+    })
+  }
+  return openings
+}
+
+function writeCompactMerklePath (
+  writer: Writer,
+  path: MerklePathItem[],
+  merkleHashIndex: Map<string, number>
+): void {
+  assertMerklePath(path)
+  writer.writeVarIntNum(path.length)
+  for (const item of path) {
+    const index = merkleHashIndex.get(bytesKey(item.sibling))
+    if (index === undefined) throw new Error('Missing Merkle hash dictionary entry')
+    writer.writeUInt8(item.siblingOnLeft ? 1 : 0)
+    writer.writeVarIntNum(index)
+  }
+}
+
+function readCompactMerklePath (
+  reader: StarkBinaryReader,
+  merkleHashes: MerkleHash[]
+): MerklePathItem[] {
+  const length = reader.readVarIntNum()
+  if (length > 64) throw new Error('Merkle path too long')
+  const path: MerklePathItem[] = []
+  for (let i = 0; i < length; i++) {
+    const direction = reader.readUInt8()
+    if (direction !== 0 && direction !== 1) {
+      throw new Error('Invalid Merkle path direction')
+    }
+    const hashIndex = reader.readVarIntNum()
+    const sibling = merkleHashes[hashIndex]
+    if (sibling === undefined) {
+      throw new Error('Invalid Merkle hash dictionary index')
+    }
+    path.push({
+      siblingOnLeft: direction === 1,
+      sibling
     })
   }
   return path

@@ -1,6 +1,5 @@
 export {
   BRC69_METHOD2_PROOF_TYPE,
-  BRC69_METHOD2_WHOLE_STATEMENT_PRODUCTION_PROFILE,
   createSpecificKeyLinkageProof,
   normalizeSpecificKeyLinkageCounterparty,
   parseBRC69SpecificKeyLinkageProof,

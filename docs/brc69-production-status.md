@@ -3,9 +3,8 @@
 Last updated: 2026-05-10.
 
 This is the single authoritative document for the BRC-69 Method 2 ZK system in
-this branch. Historical strategy notes have been collapsed into this page so
-there is one proof relation, one production proof path, and one place to audit
-current status.
+this branch. The wallet-facing production path is proof type `1` and proves the
+whole statement in one STARK segment named `whole`.
 
 ## Statement
 
@@ -18,88 +17,67 @@ exists a:
   linkage = HMAC-SHA256(compress(S), invoice)
 ```
 
-Where:
+The HMAC is inside the proof. The proof binds scalar derivation, EC
+multiplication for both public `A` and private `S`, compression of `S`, and
+HMAC-SHA256 over the public invoice.
 
-- `a` is the prover's private root scalar.
-- `A` is the public prover identity key.
-- `G` is the secp256k1 generator.
-- `B` is the public counterparty key.
-- `invoice = computeInvoiceNumber(protocolID, keyID)`.
-- `linkage` is the public Method 2 specific linkage value.
-
-It is not sufficient for the prover to check HMAC outside the proof. The whole
-statement proof must bind scalar derivation, EC multiplication for both public
-`A` and private `S`, compression of `S`, and HMAC-SHA256 over the invoice.
-
-## Public and Private Values
-
-Public verifier inputs:
-
-- prover identity key `A`;
-- counterparty key `B`;
-- invoice bytes;
-- linkage bytes;
-- deterministic radix-11 table root for `G` and `B`;
-- fixed production STARK profile and proof metadata;
-- segment public inputs needed to reconstruct verifier AIRs.
-
-Private witness values:
-
-- scalar `a`;
-- shared point `S = aB`;
-- compressed `S` bytes used as the HMAC key;
-- HMAC internal state;
-- intermediate bus accumulator endpoints except the public zero start and end.
-
-## One Production Code Path
+## Current Code Path
 
 Wallet proof generation uses proof type `1` by default. Proof type `0` remains
-only for legacy no-proof payloads.
+only for no-proof payloads.
+
+Production defaults:
+
+```text
+proof type: 1
+transcript domain: BRC69_METHOD2_WHOLE_STATEMENT_AIR
+segments in proof: whole
+cross proofs: none
+constant-column proofs: none
+```
 
 Generation path:
 
 1. `ProtoWallet.revealSpecificKeyLinkage` defaults omitted `proofType` to `1`.
-2. `createSpecificKeyLinkageProof` normalizes `self` and `anyone`, checks that
-   the private scalar matches public `A`, recomputes the public linkage relation,
-   and builds the whole-statement witness.
-3. `buildBRC69Method2WholeStatement` builds all production traces.
-4. `proveBRC69Method2WholeStatement` produces one multi-trace STARK proof.
-5. `serializeSpecificKeyLinkageProofPayload` wraps the whole-statement proof in
-   the BRC-69 proof type `1` envelope.
+2. `createSpecificKeyLinkageProof` checks the requested statement and builds the
+   whole-statement witness.
+3. `buildBRC69Method2WholeStatement` builds scalar, lookup, bridge, EC,
+   compression, and compact-HMAC traces.
+4. The bus-wrapped segment columns are concatenated into one `whole` trace.
+5. `proveBRC69Method2WholeStatement` proves that one same-domain trace.
+6. `serializeSpecificKeyLinkageProofPayload` emits the proof type `1` envelope.
 
 Verification path:
 
 1. `parseSpecificKeyLinkageProofPayload` accepts proof type `1` and rejects
    malformed or trailing proof bytes.
-2. `verifySpecificKeyLinkageProof` checks the payload profile, matches public
-   input to the requested statement, and calls the whole-statement verifier.
-3. `verifyBRC69Method2WholeStatement` validates public inputs, recomputes the bus
-   challenge digest, enforces the production profile, and verifies the multi-trace
-   proof.
+2. `verifySpecificKeyLinkageProof` checks the proof type `1` payload and public
+   statement.
+3. `verifyBRC69Method2WholeStatement` validates public inputs, recomputes public
+   roots and bus challenge digest, and verifies the single `whole` STARK segment.
 
 Standalone scalar, lookup, EC, compression, HMAC, or bus proofs are diagnostic
-and metrics helpers. They are not the wallet-facing production proof.
+and metrics helpers. Lookup-batched HMAC remains as standalone code, but it is
+not accepted in the proof type `1` wallet proof.
 
 ## Production Proof Shape
 
-The production proof is a single multi-trace Fiat-Shamir transcript containing
-six committed segments:
+The committed `whole` trace concatenates these bus-wrapped components in order:
 
-| Segment | Role |
+| Component | Role |
 | --- | --- |
-| `scalar` | Proves canonical 24-window signed radix-11 scalar digits, non-zero scalar, and scalar range below secp256k1 `n`. |
-| `lookup` | Supplies the deterministic dual-base point table and proves selected point-pair lookup rows. |
-| `bridge` | Links scalar digit rows and lookup outputs to the selected `G` and `B` points consumed by EC. |
-| `ec` | Proves the fixed-schedule affine EC accumulator, producing public `A` and private `S`. |
+| `scalar` | Canonical 24-window signed radix-11 scalar digits, non-zero scalar, and range below secp256k1 `n`. |
+| `lookup` | Deterministic dual-base point table and selected point-pair lookup rows. |
+| `bridge` | Links scalar digits and lookup outputs to selected `G` and `B` points consumed by EC. |
+| `ec` | Fixed-schedule affine EC accumulator, producing public `A` and private `S`. |
 | `compression` | Links private `S` to compressed secp256k1 key bytes. |
-| `hmac` | Proves lookup-batched HMAC-SHA256 from compressed `S` and public invoice to public linkage. |
+| `hmac` | Compact SHA/HMAC AIR proving `HMAC-SHA256(compress(S), invoice) = linkage`. |
 
-The segment-local bus embeds hidden accumulator columns in each segment. Adjacent
-segment endpoints are linked by a cross-trace quotient constraint in the same
-multi-trace transcript. The scalar segment has a public zero bus start and the
-HMAC segment has a public zero bus end, so the whole bus must balance.
+The old cross-trace bus endpoint checks are same-proof constraints in the
+`whole` AIR. The scalar bus start and HMAC bus end are public zero endpoints, so
+the hidden bus must balance across the whole relation.
 
-The production profile is fixed:
+The production STARK parameters are unchanged:
 
 ```text
 blowup factor: 16
@@ -107,38 +85,22 @@ queries: 48
 max remainder size: 16
 mask degree: 2
 coset offset: 7
-proof type: 1
-profile id: 1
 ```
 
-## Current Production Run
+## Production Runs
 
-The latest full production run completed proof generation and verification with
-a 96 GB Node heap. The process exited nonzero only after verification because
-the production acceptance gate rejected the proof size.
+### Full Whole-Statement Run
+
+Latest full production run:
 
 ```text
 artifact base:
-  artifacts/brc69-full-production-96gb-6h-20260510T171500Z
-
-completed:
-  2026-05-10T18:19:30.224Z
-
-environment:
-  node: v22.21.1
-  platform: darwin arm64
-  cpu count: 16
-  git commit: 57d5c60708b8effcfb394330c03c624c38ef95d5
+  artifacts/brc69-full-production-96gb-6h-20260510T202402Z
 
 command:
-  npm run build:ts
-  node --max-old-space-size=98304 scripts/brc69-metrics.js \
-    --json artifacts/brc69-full-production-96gb-6h-20260510T171500Z/report.json \
-    --markdown artifacts/brc69-full-production-96gb-6h-20260510T171500Z/report.md \
-    --progress-jsonl artifacts/brc69-full-production-96gb-6h-20260510T171500Z/progress.jsonl \
-    --partial-json artifacts/brc69-full-production-96gb-6h-20260510T171500Z/partial.json \
-    --proof-json artifacts/brc69-full-production-96gb-6h-20260510T171500Z/whole-proof.json \
-    --diagnostic-json artifacts/brc69-full-production-96gb-6h-20260510T171500Z/diagnostic.json
+  npm run brc69:metrics -- \
+    --json artifacts/brc69-full-production-96gb-6h-20260510T202402Z/report.json \
+    --markdown artifacts/brc69-full-production-96gb-6h-20260510T202402Z/report.md
 ```
 
 Run result:
@@ -147,120 +109,143 @@ Run result:
 | --- | ---: |
 | invoice bytes | 1,233 |
 | SHA/HMAC blocks | 23 |
-| radix-11 table rows | 23,584 |
-| whole-statement proof verified | true |
+| whole proof verified | true |
 | diagnostic result | ok |
-| proof bytes | 10,938,748 |
+| prove time | 2,247.197s |
+| verify time | 2.311s |
+| total metrics run time | 2,260.180s |
+| proof bytes during run | 3,184,437 |
+| current compact-encoded proof bytes | 2,738,411 |
 | proof-size acceptance cap | 1,500,000 |
-| prove time | 3,840.064s |
-| verify time | 5.037s |
-| total metrics run time | 3,868.488s |
-| committed width across bus-wrapped segments | 1,127 |
-| committed cells | 36,929,536 |
-| LDE cells | 590,872,576 |
-| peak RSS observed in progress log | 16,599,744,512 bytes |
-| peak heap used observed in progress log | 8,344,265,376 bytes |
+| whole active rows | 30,688 |
+| whole padded rows | 32,768 |
+| whole committed width | 1,208 |
+| whole committed cells | 39,583,744 |
+| whole LDE cells | 633,339,904 |
 
-Acceptance status for this run: **proof verified, production acceptance failed**.
-The failure is:
+The process exited nonzero only after verification because the proof-size gate
+still fails. Current compact encoding reduces the same saved proof artifact to
+2,738,411 bytes, which is still above the 1.5 MB cap.
+
+Compared with the previous lookup/multi-proof implementation on this branch:
+
+| Metric | previous lookup/multi-proof | current compact/single-proof | Change |
+| --- | ---: | ---: | ---: |
+| prove time | 3,840.064s | 2,247.197s | 1.71x faster |
+| verify time | 5.037s | 2.311s | 2.18x faster |
+| proof bytes | 10,938,748 | 2,738,411 | 3.99x smaller |
+| committed width | 1,127 | 1,208 | +81 |
+| LDE cells | 590,872,576 | 633,339,904 | +42,467,328 |
+
+The first performance landing gate is not met yet: proving is improved, but the
+target is `<= 900s`.
+
+### HMAC-Only Run
+
+Compact HMAC-only production-parameter run:
 
 ```text
-BRC69 production acceptance gate failed: wholeStatement proof bytes 10938748 exceeds 1500000
+artifact base:
+  artifacts/brc69-compact-hmac-production-20260510T202241Z
 ```
 
-Measured segment shape:
+| Metric | Value |
+| --- | ---: |
+| active rows | 1,495 |
+| padded rows | 2,048 |
+| committed width | 551 |
+| committed cells | 1,128,448 |
+| LDE cells | 18,055,168 |
+| prove time | 48.117s |
+| verify time | 0.194s |
+| proof bytes during run | 1,689,125 |
+| current compact-encoded proof bytes | 1,348,751 |
+| verified | true |
 
-| Segment | Rows | Width | Committed Cells | LDE Cells |
-| --- | ---: | ---: | ---: | ---: |
-| scalar digits | 32 | 49 | 1,568 | 25,088 |
-| radix-11 lookup | 32,768 | 85 | 2,785,280 | 44,564,480 |
-| EC arithmetic | 8,192 | 174 | 1,425,408 | 22,806,528 |
-| compression/key binding | 512 | 78 | 39,936 | 638,976 |
-| max-invoice lookup HMAC | 32,768 | 470 | 15,400,960 | 246,415,360 |
-| lookup/equality bus accounting | 196,608 | 2 | 393,216 | 6,291,456 |
-| whole statement | 32,768 max segment rows | 1,127 total | 36,929,536 | 590,872,576 |
+## Measured Shape
+
+| Segment | Active Rows | Padded Rows | Width | Committed Cells | LDE Cells |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| scalar digits | 24 | 32 | 49 | 1,568 | 25,088 |
+| radix-11 lookup | 23,608 | 32,768 | 85 | 2,785,280 | 44,564,480 |
+| EC arithmetic | 5,280 | 8,192 | 174 | 1,425,408 | 22,806,528 |
+| compression/key binding | 257 | 512 | 78 | 39,936 | 638,976 |
+| max-invoice compact HMAC | 1,495 | 2,048 | 551 | 1,128,448 | 18,055,168 |
+| lookup/equality bus accounting | 260 | 196,608 | 2 | 393,216 | 6,291,456 |
+| whole statement | 30,688 | 32,768 | 1,208 | 39,583,744 | 633,339,904 |
 
 ## Measured Bottlenecks
 
-The primary cost center is lookup-batched HMAC/SHA. The HMAC segment is the
-widest segment, has the largest committed and LDE cell counts, and dominates both
-trace preparation and STARK composition evaluation.
-
-Largest observed phases from `progress.jsonl`:
+The bottleneck is now the single wide whole trace, not multi-proof overhead.
+The largest phases from the current progress log are:
 
 | Phase | Duration |
 | --- | ---: |
-| HMAC `stark.composition-oracle` | 1,416.791s |
-| HMAC `stark.committed-prove` total | 1,670.424s |
-| HMAC `trace.commit` total | 455.391s |
-| HMAC `trace.lde` | 401.541s |
-| EC `stark.committed-prove` total | 314.389s |
-| bridge `stark.committed-prove` total | 295.871s |
-| bridge `stark.composition-oracle` | 253.009s |
-| EC `stark.composition-oracle` | 209.913s |
-| EC `trace.lde` | 186.492s |
-| HMAC `stark.composition-context` | 165.352s |
-| lookup `stark.committed-prove` total | 161.007s |
-| compression `stark.committed-prove` total | 134.875s |
+| whole `trace.lde` | 907.644s |
+| whole `stark.composition-oracle` | 899.298s |
+| whole `stark.composition-context` | 178.251s |
+| whole `stark.trace-combination` | 96.714s |
+| whole `trace.merkle` / leaf serialization | 84.555s |
 
-The proof-size failure is the other blocking production issue. The verified proof
-is about 7.29x the 1.5 MB cap.
+Most remaining proving time is CPU work over 633M LDE cells and 524,288
+composition-oracle rows. Memory is not the binding limit: RSS stayed far below
+the 96 GB heap ceiling.
 
-The main optimization targets are:
+The current highest-value performance work is:
 
-- reduce HMAC/SHA trace width and composition degree cost;
-- move deterministic radix-11 table work toward fixed/preprocessed commitments;
-- finish and validate the typed-array column-major prover path as the
-  wallet-facing production path;
-- reduce proof bytes below the 1.5 MB max-invoice acceptance cap.
+- move whole-trace LDE and composition evaluation to a column-major typed backend
+  that avoids row-array reconstruction in the hot loops;
+- reduce committed width, especially compact-HMAC width and same-proof public
+  boundary columns, without changing the relation or STARK parameters;
+- keep bus endpoint checks same-proof, but make them offset-aware typed
+  constraints instead of generic row slicing;
+- continue canonical proof encoding work beyond Merkle-node deduplication,
+  because the proof remains above the 1.5 MB cap.
 
 ## Cryptographic Soundness and Correctness
 
-Validated by the current code path:
+Validated in the current code path:
 
-- The verifier reconstructs all public-input digests from public inputs rather
-  than accepting proof-selected AIRs.
-- The whole-statement verifier rejects non-production profiles, wrong transcript
-  domains, missing segments, unexpected constant-column proofs, and missing
-  cross-trace proofs.
-- Public input validation checks `A` and `B` are valid non-infinity secp256k1
-  points, validates invoice and linkage bytes, forces lookup HMAC mode, checks
-  the deterministic lookup table root, and recomputes the segment-bus challenge.
-- The scalar segment constrains radix-11 digit decomposition, canonical signed
-  digit shape, non-zero scalar, and range below secp256k1 `n`.
-- The lookup table is deterministically derived from public `B` and the fixed
-  radix-11 profile.
-- The bridge and segment bus bind scalar digits, lookup outputs, selected EC
-  points, private `S`, compressed key bytes, and HMAC key bytes across segments.
-- The EC segment currently rejects doubling and opposite accumulator branches and
-  supports the selected-infinity, accumulator-infinity, and distinct-add cases
-  used by this production slice.
-- The HMAC segment checks the compressed key bytes, invoice schedule, lookup
-  multiplicities, SHA helper relations, and final linkage.
+- The relation is unchanged: `A = aG`, `S = aB`, and
+  `linkage = HMAC-SHA256(compress(S), invoice)`.
+- Performance changes are structural only: compact HMAC AIR, same-domain trace
+  concatenation, and proof encoding.
+- STARK parameters are unchanged: 16 blowup, 48 queries, max remainder 16,
+  mask degree 2, coset offset 7.
+- The only wallet-facing proof selector for this ZK system is proof type `1`;
+  proof type `0` remains the no-proof path.
+- The verifier reconstructs public-input digests, deterministic table roots, bus
+  challenge digest, proof parameters, and the `whole` AIR from public inputs.
+- HMAC is compact SHA/HMAC AIR in proof type `1`.
+- Compression-to-HMAC key-byte bus linkage is preserved.
+- EC formulas and windows were not changed in this performance pass.
+- The compact proof encoder only deduplicates serialized Merkle authentication
+  nodes; it does not change Merkle roots, FRI queries, AIR constraints, Fiat-
+  Shamir inputs, or verifier checks.
 
-Issues that still need explicit cryptographic review:
+Soundness gaps and required review:
 
 - No independent cryptographic audit has been completed for this proof system.
-- The segment-bus lookup/equality argument uses two Goldilocks-field compression
-  challenges. The collision bound and whether production should use extension
-  field challenges need a written analysis.
-- The fixed STARK profile has not yet been accompanied by a full soundness
-  calculation covering AIR degrees, FRI parameters, Fiat-Shamir challenge
-  derivation, cross-trace quotient constraints, and batched lookup arguments.
-- The zero-knowledge argument needs to enumerate every unmasked public schedule
-  column and prove that masking of witness columns hides `a`, `S`, compressed
-  `S`, HMAC internals, and private bus endpoints.
-- The EC exceptional-branch policy is fail-closed for this slice. Before broader
-  wallet-facing production use, either prove all valid exceptional branches or
-  keep and document a verifier-checkable condition showing they are unreachable
-  for all accepted public inputs.
-- The proof payload format caps public input and STARK proof sizes, but verifier
-  resource limits and denial-of-service behavior need a production policy.
+- A full soundness calculation is still needed for AIR degrees, FRI parameters,
+  Fiat-Shamir challenges, masking, bus compression challenges, and the compact
+  HMAC AIR.
+- The segment bus uses two Goldilocks-field compression challenges; the collision
+  bound and whether production should use extension-field challenges need a
+  written analysis.
+- The zero-knowledge argument must enumerate every unmasked schedule/public
+  column and prove that masking hides `a`, `S`, compressed `S`, HMAC internals,
+  and private bus endpoints.
+- The EC exceptional-branch policy remains fail-closed for this slice. Broader
+  production use needs either complete exceptional-branch constraints or a
+  verifier-checkable proof that rejected branches are unreachable for accepted
+  inputs.
+- Verifier resource limits and denial-of-service behavior need a production
+  policy beyond the current payload and proof-size caps.
 
 ## Acceptance Status
 
-The branch goal is to make proof type `1` the default and prove the whole
-statement with one auditable code path. Wallet-facing production acceptance still
-requires the whole-statement proof to fit the max-invoice proof-size budget,
-prove within the target UX envelope, and complete the soundness review items
-above.
+Current status: proof type `1` defaults to the whole-statement path, the
+max-invoice production proof verifies, and proving is materially faster than the
+previous lookup/multi-proof implementation. Production acceptance is still
+blocked by proving time above 900s, proof size
+above 1.5 MB, and the soundness review items above.

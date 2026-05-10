@@ -24,12 +24,7 @@ import {
 } from './method2/BRC69Method2WholeStatement.js'
 
 export const BRC69_METHOD2_PROOF_TYPE = 1
-export const BRC69_METHOD2_WHOLE_STATEMENT_PRODUCTION_PROFILE = 1
 
-const BRC69_METHOD2_WHOLE_STATEMENT_PAYLOAD_MAGIC = toArray(
-  'BRC69_METHOD2_WHOLE_STATEMENT_PROOF_V1',
-  'utf8'
-)
 const BRC69_METHOD2_MAX_PUBLIC_INPUT_BYTES = 128 * 1024 * 1024
 const BRC69_METHOD2_MAX_PROOF_BYTES = 1024 * 1024 * 1024
 
@@ -47,7 +42,6 @@ export interface CreateSpecificKeyLinkageProofArgs {
 }
 
 export interface BRC69SpecificKeyLinkageProof {
-  profileId: number
   publicInput: BRC69Method2WholeStatementPublicInput
   proof: MultiTraceStarkProof
 }
@@ -96,7 +90,6 @@ export function createSpecificKeyLinkageProof (
     linkage: statement.linkage
   })
   return {
-    profileId: BRC69_METHOD2_WHOLE_STATEMENT_PRODUCTION_PROFILE,
     publicInput: wholeStatement.publicInput,
     proof: proveBRC69Method2WholeStatement(wholeStatement)
   }
@@ -113,11 +106,6 @@ export function verifySpecificKeyLinkageProof (
       : { proofType: 1 as const, proof: payload }
     if (parsed.proofType !== 1) return false
     const proof = parsed.proof
-    if (
-      proof.profileId !== BRC69_METHOD2_WHOLE_STATEMENT_PRODUCTION_PROFILE
-    ) {
-      return false
-    }
     if (!publicInputMatchesStatement(proof.publicInput, normalized)) {
       return false
     }
@@ -164,8 +152,6 @@ export function serializeBRC69SpecificKeyLinkageProof (
   const publicInput = publicInputToBytes(proof.publicInput)
   const starkProof = serializeMultiTraceStarkProof(proof.proof)
   const writer = new Writer()
-  writer.write(BRC69_METHOD2_WHOLE_STATEMENT_PAYLOAD_MAGIC)
-  writer.writeUInt8(proof.profileId)
   writer.writeVarIntNum(publicInput.length)
   writer.write(publicInput)
   writer.writeVarIntNum(starkProof.length)
@@ -178,14 +164,6 @@ export function parseBRC69SpecificKeyLinkageProof (
 ): BRC69SpecificKeyLinkageProof {
   assertBytes(bytes, 'BRC69 key linkage proof')
   const reader = new BRC69ProofReader(bytes)
-  const magic = reader.read(BRC69_METHOD2_WHOLE_STATEMENT_PAYLOAD_MAGIC.length)
-  if (!bytesEqual(magic, BRC69_METHOD2_WHOLE_STATEMENT_PAYLOAD_MAGIC)) {
-    throw new Error('Invalid BRC69 Method 2 whole-statement proof magic')
-  }
-  const profileId = reader.readUInt8()
-  if (profileId !== BRC69_METHOD2_WHOLE_STATEMENT_PRODUCTION_PROFILE) {
-    throw new Error('Unsupported BRC69 Method 2 proof profile')
-  }
   const publicInputLength = reader.readVarIntNum()
   if (publicInputLength > BRC69_METHOD2_MAX_PUBLIC_INPUT_BYTES) {
     throw new Error('BRC69 Method 2 public input is too large')
@@ -199,7 +177,7 @@ export function parseBRC69SpecificKeyLinkageProof (
   if (!reader.eof()) {
     throw new Error('Unexpected trailing bytes in BRC69 proof payload')
   }
-  const parsed = { profileId, publicInput, proof }
+  const parsed = { publicInput, proof }
   assertBRC69SpecificKeyLinkageProofShape(parsed)
   return parsed
 }
@@ -215,16 +193,12 @@ function publicInputMatchesStatement (
   return toHex(compressPoint(publicInput.publicA)) === statement.prover &&
     toHex(compressPoint(publicInput.baseB)) === statement.counterparty &&
     bytesEqual(publicInput.invoice, invoice) &&
-    bytesEqual(publicInput.linkage, statement.linkage) &&
-    publicInput.hmacMode === 'lookup'
+    bytesEqual(publicInput.linkage, statement.linkage)
 }
 
 function assertBRC69SpecificKeyLinkageProofShape (
   proof: BRC69SpecificKeyLinkageProof
 ): void {
-  if (proof.profileId !== BRC69_METHOD2_WHOLE_STATEMENT_PRODUCTION_PROFILE) {
-    throw new Error('Unsupported BRC69 Method 2 proof profile')
-  }
   validateBRC69Method2WholeStatementPublicInput(proof.publicInput)
 }
 

@@ -4,7 +4,6 @@ import {
   it
 } from '@jest/globals'
 import {
-  BRC69_METHOD2_WHOLE_STATEMENT_PRODUCTION_PROFILE,
   parseSpecificKeyLinkageProofPayload,
   serializeBRC69SpecificKeyLinkageProof,
   serializeSpecificKeyLinkageProofPayload,
@@ -24,7 +23,6 @@ describe('BRC-69 key linkage proof payload', () => {
   it('serializes and parses the whole-statement payload envelope', () => {
     const fixture = brc69Method2WholeStatementDeterministicFixture()
     const proof = {
-      profileId: BRC69_METHOD2_WHOLE_STATEMENT_PRODUCTION_PROFILE,
       publicInput: fixture.publicInput,
       proof: dummyWholeStatementProof()
     }
@@ -34,56 +32,47 @@ describe('BRC-69 key linkage proof payload', () => {
 
     expect(parsed.proofType).toBe(1)
     if (parsed.proofType !== 1) throw new Error('unexpected proof type')
-    expect(parsed.proof.profileId)
-      .toBe(BRC69_METHOD2_WHOLE_STATEMENT_PRODUCTION_PROFILE)
-    expect(parsed.proof.publicInput.hmacMode).toBe('lookup')
     expect(parsed.proof.proof.segments.map(segment => segment.name))
-      .toEqual(['scalar', 'lookup', 'ec', 'compression', 'hmac', 'bridge'])
+      .toEqual(['whole'])
+    expect(parsed.proof.proof.crossProofs).toEqual([])
   })
 
-  it('keeps legacy proof type 0 isolated', () => {
+  it('keeps proof type 0 isolated', () => {
     expect(parseSpecificKeyLinkageProofPayload([0])).toEqual({ proofType: 0 })
     expect(() => parseSpecificKeyLinkageProofPayload([0, 1]))
       .toThrow('Proof type 0 payload must not contain proof bytes')
   })
 
-  it('rejects old, malformed, and trailing proof payload bytes', () => {
+  it('rejects malformed and trailing proof payload bytes', () => {
     const fixture = brc69Method2WholeStatementDeterministicFixture()
     const payload = serializeSpecificKeyLinkageProofPayload({
-      profileId: BRC69_METHOD2_WHOLE_STATEMENT_PRODUCTION_PROFILE,
       publicInput: fixture.publicInput,
       proof: dummyWholeStatementProof()
     })
-    const badProfile = payload.slice()
-    badProfile[1 + ascii('BRC69_METHOD2_WHOLE_STATEMENT_PROOF_V1').length] = 99
-
-    const oldMagic = ascii('BRC69_METHOD2_COMPOSITE_V1')
-    expect(() => parseSpecificKeyLinkageProofPayload([
-      1,
-      ...oldMagic,
-      ...new Array(
-        ascii('BRC69_METHOD2_WHOLE_STATEMENT_PROOF_V1').length -
-        oldMagic.length
-      ).fill(0)
-    ])).toThrow('Invalid BRC69 Method 2 whole-statement proof magic')
-    expect(() => parseSpecificKeyLinkageProofPayload(badProfile))
-      .toThrow('Unsupported BRC69 Method 2 proof profile')
+    expect(() => parseSpecificKeyLinkageProofPayload([1]))
+      .toThrow()
+    expect(() => parseSpecificKeyLinkageProofPayload(payload.slice(0, -1)))
+      .toThrow()
     expect(() => parseSpecificKeyLinkageProofPayload([...payload, 0]))
       .toThrow('Unexpected trailing bytes in BRC69 proof payload')
   })
 
-  it('rejects non-lookup HMAC public inputs before serialization', () => {
+  it('rejects HMAC public-input mismatches before serialization', () => {
     const fixture = brc69Method2WholeStatementDeterministicFixture()
     const publicInput = {
       ...fixture.publicInput,
-      hmacMode: 'compact'
-    } as typeof fixture.publicInput
+      hmac: {
+        ...fixture.publicInput.hmac,
+        linkage: fixture.publicInput.hmac.linkage.map((byte, index) =>
+          index === 0 ? byte ^ 1 : byte
+        )
+      }
+    }
 
     expect(() => serializeBRC69SpecificKeyLinkageProof({
-      profileId: BRC69_METHOD2_WHOLE_STATEMENT_PRODUCTION_PROFILE,
       publicInput,
       proof: dummyWholeStatementProof()
-    })).toThrow('HMAC mode must be lookup')
+    })).toThrow('BRC69 Method 2 multi-trace linkage mismatch')
   })
 
   it('rejects statement/public-input mismatches', () => {
@@ -101,7 +90,6 @@ describe('BRC-69 key linkage proof payload', () => {
     }
 
     expect(verifySpecificKeyLinkageProof(statement, {
-      profileId: BRC69_METHOD2_WHOLE_STATEMENT_PRODUCTION_PROFILE,
       publicInput: fixture.publicInput,
       proof: dummyWholeStatementProof()
     })).toBe(false)
@@ -112,17 +100,11 @@ function dummyWholeStatementProof (): MultiTraceStarkProof {
   return {
     transcriptDomain: BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.transcriptDomain,
     contextDigest: new Array(32).fill(0),
-    segments: ['scalar', 'lookup', 'ec', 'compression', 'hmac', 'bridge']
-      .map(name => ({
-        name,
-        proof: dummyStarkProof()
-      })),
-    crossProofs: [{
-      name: 'segment-bus',
-      compositionRoot: new Array(32).fill(0),
-      friProof: dummyStarkProof().friProof,
-      openings: []
+    segments: [{
+      name: 'whole',
+      proof: dummyStarkProof()
     }],
+    crossProofs: [],
     constantColumnProofs: []
   }
 }
@@ -168,8 +150,4 @@ function dummyFriProof (domainSize: number, degreeBound: number): StarkProof['fr
     finalValues: [0n],
     queries: []
   }
-}
-
-function ascii (value: string): number[] {
-  return Array.from(value).map(char => char.charCodeAt(0))
 }

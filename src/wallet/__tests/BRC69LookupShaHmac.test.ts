@@ -8,7 +8,10 @@ import {
   buildMethod2LookupShaHmacTrace,
   buildMethod2LookupBatchedHmacSha256Air,
   buildMethod2LookupBatchedHmacSha256Trace,
+  buildMethod2CompactHmacSha256Air,
+  buildMethod2CompactHmacSha256Trace,
   buildBRC69Method2WholeStatement,
+  METHOD2_COMPACT_HMAC_SHA256_LAYOUT,
   METHOD2_LOOKUP_BATCHED_HMAC_SHA256_LAYOUT,
   method2LookupShaHmacIntegrationStatus,
   method2LookupShaHmacMetrics,
@@ -174,7 +177,51 @@ describe('BRC-69 lookup-centric SHA/HMAC shape', () => {
     expect(evaluateAirTrace(air, tampered).valid).toBe(false)
   })
 
-  it('is accepted as a Method 2 HMAC segment only through the same-domain relation', () => {
+  it('proves compact HMAC and rejects mutated key, invoice, linkage, and digest rows', () => {
+    const key = Array.from({ length: 33 }, (_, index) => index)
+    const invoice = [1, 2, 3, 4, 5]
+    const linkage = hmacSha256(key, invoice)
+    const trace = buildMethod2CompactHmacSha256Trace(key, invoice, linkage)
+    const air = buildMethod2CompactHmacSha256Air(trace.publicInput)
+
+    expect(evaluateAirTrace(air, trace.rows).valid).toBe(true)
+
+    const mutatedKey = key.slice()
+    mutatedKey[0] ^= 1
+    expect(() => buildMethod2CompactHmacSha256Trace(
+      mutatedKey,
+      invoice,
+      linkage
+    )).toThrow('Compact HMAC-SHA256 linkage does not match key and invoice')
+
+    const mutatedInvoice = invoice.slice()
+    mutatedInvoice[0] ^= 1
+    expect(() => buildMethod2CompactHmacSha256Trace(
+      key,
+      mutatedInvoice,
+      linkage
+    )).toThrow('Compact HMAC-SHA256 linkage does not match key and invoice')
+
+    const mutatedLinkage = linkage.slice()
+    mutatedLinkage[0] ^= 1
+    expect(() => buildMethod2CompactHmacSha256Trace(
+      key,
+      invoice,
+      mutatedLinkage
+    )).toThrow('Compact HMAC-SHA256 linkage does not match key and invoice')
+
+    const keyTamperedRows = trace.rows.map(row => row.slice())
+    keyTamperedRows[0][METHOD2_COMPACT_HMAC_SHA256_LAYOUT.keyBytes] ^= 1n
+    expect(evaluateAirTrace(air, keyTamperedRows).valid).toBe(false)
+
+    const digestTamperedRows = trace.rows.map(row => row.slice())
+    digestTamperedRows[
+      trace.publicInput.activeRows - 1
+    ][METHOD2_COMPACT_HMAC_SHA256_LAYOUT.state] ^= 1n
+    expect(evaluateAirTrace(air, digestTamperedRows).valid).toBe(false)
+  })
+
+  it('keeps lookup HMAC standalone while proofType 1 uses compact HMAC', () => {
     const status = method2LookupShaHmacIntegrationStatus()
     const statement = buildBRC69Method2WholeStatement({
       scalar: 7n,
@@ -184,8 +231,7 @@ describe('BRC-69 lookup-centric SHA/HMAC shape', () => {
 
     expect(status.readyForMethod2).toBe(true)
     expect(status.sameCommittedArithmeticDomain).toBe(true)
-    expect(statement.publicInput.hmacMode).toBe('lookup')
     expect((statement.publicInput.hmac as { relation?: string }).relation)
-      .toBe('lookup-batched-hmac-sha256')
+      .toBeUndefined()
   })
 })

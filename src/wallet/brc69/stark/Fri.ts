@@ -679,11 +679,16 @@ export function verifyFri (
 export function serializeFriProof (proof: FriProof): number[] {
   validateFriProofShape(proof)
   const writer = new Writer()
+  const merkleHashes = friMerklePathDictionary(proof)
+  const merkleHashIndex = new Map(
+    merkleHashes.map((hash, index) => [bytesKey(hash), index])
+  )
   writer.writeVarIntNum(proof.domainSize)
   writer.writeVarIntNum(proof.degreeBound)
   writer.writeVarIntNum(proof.numQueries)
   writer.writeVarIntNum(proof.maxRemainderSize)
   writeField(writer, proof.domainOffset)
+  writeHashDictionary(writer, merkleHashes)
 
   writer.writeVarIntNum(proof.roots.length)
   for (const root of proof.roots) writeHash(writer, root)
@@ -701,8 +706,8 @@ export function serializeFriProof (proof: FriProof): number[] {
       writer.writeVarIntNum(layer.rightIndex)
       writeField(writer, layer.leftValue)
       writeField(writer, layer.rightValue)
-      writeMerklePath(writer, layer.leftPath)
-      writeMerklePath(writer, layer.rightPath)
+      writeCompactMerklePath(writer, layer.leftPath, merkleHashIndex)
+      writeCompactMerklePath(writer, layer.rightPath, merkleHashIndex)
     }
   }
 
@@ -716,6 +721,7 @@ export function parseFriProof (bytes: number[]): FriProof {
   const numQueries = reader.readVarIntNum()
   const maxRemainderSize = reader.readVarIntNum()
   const domainOffset = readField(reader)
+  const merkleHashes = readHashDictionary(reader)
 
   const rootsLength = reader.readVarIntNum()
   if (rootsLength > 64) throw new Error('Too many FRI roots')
@@ -746,8 +752,8 @@ export function parseFriProof (bytes: number[]): FriProof {
         rightIndex: reader.readVarIntNum(),
         leftValue: readField(reader),
         rightValue: readField(reader),
-        leftPath: readMerklePath(reader),
-        rightPath: readMerklePath(reader)
+        leftPath: readCompactMerklePath(reader, merkleHashes),
+        rightPath: readCompactMerklePath(reader, merkleHashes)
       })
     }
     queries.push({
@@ -952,19 +958,62 @@ function readHash (reader: FriBinaryReader): MerkleHash {
   return hash
 }
 
-function writeMerklePath (
+function friMerklePathDictionary (proof: FriProof): MerkleHash[] {
+  const hashes: MerkleHash[] = []
+  const seen = new Set<string>()
+  const addPath = (path: MerklePathItem[]): void => {
+    for (const item of path) {
+      const key = bytesKey(item.sibling)
+      if (!seen.has(key)) {
+        seen.add(key)
+        hashes.push(item.sibling)
+      }
+    }
+  }
+  for (const query of proof.queries) {
+    for (const layer of query.layers) {
+      addPath(layer.leftPath)
+      addPath(layer.rightPath)
+    }
+  }
+  return hashes
+}
+
+function writeHashDictionary (
   writer: Writer,
-  path: MerklePathItem[]
+  hashes: MerkleHash[]
+): void {
+  writer.writeVarIntNum(hashes.length)
+  for (const hash of hashes) writeHash(writer, hash)
+}
+
+function readHashDictionary (reader: FriBinaryReader): MerkleHash[] {
+  const length = reader.readVarIntNum()
+  if (length > 1048576) throw new Error('Merkle hash dictionary too large')
+  const hashes: MerkleHash[] = []
+  for (let i = 0; i < length; i++) hashes.push(readHash(reader))
+  return hashes
+}
+
+function writeCompactMerklePath (
+  writer: Writer,
+  path: MerklePathItem[],
+  merkleHashIndex: Map<string, number>
 ): void {
   assertMerklePath(path)
   writer.writeVarIntNum(path.length)
   for (const item of path) {
+    const index = merkleHashIndex.get(bytesKey(item.sibling))
+    if (index === undefined) throw new Error('Missing Merkle hash dictionary entry')
     writer.writeUInt8(item.siblingOnLeft ? 1 : 0)
-    writeHash(writer, item.sibling)
+    writer.writeVarIntNum(index)
   }
 }
 
-function readMerklePath (reader: FriBinaryReader): MerklePathItem[] {
+function readCompactMerklePath (
+  reader: FriBinaryReader,
+  merkleHashes: MerkleHash[]
+): MerklePathItem[] {
   const length = reader.readVarIntNum()
   if (length > 64) throw new Error('Merkle path too long')
   const path: MerklePathItem[] = []
@@ -973,9 +1022,14 @@ function readMerklePath (reader: FriBinaryReader): MerklePathItem[] {
     if (direction !== 0 && direction !== 1) {
       throw new Error('Invalid Merkle path direction')
     }
+    const hashIndex = reader.readVarIntNum()
+    const sibling = merkleHashes[hashIndex]
+    if (sibling === undefined) {
+      throw new Error('Invalid Merkle hash dictionary index')
+    }
     path.push({
       siblingOnLeft: direction === 1,
-      sibling: readHash(reader)
+      sibling
     })
   }
   return path
@@ -1009,6 +1063,10 @@ function hashesEqual (a: number[], b: number[]): boolean {
   let diff = 0
   for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i]
   return diff === 0
+}
+
+function bytesKey (bytes: number[]): string {
+  return bytes.map(byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
 class FriBinaryReader {

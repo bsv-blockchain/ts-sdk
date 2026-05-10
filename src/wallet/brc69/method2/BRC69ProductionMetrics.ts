@@ -46,12 +46,12 @@ import {
 } from '../stark/Progress.js'
 import { computeInvoiceNumber } from '../../keyLinkage.js'
 import {
-  METHOD2_LOOKUP_BATCHED_HMAC_SHA256_TRANSCRIPT_DOMAIN,
-  buildMethod2LookupBatchedHmacSha256Air,
-  buildMethod2LookupBatchedHmacSha256Trace,
-  method2LookupBatchedHmacSha256Metrics,
-  proveMethod2LookupBatchedHmacSha256
-} from './Method2LookupBatchedHmacSha256.js'
+  METHOD2_COMPACT_HMAC_SHA256_TRANSCRIPT_DOMAIN,
+  buildMethod2CompactHmacSha256Air,
+  buildMethod2CompactHmacSha256Trace,
+  method2CompactHmacSha256Metrics,
+  proveMethod2CompactHmacSha256
+} from './Method2CompactHmacSha256.js'
 import {
   brc69ProductionScalarMetrics,
   buildBRC69ProductionScalarTrace,
@@ -115,7 +115,7 @@ export type BRC69ProductionSegmentName =
   'radix11PointLookup' |
   'ecArithmetic' |
   'compressionAndKeyBinding' |
-  'maxInvoiceLookupHmac' |
+  'maxInvoiceCompactHmac' |
   'lookupEqualityBus' |
   'wholeStatement'
 
@@ -326,29 +326,29 @@ export function collectBRC69ProductionMetrics (
     BRC69_PRODUCTION_METRICS_PROFILE.blowupFactor
   )
   const hmacBuild = step(
-    'brc69.metrics.maxInvoiceLookupHmac.build',
-    () => buildMethod2LookupBatchedHmacSha256Trace(
+    'brc69.metrics.maxInvoiceCompactHmac.build',
+    () => buildMethod2CompactHmacSha256Trace(
       brc69ProductionCompressionBytes(compressionBuild.value),
       inputs.invoice,
       inputs.linkage
     ),
-    'maxInvoiceLookupHmac'
+    'maxInvoiceCompactHmac'
   )
-  const hmacAir = buildMethod2LookupBatchedHmacSha256Air(hmacBuild.value.publicInput)
+  const hmacAir = buildMethod2CompactHmacSha256Air(hmacBuild.value.publicInput)
   const hmacProof = proveSegmentProofs
-    ? step('brc69.metrics.maxInvoiceLookupHmac.prove', () => proveMethod2LookupBatchedHmacSha256(
+    ? step('brc69.metrics.maxInvoiceCompactHmac.prove', () => proveMethod2CompactHmacSha256(
       hmacBuild.value,
-      proofOptions('maxInvoiceLookupHmac')
-    ), 'maxInvoiceLookupHmac')
+      proofOptions('maxInvoiceCompactHmac')
+    ), 'maxInvoiceCompactHmac')
     : undefined
   const hmacVerify = hmacProof === undefined
     ? undefined
-    : step('brc69.metrics.maxInvoiceLookupHmac.verify', () => verifyStark(hmacAir, hmacProof.value, {
+    : step('brc69.metrics.maxInvoiceCompactHmac.verify', () => verifyStark(hmacAir, hmacProof.value, {
       ...BRC69_PRODUCTION_METRICS_PROFILE,
       publicInputDigest: hmacAir.publicInputDigest,
-      transcriptDomain: METHOD2_LOOKUP_BATCHED_HMAC_SHA256_TRANSCRIPT_DOMAIN
-    }), 'maxInvoiceLookupHmac')
-  const hmacBaseMetrics = method2LookupBatchedHmacSha256Metrics(
+      transcriptDomain: METHOD2_COMPACT_HMAC_SHA256_TRANSCRIPT_DOMAIN
+    }), 'maxInvoiceCompactHmac')
+  const hmacBaseMetrics = method2CompactHmacSha256Metrics(
     hmacBuild.value,
     hmacProof?.value
   )
@@ -502,7 +502,7 @@ export function collectBRC69ProductionMetrics (
     verified: wholeVerify?.value,
     notes: [
       prove
-        ? 'Production lookup/equality bus is embedded as hidden accumulator and endpoint columns in each committed segment. Hidden segment endpoints are linked by cross-trace quotient constraints in the shared transcript; per-segment bus totals are not public.'
+        ? 'Production lookup/equality bus is embedded as hidden accumulator and endpoint columns inside the single whole-statement trace. Hidden segment endpoints are linked by same-proof constraints; per-segment bus totals are not public.'
         : 'Production lookup/equality bus shape measured from segment-local accumulator columns; proof skipped by metrics options.'
     ]
   })
@@ -512,7 +512,7 @@ export function collectBRC69ProductionMetrics (
     paddedRows: hmacBaseMetrics.paddedRows,
     width: hmacBaseMetrics.traceWidth,
     fixedRows: 0,
-    tagCounts: hmacLookupTagCounts(hmacBaseMetrics.totalBlocks),
+    tagCounts: hmacCompactTagCounts(hmacBaseMetrics.totalBlocks),
     proof: hmacProof?.value,
     build: hmacBuild,
     prove: hmacProof,
@@ -527,8 +527,8 @@ export function collectBRC69ProductionMetrics (
     verified: hmacVerify?.value,
     notes: [
       proveSegmentProofs
-        ? 'Actual batched lookup-HMAC AIR proved compact HMAC arithmetic and same-domain SHA helper lookup multiplicities without serialized request rows.'
-        : 'Actual batched lookup-HMAC AIR shape measured; proof skipped by metrics options.'
+        ? 'Actual compact HMAC AIR proved SHA-256/HMAC arithmetic directly under the production profile.'
+        : 'Actual compact HMAC AIR shape measured; proof skipped by metrics options.'
     ]
   })
 
@@ -592,7 +592,7 @@ export function collectBRC69ProductionMetrics (
         ecBaseMetrics.mulOps * 4 * 10,
       compressedByte: compressionBaseMetrics.compressedBytes,
       compressedXBit: compressionBaseMetrics.xBitRows,
-      ...hmacLookupTagCounts(hmacBaseMetrics.totalBlocks)
+      ...hmacCompactTagCounts(hmacBaseMetrics.totalBlocks)
     },
     proofBytes: wholeBaseMetrics.proofBytes,
     committedCells: wholeBaseMetrics.totalCommittedCells,
@@ -612,8 +612,8 @@ export function collectBRC69ProductionMetrics (
     diagnostic: wholeDiagnostic,
     notes: [
       proveWhole
-        ? 'Actual multi-trace single-transcript whole-statement proof binds scalar, radix-11 lookup, hardened EC, compression, batched lookup-HMAC, and hidden segment-local bus accumulators in one Fiat-Shamir context.'
-        : 'Actual multi-trace single-transcript whole-statement shape measured; proof skipped by metrics options.'
+        ? 'Actual single-trace whole-statement proof binds scalar, radix-11 lookup, hardened EC, compression, compact HMAC, and hidden segment-local bus accumulators in one Fiat-Shamir context.'
+        : 'Actual single-trace whole-statement shape measured; proof skipped by metrics options.'
     ]
   })
 
@@ -622,7 +622,7 @@ export function collectBRC69ProductionMetrics (
     radix11PointLookup: radixSegment,
     ecArithmetic,
     compressionAndKeyBinding: compression,
-    maxInvoiceLookupHmac: hmacSegment,
+    maxInvoiceCompactHmac: hmacSegment,
     lookupEqualityBus: lookupBus,
     wholeStatement
   }
@@ -798,13 +798,14 @@ function deterministicInputs (): {
   }
 }
 
-function hmacLookupTagCounts (
+function hmacCompactTagCounts (
   totalBlocks: number
 ): Record<string, number> {
   const rounds = totalBlocks * 64
   return {
-    shaXor4: rounds * 88,
-    shaAnd4: rounds * 40
+    shaRound: rounds,
+    shaBitBoolean: rounds * 8 * 32,
+    hmacKeyByte: 33
   }
 }
 

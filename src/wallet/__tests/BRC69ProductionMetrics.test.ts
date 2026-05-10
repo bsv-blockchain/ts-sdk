@@ -21,7 +21,7 @@ import {
 } from '../brc69/circuit/index'
 
 describe('BRC-69 production metrics harness', () => {
-  it('collects max-invoice lookup-HMAC and radix-11 metrics in fast mode', () => {
+  it('collects max-invoice compact-HMAC and radix-11 metrics in fast mode', () => {
     const report = collectBRC69ProductionMetrics({
       mode: 'fast',
       now: deterministicClock(),
@@ -38,18 +38,19 @@ describe('BRC-69 production metrics harness', () => {
     expect(report.inputs.scalarProfile).toBe('SECP256K1_N - 123456789')
     expect(report.inputs).not.toHaveProperty('scalarHex')
 
-    expect(report.segments.maxInvoiceLookupHmac).toMatchObject({
+    expect(report.segments.maxInvoiceCompactHmac).toMatchObject({
       status: 'actual',
-      activeRows: 24432,
-      paddedRows: 32768,
-      committedWidth: 470,
+      activeRows: 1495,
+      paddedRows: 2048,
+      committedWidth: 551,
       proofBytes: undefined,
       lookupRequestsByTag: {
-        shaXor4: 129536,
-        shaAnd4: 58880
+        shaRound: 1472,
+        shaBitBoolean: 376832,
+        hmacKeyByte: 33
       }
     })
-    expect(report.segments.maxInvoiceLookupHmac.estimatedProofBytes)
+    expect(report.segments.maxInvoiceCompactHmac.estimatedProofBytes)
       .toBeGreaterThan(0)
 
     expect(report.segments.radix11PointLookup).toMatchObject({
