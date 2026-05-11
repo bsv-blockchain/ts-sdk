@@ -16,9 +16,13 @@ import {
   buildSecp256k1AffineAddTraceBundle
 } from './Secp256k1AffineAdd.js'
 import {
+  SECP256K1_FIELD_LIMB_BITS,
   SECP256K1_FIELD_LIMBS,
   SECP256K1_FIELD_LINEAR_ADD,
+  SECP256K1_FIELD_LINEAR_CARRY_BITS,
   SECP256K1_FIELD_LINEAR_SUB,
+  SECP256K1_FIELD_MUL_CARRY_BITS,
+  SECP256K1_FIELD_MUL_LIMB_BITS,
   SECP256K1_FIELD_MUL_LIMBS,
   SECP256K1_FIELD_MUL_PRODUCT_LIMBS,
   Secp256k1FieldLinearTrace,
@@ -48,11 +52,38 @@ export const PRODUCTION_EC_ROW_KIND_INACTIVE = 0n
 export const PRODUCTION_EC_ROW_KIND_LINEAR = 1n
 export const PRODUCTION_EC_ROW_KIND_MUL = 2n
 
-const FIELD_RADIX = 1n << 52n
-const MUL_RADIX = 1n << 26n
+const FIELD_RADIX = 1n << BigInt(SECP256K1_FIELD_LIMB_BITS)
+const MUL_RADIX = 1n << BigInt(SECP256K1_FIELD_MUL_LIMB_BITS)
 const INV_TWO = F.div(1n, 2n)
+const LINEAR_CARRY_BIAS = 1n << BigInt(SECP256K1_FIELD_LINEAR_CARRY_BITS - 1)
+const MUL_CARRY_BIAS = 1n << BigInt(SECP256K1_FIELD_MUL_CARRY_BITS - 1)
+const PRODUCTION_EC_RANGE_BITS = SECP256K1_FIELD_LIMB_BITS * 3
+const PRODUCTION_EC_LINEAR_RANGE_A = 0
+const PRODUCTION_EC_LINEAR_RANGE_B =
+  PRODUCTION_EC_LINEAR_RANGE_A + SECP256K1_FIELD_LIMB_BITS
+const PRODUCTION_EC_LINEAR_RANGE_C =
+  PRODUCTION_EC_LINEAR_RANGE_B + SECP256K1_FIELD_LIMB_BITS
+const PRODUCTION_EC_MUL_RANGE_A = 0
+const PRODUCTION_EC_MUL_RANGE_B =
+  PRODUCTION_EC_MUL_RANGE_A + SECP256K1_FIELD_MUL_LIMB_BITS
+const PRODUCTION_EC_MUL_RANGE_C =
+  PRODUCTION_EC_MUL_RANGE_B + SECP256K1_FIELD_MUL_LIMB_BITS
+const PRODUCTION_EC_MUL_RANGE_Q =
+  PRODUCTION_EC_MUL_RANGE_C + SECP256K1_FIELD_MUL_LIMB_BITS
+const PRODUCTION_EC_CANONICAL_VALUES = 4
+const PRODUCTION_EC_CANONICAL_BITS = SECP256K1_FIELD_LIMB_BITS * 3
 const P_52 = bigintToLimbs(SECP256K1_P, SECP256K1_FIELD_LIMBS, FIELD_RADIX)
 const P_26 = bigintToLimbs(SECP256K1_P, SECP256K1_FIELD_MUL_LIMBS, MUL_RADIX)
+const P_MINUS_ONE_52 = bigintToLimbs(
+  SECP256K1_P - 1n,
+  SECP256K1_FIELD_LIMBS,
+  FIELD_RADIX
+)
+const P_MINUS_ONE_26 = bigintToLimbs(
+  SECP256K1_P - 1n,
+  SECP256K1_FIELD_MUL_LIMBS,
+  MUL_RADIX
+)
 
 export interface ProductionEcLayout {
   kind: number
@@ -96,6 +127,11 @@ export interface ProductionEcLayout {
   xAfterFirstSub: number
   xDiff: number
   ySum: number
+  carryBits: number
+  rangeBits: number
+  canonicalBorrowIn: number
+  canonicalBorrowOut: number
+  canonicalBits: number
   opSelectors: number
   width: number
 }
@@ -175,6 +211,12 @@ interface ProductionEcAffineWitnessLimbs {
   ySum: FieldElement[]
 }
 
+interface ProductionEcCanonicalWitness {
+  borrowIn: bigint[]
+  borrowOut: bigint[]
+  diff: bigint[]
+}
+
 export const PRODUCTION_EC_LAYOUT: ProductionEcLayout = {
   kind: 0,
   active: 1,
@@ -217,8 +259,13 @@ export const PRODUCTION_EC_LAYOUT: ProductionEcLayout = {
   xAfterFirstSub: 19 + SECP256K1_FIELD_MUL_PRODUCT_LIMBS + SECP256K1_FIELD_MUL_LIMBS * 4 + SECP256K1_FIELD_LIMBS * 3 + SECP256K1_FIELD_LIMBS * 11,
   xDiff: 19 + SECP256K1_FIELD_MUL_PRODUCT_LIMBS + SECP256K1_FIELD_MUL_LIMBS * 4 + SECP256K1_FIELD_LIMBS * 3 + SECP256K1_FIELD_LIMBS * 12,
   ySum: 19 + SECP256K1_FIELD_MUL_PRODUCT_LIMBS + SECP256K1_FIELD_MUL_LIMBS * 4 + SECP256K1_FIELD_LIMBS * 3 + SECP256K1_FIELD_LIMBS * 13,
-  opSelectors: 19 + SECP256K1_FIELD_MUL_PRODUCT_LIMBS + SECP256K1_FIELD_MUL_LIMBS * 4 + SECP256K1_FIELD_LIMBS * 3 + SECP256K1_FIELD_LIMBS * 14,
-  width: 29 + SECP256K1_FIELD_MUL_PRODUCT_LIMBS + SECP256K1_FIELD_MUL_LIMBS * 4 + SECP256K1_FIELD_LIMBS * 3 + SECP256K1_FIELD_LIMBS * 14
+  carryBits: 19 + SECP256K1_FIELD_MUL_PRODUCT_LIMBS + SECP256K1_FIELD_MUL_LIMBS * 4 + SECP256K1_FIELD_LIMBS * 3 + SECP256K1_FIELD_LIMBS * 14,
+  rangeBits: 19 + SECP256K1_FIELD_MUL_PRODUCT_LIMBS + SECP256K1_FIELD_MUL_LIMBS * 4 + SECP256K1_FIELD_LIMBS * 3 + SECP256K1_FIELD_LIMBS * 14 + SECP256K1_FIELD_MUL_CARRY_BITS,
+  canonicalBorrowIn: 19 + SECP256K1_FIELD_MUL_PRODUCT_LIMBS + SECP256K1_FIELD_MUL_LIMBS * 4 + SECP256K1_FIELD_LIMBS * 3 + SECP256K1_FIELD_LIMBS * 14 + SECP256K1_FIELD_MUL_CARRY_BITS + PRODUCTION_EC_RANGE_BITS,
+  canonicalBorrowOut: 19 + SECP256K1_FIELD_MUL_PRODUCT_LIMBS + SECP256K1_FIELD_MUL_LIMBS * 4 + SECP256K1_FIELD_LIMBS * 3 + SECP256K1_FIELD_LIMBS * 14 + SECP256K1_FIELD_MUL_CARRY_BITS + PRODUCTION_EC_RANGE_BITS + PRODUCTION_EC_CANONICAL_VALUES,
+  canonicalBits: 19 + SECP256K1_FIELD_MUL_PRODUCT_LIMBS + SECP256K1_FIELD_MUL_LIMBS * 4 + SECP256K1_FIELD_LIMBS * 3 + SECP256K1_FIELD_LIMBS * 14 + SECP256K1_FIELD_MUL_CARRY_BITS + PRODUCTION_EC_RANGE_BITS + PRODUCTION_EC_CANONICAL_VALUES * 2,
+  opSelectors: 19 + SECP256K1_FIELD_MUL_PRODUCT_LIMBS + SECP256K1_FIELD_MUL_LIMBS * 4 + SECP256K1_FIELD_LIMBS * 3 + SECP256K1_FIELD_LIMBS * 14 + SECP256K1_FIELD_MUL_CARRY_BITS + PRODUCTION_EC_RANGE_BITS + PRODUCTION_EC_CANONICAL_VALUES * 2 + PRODUCTION_EC_CANONICAL_BITS,
+  width: 29 + SECP256K1_FIELD_MUL_PRODUCT_LIMBS + SECP256K1_FIELD_MUL_LIMBS * 4 + SECP256K1_FIELD_LIMBS * 3 + SECP256K1_FIELD_LIMBS * 14 + SECP256K1_FIELD_MUL_CARRY_BITS + PRODUCTION_EC_RANGE_BITS + PRODUCTION_EC_CANONICAL_VALUES * 2 + PRODUCTION_EC_CANONICAL_BITS
 }
 
 export function buildProductionEcTrace (
@@ -586,6 +633,9 @@ function writeLinearRows (
   const a = secp256k1FieldToLimbs52(trace.a)
   const b = secp256k1FieldToLimbs52(trace.b)
   const c = secp256k1FieldToLimbs52(trace.c)
+  const canonical = [a, b, c].map(limbs =>
+    canonicalWitness(limbs, P_MINUS_ONE_52, FIELD_RADIX)
+  )
   let carry = 0n
   for (let limb = 0; limb < trace.activeRows; limb++) {
     const row = rows[offset + limb]
@@ -602,6 +652,38 @@ function writeLinearRows (
     row[layout.carryIn] = F.normalize(carry)
     const carryOut = linearCarryOut(trace.op, a, b, c, trace.q, limb, carry)
     row[layout.carryOut] = F.normalize(carryOut)
+    writeSignedBits(
+      row,
+      layout.carryBits,
+      carryOut,
+      LINEAR_CARRY_BIAS,
+      SECP256K1_FIELD_LINEAR_CARRY_BITS
+    )
+    writeUnsignedBits(
+      row,
+      layout.rangeBits + PRODUCTION_EC_LINEAR_RANGE_A,
+      a[limb],
+      SECP256K1_FIELD_LIMB_BITS
+    )
+    writeUnsignedBits(
+      row,
+      layout.rangeBits + PRODUCTION_EC_LINEAR_RANGE_B,
+      b[limb],
+      SECP256K1_FIELD_LIMB_BITS
+    )
+    writeUnsignedBits(
+      row,
+      layout.rangeBits + PRODUCTION_EC_LINEAR_RANGE_C,
+      c[limb],
+      SECP256K1_FIELD_LIMB_BITS
+    )
+    writeCanonicalWitness(
+      row,
+      layout,
+      canonical,
+      limb,
+      SECP256K1_FIELD_LIMB_BITS
+    )
     carry = carryOut
   }
   if (carry !== 0n) throw new Error('production EC linear final carry is nonzero')
@@ -620,6 +702,9 @@ function writeMulRows (
   const a52 = secp256k1FieldToLimbs52(trace.a)
   const b52 = secp256k1FieldToLimbs52(trace.b)
   const c52 = secp256k1FieldToLimbs52(trace.c)
+  const canonical = [a26, b26, c26, q26].map(limbs =>
+    canonicalWitness(limbs, P_MINUS_ONE_26, MUL_RADIX)
+  )
   let carry = 0n
   for (let limb = 0; limb < trace.activeRows; limb++) {
     const row = rows[offset + limb]
@@ -638,6 +723,46 @@ function writeMulRows (
     row[layout.carryIn] = F.normalize(carry)
     const carryOut = mulCarryOut(a26, b26, c26, q26, limb, carry)
     row[layout.carryOut] = F.normalize(carryOut)
+    writeSignedBits(
+      row,
+      layout.carryBits,
+      carryOut,
+      MUL_CARRY_BIAS,
+      SECP256K1_FIELD_MUL_CARRY_BITS
+    )
+    if (limb < SECP256K1_FIELD_MUL_LIMBS) {
+      writeUnsignedBits(
+        row,
+        layout.rangeBits + PRODUCTION_EC_MUL_RANGE_A,
+        a26[limb],
+        SECP256K1_FIELD_MUL_LIMB_BITS
+      )
+      writeUnsignedBits(
+        row,
+        layout.rangeBits + PRODUCTION_EC_MUL_RANGE_B,
+        b26[limb],
+        SECP256K1_FIELD_MUL_LIMB_BITS
+      )
+      writeUnsignedBits(
+        row,
+        layout.rangeBits + PRODUCTION_EC_MUL_RANGE_C,
+        c26[limb],
+        SECP256K1_FIELD_MUL_LIMB_BITS
+      )
+      writeUnsignedBits(
+        row,
+        layout.rangeBits + PRODUCTION_EC_MUL_RANGE_Q,
+        q26[limb],
+        SECP256K1_FIELD_MUL_LIMB_BITS
+      )
+    }
+    writeCanonicalWitness(
+      row,
+      layout,
+      canonical,
+      limb,
+      SECP256K1_FIELD_MUL_LIMB_BITS
+    )
     carry = carryOut
   }
   if (carry !== 0n) throw new Error('production EC mul final carry is nonzero')
@@ -703,6 +828,21 @@ function productionEcBoundaryConstraints (
   for (const op of publicInput.schedule) {
     constraints.push({ column: layout.carryIn, row: op.row, value: 0n })
     constraints.push({ column: layout.carryOut, row: op.row + op.rows - 1, value: 0n })
+    const canonicalValues = op.kind === 'linear'
+      ? 3
+      : PRODUCTION_EC_CANONICAL_VALUES
+    for (let i = 0; i < canonicalValues; i++) {
+      constraints.push({
+        column: layout.canonicalBorrowIn + i,
+        row: op.row,
+        value: 0n
+      })
+      constraints.push({
+        column: layout.canonicalBorrowOut + i,
+        row: op.row + op.rows - 1,
+        value: 0n
+      })
+    }
   }
   const firstG = firstLaneOperation(publicInput, 'G')
   const firstB = firstLaneOperation(publicInput, 'B')
@@ -905,12 +1045,51 @@ function evaluateLinearRow (
     )
     selectedEquation = F.add(selectedEquation, F.mul(selector, equation))
   }
-  return [
+  const constraints = [
     F.mul(F.sub(op, SECP256K1_FIELD_LINEAR_ADD), F.sub(op, SECP256K1_FIELD_LINEAR_SUB)),
     selectedEquation,
     F.mul(add, F.mul(q, F.sub(q, 1n))),
     F.mul(sub, F.mul(q, F.add(q, 1n)))
   ]
+  constraints.push(...signedBitsConstraint(
+    row,
+    layout.carryBits,
+    row[layout.carryOut],
+    LINEAR_CARRY_BIAS,
+    SECP256K1_FIELD_LINEAR_CARRY_BITS
+  ))
+  constraints.push(...unsignedBitsConstraint(
+    row,
+    layout.rangeBits + PRODUCTION_EC_LINEAR_RANGE_A,
+    selectedLimb(row, layout, layout.a52, SECP256K1_FIELD_LIMBS),
+    SECP256K1_FIELD_LIMB_BITS
+  ))
+  constraints.push(...unsignedBitsConstraint(
+    row,
+    layout.rangeBits + PRODUCTION_EC_LINEAR_RANGE_B,
+    selectedLimb(row, layout, layout.b52, SECP256K1_FIELD_LIMBS),
+    SECP256K1_FIELD_LIMB_BITS
+  ))
+  constraints.push(...unsignedBitsConstraint(
+    row,
+    layout.rangeBits + PRODUCTION_EC_LINEAR_RANGE_C,
+    selectedLimb(row, layout, layout.c52, SECP256K1_FIELD_LIMBS),
+    SECP256K1_FIELD_LIMB_BITS
+  ))
+  constraints.push(...canonicalConstraints(
+    row,
+    layout,
+    [
+      [layout.a52, PRODUCTION_EC_LINEAR_RANGE_A],
+      [layout.b52, PRODUCTION_EC_LINEAR_RANGE_B],
+      [layout.c52, PRODUCTION_EC_LINEAR_RANGE_C]
+    ],
+    P_MINUS_ONE_52,
+    FIELD_RADIX,
+    SECP256K1_FIELD_LIMB_BITS,
+    SECP256K1_FIELD_LIMBS
+  ))
+  return constraints
 }
 
 function evaluateMulRow (
@@ -946,6 +1125,51 @@ function evaluateMulRow (
       F.add(row[layout.c26 + i * 2], F.mul(row[layout.c26 + i * 2 + 1], MUL_RADIX))
     ))
   }
+  constraints.push(...signedBitsConstraint(
+    row,
+    layout.carryBits,
+    row[layout.carryOut],
+    MUL_CARRY_BIAS,
+    SECP256K1_FIELD_MUL_CARRY_BITS
+  ))
+  constraints.push(...unsignedBitsConstraint(
+    row,
+    layout.rangeBits + PRODUCTION_EC_MUL_RANGE_A,
+    selectedLimb(row, layout, layout.a26, SECP256K1_FIELD_MUL_LIMBS),
+    SECP256K1_FIELD_MUL_LIMB_BITS
+  ))
+  constraints.push(...unsignedBitsConstraint(
+    row,
+    layout.rangeBits + PRODUCTION_EC_MUL_RANGE_B,
+    selectedLimb(row, layout, layout.b26, SECP256K1_FIELD_MUL_LIMBS),
+    SECP256K1_FIELD_MUL_LIMB_BITS
+  ))
+  constraints.push(...unsignedBitsConstraint(
+    row,
+    layout.rangeBits + PRODUCTION_EC_MUL_RANGE_C,
+    selectedLimb(row, layout, layout.c26, SECP256K1_FIELD_MUL_LIMBS),
+    SECP256K1_FIELD_MUL_LIMB_BITS
+  ))
+  constraints.push(...unsignedBitsConstraint(
+    row,
+    layout.rangeBits + PRODUCTION_EC_MUL_RANGE_Q,
+    selectedLimb(row, layout, layout.q26, SECP256K1_FIELD_MUL_LIMBS),
+    SECP256K1_FIELD_MUL_LIMB_BITS
+  ))
+  constraints.push(...canonicalConstraints(
+    row,
+    layout,
+    [
+      [layout.a26, PRODUCTION_EC_MUL_RANGE_A],
+      [layout.b26, PRODUCTION_EC_MUL_RANGE_B],
+      [layout.c26, PRODUCTION_EC_MUL_RANGE_C],
+      [layout.q26, PRODUCTION_EC_MUL_RANGE_Q]
+    ],
+    P_MINUS_ONE_26,
+    MUL_RADIX,
+    SECP256K1_FIELD_MUL_LIMB_BITS,
+    SECP256K1_FIELD_MUL_LIMBS
+  ))
   return constraints
 }
 
@@ -963,6 +1187,12 @@ function linearContinuity (
     for (let i = 0; i < SECP256K1_FIELD_LIMBS; i++) {
       constraints.push(F.sub(next[offset + i], current[offset + i]))
     }
+  }
+  for (let i = 0; i < 3; i++) {
+    constraints.push(F.sub(
+      next[layout.canonicalBorrowIn + i],
+      current[layout.canonicalBorrowOut + i]
+    ))
   }
   return constraints
 }
@@ -987,6 +1217,12 @@ function mulContinuity (
     for (let i = 0; i < count; i++) {
       constraints.push(F.sub(next[offset + i], current[offset + i]))
     }
+  }
+  for (let i = 0; i < PRODUCTION_EC_CANONICAL_VALUES; i++) {
+    constraints.push(F.sub(
+      next[layout.canonicalBorrowIn + i],
+      current[layout.canonicalBorrowOut + i]
+    ))
   }
   return constraints
 }
@@ -1244,6 +1480,114 @@ function boolConstraint (value: FieldElement): FieldElement {
   return F.mul(value, F.sub(value, 1n))
 }
 
+function signedBitsConstraint (
+  row: FieldElement[],
+  offset: number,
+  signedValue: FieldElement,
+  bias: bigint,
+  bits: number
+): FieldElement[] {
+  const constraints: FieldElement[] = []
+  let value = 0n
+  for (let bit = 0; bit < bits; bit++) {
+    const bitValue = row[offset + bit]
+    constraints.push(boolConstraint(bitValue))
+    value = F.add(value, F.mul(bitValue, 1n << BigInt(bit)))
+  }
+  constraints.push(F.sub(F.add(signedValue, bias), value))
+  return constraints
+}
+
+function unsignedBitsConstraint (
+  row: FieldElement[],
+  offset: number,
+  value: FieldElement,
+  bits: number
+): FieldElement[] {
+  const constraints: FieldElement[] = []
+  let recomposed = 0n
+  for (let bit = 0; bit < bits; bit++) {
+    const bitValue = row[offset + bit]
+    constraints.push(boolConstraint(bitValue))
+    recomposed = F.add(recomposed, F.mul(bitValue, 1n << BigInt(bit)))
+  }
+  constraints.push(F.sub(value, recomposed))
+  return constraints
+}
+
+function canonicalConstraints (
+  row: FieldElement[],
+  layout: ProductionEcLayout,
+  values: Array<[number, number]>,
+  bound: bigint[],
+  radix: bigint,
+  bits: number,
+  count: number
+): FieldElement[] {
+  const constraints: FieldElement[] = []
+  for (let valueIndex = 0; valueIndex < values.length; valueIndex++) {
+    const [valueOffset, bitOffset] = values[valueIndex]
+    const borrowIn = row[layout.canonicalBorrowIn + valueIndex]
+    const borrowOut = row[layout.canonicalBorrowOut + valueIndex]
+    let diff = 0n
+    for (let bit = 0; bit < bits; bit++) {
+      const bitValue = row[layout.canonicalBits + bitOffset + bit]
+      constraints.push(boolConstraint(bitValue))
+      diff = F.add(diff, F.mul(bitValue, 1n << BigInt(bit)))
+    }
+    constraints.push(boolConstraint(borrowIn))
+    constraints.push(boolConstraint(borrowOut))
+    constraints.push(F.add(
+      F.sub(
+        F.sub(
+          F.sub(selectedConstantLimb(row, layout, bound, count), selectedLimb(
+            row,
+            layout,
+            valueOffset,
+            count
+          )),
+          borrowIn
+        ),
+        diff
+      ),
+      F.mul(borrowOut, radix)
+    ))
+  }
+  return constraints
+}
+
+function selectedLimb (
+  row: FieldElement[],
+  layout: ProductionEcLayout,
+  offset: number,
+  count: number
+): FieldElement {
+  let selected = 0n
+  for (let i = 0; i < count; i++) {
+    selected = F.add(
+      selected,
+      F.mul(row[layout.limbSelectors + i], row[offset + i])
+    )
+  }
+  return selected
+}
+
+function selectedConstantLimb (
+  row: FieldElement[],
+  layout: ProductionEcLayout,
+  limbs: bigint[],
+  count: number
+): FieldElement {
+  let selected = 0n
+  for (let i = 0; i < count; i++) {
+    selected = F.add(
+      selected,
+      F.mul(row[layout.limbSelectors + i], limbs[i])
+    )
+  }
+  return selected
+}
+
 function distinctAddFieldBindings (
   row: FieldElement[],
   layout: ProductionEcLayout,
@@ -1411,6 +1755,95 @@ function writeLimbs (
 ): void {
   for (let i = 0; i < limbs.length; i++) {
     row[offset + i] = F.normalize(limbs[i])
+  }
+}
+
+function writeSignedBits (
+  row: FieldElement[],
+  offset: number,
+  signedValue: bigint,
+  bias: bigint,
+  bits: number
+): void {
+  assertSignedBitRange(signedValue, bias, bits)
+  let value = signedValue + bias
+  for (let bit = 0; bit < bits; bit++) {
+    row[offset + bit] = value & 1n
+    value >>= 1n
+  }
+}
+
+function writeUnsignedBits (
+  row: FieldElement[],
+  offset: number,
+  value: bigint,
+  bits: number
+): void {
+  if (value < 0n || value >= (1n << BigInt(bits))) {
+    throw new Error('production EC field limb exceeds configured range')
+  }
+  let current = value
+  for (let bit = 0; bit < bits; bit++) {
+    row[offset + bit] = current & 1n
+    current >>= 1n
+  }
+}
+
+function writeCanonicalWitness (
+  row: FieldElement[],
+  layout: ProductionEcLayout,
+  witnesses: ProductionEcCanonicalWitness[],
+  limb: number,
+  bits: number
+): void {
+  for (let valueIndex = 0; valueIndex < witnesses.length; valueIndex++) {
+    const witness = witnesses[valueIndex]
+    row[layout.canonicalBorrowIn + valueIndex] = witness.borrowIn[limb] ?? 0n
+    row[layout.canonicalBorrowOut + valueIndex] = witness.borrowOut[limb] ?? 0n
+    writeUnsignedBits(
+      row,
+      layout.canonicalBits + valueIndex * bits,
+      witness.diff[limb] ?? 0n,
+      bits
+    )
+  }
+}
+
+function canonicalWitness (
+  limbs: bigint[],
+  bound: bigint[],
+  radix: bigint
+): ProductionEcCanonicalWitness {
+  const borrowIn = new Array<bigint>(limbs.length)
+  const borrowOut = new Array<bigint>(limbs.length)
+  const diff = new Array<bigint>(limbs.length)
+  let borrow = 0n
+  for (let limb = 0; limb < limbs.length; limb++) {
+    borrowIn[limb] = borrow
+    let value = bound[limb] - limbs[limb] - borrow
+    if (value < 0n) {
+      value += radix
+      borrow = 1n
+    } else {
+      borrow = 0n
+    }
+    diff[limb] = value
+    borrowOut[limb] = borrow
+  }
+  if (borrow !== 0n) {
+    throw new Error('production EC field element is non-canonical')
+  }
+  return { borrowIn, borrowOut, diff }
+}
+
+function assertSignedBitRange (
+  signedValue: bigint,
+  bias: bigint,
+  bits: number
+): void {
+  const value = signedValue + bias
+  if (value < 0n || value >= (1n << BigInt(bits))) {
+    throw new Error('production EC field carry exceeds configured range')
   }
 }
 

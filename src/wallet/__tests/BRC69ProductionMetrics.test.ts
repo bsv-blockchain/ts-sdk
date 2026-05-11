@@ -57,7 +57,7 @@ describe('BRC-69 production metrics harness', () => {
       status: 'actual',
       activeRows: 23608,
       paddedRows: 32768,
-      committedWidth: 85,
+      committedWidth: 72,
       fixedPreprocessedRows: BRC69_RADIX11_TABLE_ROWS,
       proofBytes: undefined
     })
@@ -80,7 +80,7 @@ describe('BRC-69 production metrics harness', () => {
       status: 'actual',
       activeRows: 5280,
       paddedRows: 8192,
-      committedWidth: 174,
+      committedWidth: 526,
       proofBytes: undefined,
       verified: undefined
     })
@@ -102,8 +102,8 @@ describe('BRC-69 production metrics harness', () => {
     expect(report.segments.lookupEqualityBus).toMatchObject({
       status: 'actual',
       activeRows: 260,
-      paddedRows: 196608,
-      committedWidth: 2,
+      paddedRows: 32768,
+      committedWidth: 217,
       fixedPreprocessedRows: 0,
       proofBytes: undefined,
       lookupRequestsByTag: {
@@ -125,7 +125,7 @@ describe('BRC-69 production metrics harness', () => {
     })
     expect(report.segments.wholeStatement.committedWidth).toBeGreaterThan(1000)
     expect(report.segments.wholeStatement.committedCells)
-      .toBeLessThan(50000000)
+      .toBeLessThan(60000000)
     expect(report.segments.wholeStatement.estimatedProofBytes)
       .toBeGreaterThan(0)
     expect(formatBRC69ProductionMetrics(report))

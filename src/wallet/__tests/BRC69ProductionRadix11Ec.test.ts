@@ -162,7 +162,7 @@ describe('BRC-69 production radix-11 EC segment', () => {
     expect(productionEcTracePrivateS(trace)).toEqual(radixTrace.privateS)
     expect(compressPoint(productionEcTracePrivateS(trace)))
       .toEqual(radixTrace.compressedS)
-    expect(trace.layout.width).toBe(174)
+    expect(trace.layout.width).toBe(526)
     expect(trace.publicInput.activeRows).toBe(5280)
     expect(trace.publicInput.paddedRows).toBe(8192)
     expect(trace.publicInput.schedule).toHaveLength(480)
@@ -181,7 +181,7 @@ describe('BRC-69 production radix-11 EC segment', () => {
     expect(productionEcMetrics(trace, proof)).toMatchObject({
       activeRows: 5280,
       paddedRows: 8192,
-      traceWidth: 174,
+      traceWidth: 526,
       scheduledAdditions: 48,
       distinctAddBranches: 2,
       linearOps: 288,
@@ -208,7 +208,7 @@ describe('BRC-69 production radix-11 EC segment', () => {
     expect(productionEcMetrics(trace)).toMatchObject({
       activeRows: 5280,
       paddedRows: 8192,
-      traceWidth: 174,
+      traceWidth: 526,
       scheduledAdditions: 48,
       distinctAddBranches: 24,
       linearOps: 288,
@@ -246,6 +246,51 @@ describe('BRC-69 production radix-11 EC segment', () => {
     const trace = buildProductionEcTrace(buildProductionRadix11EcTrace(lookup))
     const tampered = trace.rows.map(row => row.slice())
     tampered[0][trace.layout.c52] += 1n
+
+    expect(evaluateAirTrace(buildProductionEcAir(trace), tampered).valid)
+      .toBe(false)
+  })
+
+  it('rejects tampered aggregate EC carry range witnesses', () => {
+    const scalar = 1n + (2n << 11n)
+    const lookup = buildProductionRadix11LookupPrototype(
+      scalar,
+      scalarMultiply(7n)
+    )
+    const trace = buildProductionEcTrace(buildProductionRadix11EcTrace(lookup))
+    const tampered = trace.rows.map(row => row.slice())
+    tampered[0][trace.layout.carryBits] =
+      tampered[0][trace.layout.carryBits] === 0n ? 1n : 0n
+
+    expect(evaluateAirTrace(buildProductionEcAir(trace), tampered).valid)
+      .toBe(false)
+  })
+
+  it('rejects tampered aggregate EC limb range witnesses', () => {
+    const scalar = 1n + (2n << 11n)
+    const lookup = buildProductionRadix11LookupPrototype(
+      scalar,
+      scalarMultiply(7n)
+    )
+    const trace = buildProductionEcTrace(buildProductionRadix11EcTrace(lookup))
+    const tampered = trace.rows.map(row => row.slice())
+    tampered[0][trace.layout.rangeBits] =
+      tampered[0][trace.layout.rangeBits] === 0n ? 1n : 0n
+
+    expect(evaluateAirTrace(buildProductionEcAir(trace), tampered).valid)
+      .toBe(false)
+  })
+
+  it('rejects tampered aggregate EC canonical field witnesses', () => {
+    const scalar = 1n + (2n << 11n)
+    const lookup = buildProductionRadix11LookupPrototype(
+      scalar,
+      scalarMultiply(7n)
+    )
+    const trace = buildProductionEcTrace(buildProductionRadix11EcTrace(lookup))
+    const tampered = trace.rows.map(row => row.slice())
+    tampered[0][trace.layout.canonicalBits] =
+      tampered[0][trace.layout.canonicalBits] === 0n ? 1n : 0n
 
     expect(evaluateAirTrace(buildProductionEcAir(trace), tampered).valid)
       .toBe(false)

@@ -5,10 +5,7 @@ import {
   scalarMultiply
 } from '../circuit/Secp256k1.js'
 import { hmacSha256 } from '../circuit/Sha256.js'
-import {
-  LOOKUP_BUS_TRANSCRIPT_DOMAIN,
-  buildLookupBusAir
-} from '../stark/LookupBus.js'
+import { buildLookupBusAir } from '../stark/LookupBus.js'
 import {
   BRC69_RADIX11_TABLE_ROWS,
   buildProductionRadix11LookupPrototype,
@@ -34,8 +31,10 @@ import {
   estimateStarkProofBytes
 } from '../stark/TypedStark.js'
 import {
+  MultiTraceStarkProof,
   StarkProof,
   StarkProverOptions,
+  serializeMultiTraceStarkProof,
   serializeStarkProof,
   verifyStark
 } from '../stark/Stark.js'
@@ -77,7 +76,7 @@ export const BRC69_PRODUCTION_METRICS_PROFILE = {
   blowupFactor: 16,
   numQueries: 48,
   maxRemainderSize: 16,
-  maskDegree: 2,
+  maskDegree: 192,
   cosetOffset: 7n,
   transcriptDomain: 'BRC69_METHOD2_PRODUCTION_METRICS_V1'
 } as const
@@ -231,11 +230,9 @@ export function collectBRC69ProductionMetrics (
     : undefined
   const radixVerify = radixProof === undefined
     ? undefined
-    : step('brc69.metrics.radix11PointLookup.verify', () => verifyStark(radixAir, radixProof.value, {
-      ...BRC69_PRODUCTION_METRICS_PROFILE,
-      publicInputDigest: radixAir.publicInputDigest,
-      transcriptDomain: LOOKUP_BUS_TRANSCRIPT_DOMAIN
-    }), 'radix11PointLookup')
+    : step('brc69.metrics.radix11PointLookup.verify', () =>
+      verifyProductionRadix11Lookup(radixTableBuild.value, radixProof.value),
+    'radix11PointLookup')
   const radixMetrics = productionRadix11LookupMetrics(
     radixTableBuild.value,
     radixProof?.value,
@@ -442,8 +439,8 @@ export function collectBRC69ProductionMetrics (
     verified: ecVerify?.value,
     notes: [
       proveEc
-        ? 'Actual hardened production radix-11 EC accumulator AIR proved the fixed 48-lane schedule, branch-gated accumulator transitions, final public A boundary, and private S output consumed by compression; doubling/opposite branches are rejected fail-closed by this slice.'
-        : 'Actual hardened production radix-11 EC accumulator AIR shape measured; proof skipped by metrics options; doubling/opposite branches are rejected fail-closed by this slice.'
+        ? 'Actual hardened production radix-11 EC accumulator AIR proved the fixed 48-lane schedule, branch-gated accumulator transitions, selected 52/26-bit field limbs, canonical field encodings, signed carries, final public A boundary, and private S output consumed by compression; doubling/opposite branches are rejected fail-closed by this slice.'
+        : 'Actual hardened production radix-11 EC accumulator AIR shape measured; proof skipped by metrics options; selected 52/26-bit field limbs, canonical field encodings, and signed carries are constrained; doubling/opposite branches are rejected fail-closed by this slice.'
     ]
   })
   const compression = actualSegment({
@@ -476,9 +473,8 @@ export function collectBRC69ProductionMetrics (
   const lookupBus = actualSegment({
     activeRows: Object.values(wholeBuild.value.publicInput.bus.segments)
       .reduce((total, segment) => total + segment.emissionCount, 0),
-    paddedRows: Object.values(wholeBaseMetrics.segments)
-      .reduce((total, segment) => total + segment.rows, 0),
-    width: 2,
+    paddedRows: wholeBaseMetrics.segments.bus.rows,
+    width: wholeBaseMetrics.segments.bus.width,
     fixedRows: 0,
     tagCounts: {
       scalarDigit: scalarBaseMetrics.digitRows * 2,
@@ -492,9 +488,8 @@ export function collectBRC69ProductionMetrics (
     prove: undefined,
     verify: wholeVerify,
     backend: backendMetrics(
-      Object.values(wholeBaseMetrics.segments)
-        .reduce((total, segment) => total + segment.rows, 0),
-      2,
+      wholeBaseMetrics.segments.bus.rows,
+      wholeBaseMetrics.segments.bus.width,
       sampleColumns,
       maxSampleTraceLength,
       now
@@ -502,8 +497,8 @@ export function collectBRC69ProductionMetrics (
     verified: wholeVerify?.value,
     notes: [
       prove
-        ? 'Production lookup/equality bus is embedded as hidden accumulator and endpoint columns inside the single whole-statement trace. Hidden segment endpoints are linked by same-proof constraints; per-segment bus totals are not public.'
-        : 'Production lookup/equality bus shape measured from segment-local accumulator columns; proof skipped by metrics options.'
+        ? 'Production lookup/equality bus is committed as the second phased bus trace after deriving challenges from the base trace root; per-segment bus totals are not public.'
+        : 'Production lookup/equality bus phase shape measured from challenge-dependent accumulator columns; proof skipped by metrics options.'
     ]
   })
 
@@ -612,8 +607,8 @@ export function collectBRC69ProductionMetrics (
     diagnostic: wholeDiagnostic,
     notes: [
       proveWhole
-        ? 'Actual single-trace whole-statement proof binds scalar, radix-11 lookup, hardened EC, compression, compact HMAC, and hidden segment-local bus accumulators in one Fiat-Shamir context.'
-        : 'Actual single-trace whole-statement shape measured; proof skipped by metrics options.'
+        ? 'Actual phased whole-statement proof binds the base witness trace to post-commitment lookup and segment-bus accumulator traces in one Fiat-Shamir context.'
+        : 'Actual phased whole-statement shape measured; proof skipped by metrics options.'
     ]
   })
 
@@ -815,7 +810,7 @@ function actualSegment (input: {
   width: number
   fixedRows: number
   tagCounts: Record<string, number>
-  proof?: StarkProof
+  proof?: StarkProof | MultiTraceStarkProof
   proofBytes?: number
   committedCells?: number
   ldeCells?: number
@@ -844,7 +839,7 @@ function actualSegment (input: {
     proofBytes: input.proofBytes ?? (
       input.proof === undefined
         ? undefined
-        : serializeStarkProof(input.proof).length
+        : proofBytes(input.proof)
     ),
     estimatedProofBytes: input.proof === undefined && input.proofBytes === undefined
       ? estimateStarkProofBytes({
@@ -994,6 +989,12 @@ function environment (
     cpuCount: options.cpuCount,
     gitCommit: options.gitCommit
   }
+}
+
+function proofBytes (proof: StarkProof | MultiTraceStarkProof): number {
+  return 'segments' in proof
+    ? serializeMultiTraceStarkProof(proof).length
+    : serializeStarkProof(proof).length
 }
 
 function actualSegmentAttemptedProof (

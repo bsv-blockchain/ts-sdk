@@ -5,9 +5,7 @@ import { F, FieldElement } from './Field.js'
 import {
   StarkProof,
   StarkProverOptions,
-  proveStark,
-  serializeStarkProof,
-  verifyStark
+  serializeStarkProof
 } from './Stark.js'
 import { FiatShamirTranscript } from './Transcript.js'
 
@@ -284,34 +282,20 @@ export function proveLogLookupBus (
   trace: LogLookupBusTrace,
   options: StarkProverOptions = {}
 ): StarkProof {
-  const air = buildLogLookupBusAir(trace.publicInput)
-  return proveStark(air, trace.rows, {
-    ...options,
-    publicInputDigest: air.publicInputDigest,
-    transcriptDomain: options.transcriptDomain ?? LOG_LOOKUP_BUS_TRANSCRIPT_DOMAIN
-  })
+  void trace
+  void options
+  throw new Error(
+    'Standalone log lookup bus proofs are disabled; use the phased post-commitment bus proof path'
+  )
 }
 
 export function verifyLogLookupBusProof (
   publicInput: LogLookupBusPublicInput,
   proof: StarkProof
 ): boolean {
-  try {
-    const air = buildLogLookupBusAir(publicInput)
-    return verifyStark(air, proof, {
-      blowupFactor: proof.blowupFactor,
-      numQueries: proof.numQueries,
-      maxRemainderSize: proof.maxRemainderSize,
-      maskDegree: proof.maskDegree,
-      cosetOffset: proof.cosetOffset,
-      traceDegreeBound: proof.traceDegreeBound,
-      compositionDegreeBound: proof.compositionDegreeBound,
-      publicInputDigest: air.publicInputDigest,
-      transcriptDomain: proofTranscriptDomain(proof)
-    })
-  } catch {
-    return false
-  }
+  void publicInput
+  void proof
+  return false
 }
 
 export function logLookupBusMetrics (
@@ -556,11 +540,6 @@ function nextPowerOfTwo (value: number): number {
   let out = 1
   while (out < value) out *= 2
   return out
-}
-
-function proofTranscriptDomain (proof: StarkProof): string {
-  void proof
-  return LOG_LOOKUP_BUS_TRANSCRIPT_DOMAIN
 }
 
 function writeField (writer: Writer, value: FieldElement): void {

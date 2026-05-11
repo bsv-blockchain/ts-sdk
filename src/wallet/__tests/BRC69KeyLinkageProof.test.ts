@@ -4,6 +4,8 @@ import {
   it
 } from '@jest/globals'
 import {
+  BRC69_METHOD2_MAX_PROOF_BYTES,
+  BRC69_METHOD2_MAX_PUBLIC_INPUT_BYTES,
   parseSpecificKeyLinkageProofPayload,
   serializeBRC69SpecificKeyLinkageProof,
   serializeSpecificKeyLinkageProofPayload,
@@ -55,6 +57,22 @@ describe('BRC-69 key linkage proof payload', () => {
       .toThrow()
     expect(() => parseSpecificKeyLinkageProofPayload([...payload, 0]))
       .toThrow('Unexpected trailing bytes in BRC69 proof payload')
+  })
+
+  it('rejects oversized declared public input and proof sections', () => {
+    expect(() => parseSpecificKeyLinkageProofPayload([
+      1,
+      ...encodeVarInt(BRC69_METHOD2_MAX_PUBLIC_INPUT_BYTES + 1)
+    ])).toThrow('BRC69 Method 2 public input is too large')
+
+    const fixture = brc69Method2WholeStatementDeterministicFixture()
+    const publicInput = publicInputBytes(fixture.publicInput)
+    expect(() => parseSpecificKeyLinkageProofPayload([
+      1,
+      ...encodeVarInt(publicInput.length),
+      ...publicInput,
+      ...encodeVarInt(BRC69_METHOD2_MAX_PROOF_BYTES + 1)
+    ])).toThrow('BRC69 Method 2 STARK proof is too large')
   })
 
   it('rejects HMAC public-input mismatches before serialization', () => {
@@ -150,4 +168,28 @@ function dummyFriProof (domainSize: number, degreeBound: number): StarkProof['fr
     finalValues: [0n],
     queries: []
   }
+}
+
+function publicInputBytes (publicInput: unknown): number[] {
+  return Array.from(Buffer.from(
+    JSON.stringify(publicInput, (_key, value) =>
+      typeof value === 'bigint' ? `${value}n` : value
+    ),
+    'utf8'
+  ))
+}
+
+function encodeVarInt (value: number): number[] {
+  if (value < 0xfd) return [value]
+  if (value <= 0xffff) return [0xfd, value & 0xff, value >> 8]
+  if (value <= 0xffffffff) {
+    return [
+      0xfe,
+      value & 0xff,
+      (value >>> 8) & 0xff,
+      (value >>> 16) & 0xff,
+      (value >>> 24) & 0xff
+    ]
+  }
+  throw new Error('test varint value is too large')
 }

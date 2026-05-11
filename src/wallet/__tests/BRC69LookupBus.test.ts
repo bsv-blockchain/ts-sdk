@@ -6,7 +6,6 @@ import {
 import {
   F,
   LOOKUP_BUS_LAYOUT,
-  LOOKUP_BUS_TRANSCRIPT_DOMAIN,
   LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS,
   LOOKUP_BUS_ROW_KIND,
   LOOKUP_BUS_TAG_PRIVATE_EQUALITY,
@@ -21,8 +20,7 @@ import {
   lookupBusLookupRequestItems,
   lookupBusMetrics,
   proveLookupBus,
-  serializeStarkProof,
-  verifyStark,
+  serializeMultiTraceStarkProof,
   verifyLookupBusProof
 } from '../brc69/stark/index'
 
@@ -48,7 +46,7 @@ describe('BRC-69 lookup/equality bus prototype', () => {
       fixedLookups: 1,
       equalityRows: 0
     })
-    expect(serializeStarkProof(proof).length).toBeGreaterThan(0)
+    expect(serializeMultiTraceStarkProof(proof).length).toBeGreaterThan(0)
   })
 
   it('proves private equality, public equality, and several lookup tags together', () => {
@@ -95,10 +93,9 @@ describe('BRC-69 lookup/equality bus prototype', () => {
       ...lookupBusFixedTableItems(table, { 4: 1 }),
       ...lookupBusLookupRequestItems(table, [5])
     ], { minTraceLength: 32 })
-    expect(evaluateAirTrace(
-      buildLookupBusAir(unmatchedRequest.publicInput),
-      unmatchedRequest.rows
-    ).valid).toBe(false)
+    expect(() => proveLookupBus(unmatchedRequest, {
+      maskSeed: ascii('lookup-bus-unmatched-mask')
+    })).toThrow()
 
     const wrongMultiplicity = buildLookupBusTrace(
       [
@@ -107,10 +104,9 @@ describe('BRC-69 lookup/equality bus prototype', () => {
       ],
       { minTraceLength: 32 }
     )
-    expect(evaluateAirTrace(
-      buildLookupBusAir(wrongMultiplicity.publicInput),
-      wrongMultiplicity.rows
-    ).valid).toBe(false)
+    expect(() => proveLookupBus(wrongMultiplicity, {
+      maskSeed: ascii('lookup-bus-wrong-multiplicity-mask')
+    })).toThrow()
 
     const swapped = buildLookupBusTrace([{
       kind: LOOKUP_BUS_ROW_KIND.privateEquality,
@@ -121,7 +117,7 @@ describe('BRC-69 lookup/equality bus prototype', () => {
     }])
     expect(evaluateAirTrace(
       buildLookupBusAir(swapped.publicInput),
-      swapped.rows
+      swapped.baseRows
     ).valid).toBe(false)
   })
 
@@ -160,7 +156,6 @@ describe('BRC-69 lookup/equality bus prototype', () => {
     ],
     { minTraceLength: 32 }
     )
-    const air = buildLookupBusAir(trace.publicInput)
     const proof = proveLookupBus(trace, {
       blowupFactor: 16,
       numQueries: 48,
@@ -170,16 +165,11 @@ describe('BRC-69 lookup/equality bus prototype', () => {
       maskSeed: ascii('lookup-bus-production-mask')
     })
 
-    expect(proof.compositionDegreeBound).toBeGreaterThan(332)
-    expect(verifyStark(air, proof, {
-      blowupFactor: 16,
-      numQueries: 48,
-      maxRemainderSize: 16,
-      maskDegree: 2,
-      cosetOffset: 7n,
-      publicInputDigest: air.publicInputDigest,
-      transcriptDomain: LOOKUP_BUS_TRANSCRIPT_DOMAIN
-    })).toBe(true)
+    const busProof = proof.segments.find(segment =>
+      segment.name === 'lookup-accumulator'
+    )?.proof
+    expect(busProof?.compositionDegreeBound).toBeGreaterThan(32)
+    expect(verifyLookupBusProof(trace.publicInput, proof)).toBe(true)
   })
 })
 

@@ -10,9 +10,7 @@ import {
 import {
   StarkProof,
   StarkProverOptions,
-  proveStark,
-  serializeStarkProof,
-  verifyStark
+  serializeStarkProof
 } from '../stark/Stark.js'
 import { FiatShamirTranscript } from '../stark/Transcript.js'
 import { hmacSha256 } from '../circuit/Sha256.js'
@@ -561,37 +559,20 @@ export function proveMethod2LookupBatchedHmacSha256 (
   trace: Method2LookupBatchedHmacSha256Trace,
   options: StarkProverOptions = {}
 ): StarkProof {
-  validateMethod2LookupBatchedHmacSha256Trace(trace)
-  const air = buildMethod2LookupBatchedHmacSha256Air(trace.publicInput)
-  return proveStark(air, trace.rows, {
-    ...METHOD2_LOOKUP_BATCHED_HMAC_SHA256_STARK_OPTIONS,
-    ...options,
-    publicInputDigest: air.publicInputDigest,
-    transcriptDomain: METHOD2_LOOKUP_BATCHED_HMAC_SHA256_TRANSCRIPT_DOMAIN
-  })
+  void trace
+  void options
+  throw new Error(
+    'Standalone lookup-batched HMAC proofs are disabled; use proof type 1 with compact HMAC and phased bus commitments'
+  )
 }
 
 export function verifyMethod2LookupBatchedHmacSha256 (
   publicInput: Method2LookupBatchedHmacSha256PublicInput,
   proof: StarkProof
 ): boolean {
-  try {
-    if (!lookupBatchedHmacProofMeetsMinimumProfile(proof)) return false
-    const air = buildMethod2LookupBatchedHmacSha256Air(publicInput)
-    return verifyStark(air, proof, {
-      blowupFactor: proof.blowupFactor,
-      numQueries: proof.numQueries,
-      maxRemainderSize: proof.maxRemainderSize,
-      maskDegree: proof.maskDegree,
-      cosetOffset: proof.cosetOffset,
-      traceDegreeBound: proof.traceDegreeBound,
-      compositionDegreeBound: proof.compositionDegreeBound,
-      publicInputDigest: air.publicInputDigest,
-      transcriptDomain: proofTranscriptDomain(proof)
-    })
-  } catch {
-    return false
-  }
+  void publicInput
+  void proof
+  return false
 }
 
 export function evaluateLookupBatchedHmacTransition (
@@ -2011,23 +1992,6 @@ function compressedCompactDifference (
     out = F.add(out, F.mul(F.sub(next[i], current[i]), powers[i]))
   }
   return out
-}
-
-function lookupBatchedHmacProofMeetsMinimumProfile (proof: StarkProof): boolean {
-  return proof.blowupFactor >=
-    METHOD2_LOOKUP_BATCHED_HMAC_SHA256_STARK_OPTIONS.blowupFactor &&
-    proof.numQueries >=
-      METHOD2_LOOKUP_BATCHED_HMAC_SHA256_STARK_OPTIONS.numQueries &&
-    proof.maxRemainderSize <=
-      METHOD2_LOOKUP_BATCHED_HMAC_SHA256_STARK_OPTIONS.maxRemainderSize &&
-    proof.maskDegree >=
-      METHOD2_LOOKUP_BATCHED_HMAC_SHA256_STARK_OPTIONS.maskDegree &&
-    proof.cosetOffset !== 0n
-}
-
-function proofTranscriptDomain (proof: StarkProof): string {
-  return (proof as StarkProof & { transcriptDomain?: string }).transcriptDomain ??
-    METHOD2_LOOKUP_BATCHED_HMAC_SHA256_TRANSCRIPT_DOMAIN
 }
 
 function tupleKey (tag: FieldElement, values: FieldElement[]): string {

@@ -12,9 +12,7 @@ import {
   LogLookupBusTrace,
   LogLookupBusItem,
   buildLogLookupBusTrace,
-  logLookupBusMetrics,
-  proveLogLookupBus,
-  verifyLogLookupBusProof
+  logLookupBusMetrics
 } from '../stark/LogLookupBus.js'
 import { F, FieldElement } from '../stark/Field.js'
 import {
@@ -170,25 +168,20 @@ export function proveMethod2LookupShaHmac (
   trace: Method2LookupShaHmacTrace,
   options: StarkProverOptions = {}
 ): StarkProof {
-  validateMethod2LookupShaHmacTrace(trace)
-  return proveLogLookupBus(trace.lookup, options)
+  void trace
+  void options
+  throw new Error(
+    'Standalone lookup HMAC proofs are disabled; use proof type 1 with compact HMAC and phased bus commitments'
+  )
 }
 
 export function verifyMethod2LookupShaHmac (
   publicInput: Method2LookupShaHmacPublicInput,
   proof: StarkProof
 ): boolean {
+  void publicInput
   void proof
-  try {
-    validateMethod2LookupShaHmacPublicInput(publicInput)
-    return verifyLogLookupBusProof({
-      traceLength: publicInput.lookupTraceLength,
-      expectedRequests: publicInput.expectedLookupRequests,
-      scheduleRows: method2LookupShaHmacScheduleRows(publicInput)
-    }, proof)
-  } catch {
-    return false
-  }
+  return false
 }
 
 export function method2LookupShaHmacMetrics (
@@ -214,11 +207,13 @@ export function method2LookupShaHmacMetrics (
 export function method2LookupShaHmacIntegrationStatus ():
 Method2LookupShaHmacIntegrationStatus {
   return {
-    readyForMethod2: true,
+    readyForMethod2: false,
     helperRelationVerified: true,
-    sameCommittedArithmeticDomain: true,
-    privateEqualityDomain: 'lookup-batched-hmac-sha256-committed-trace',
-    blockers: []
+    sameCommittedArithmeticDomain: false,
+    privateEqualityDomain: 'retired-public-input-challenge-diagnostic',
+    blockers: [
+      'Lookup-centric HMAC standalone proofs are retired in favor of compact HMAC inside the phased proof type 1 statement.'
+    ]
   }
 }
 

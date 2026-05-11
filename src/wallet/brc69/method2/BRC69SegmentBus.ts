@@ -3,12 +3,14 @@ import { Writer, toArray } from '../../../primitives/utils.js'
 import { AirDefinition, BoundaryConstraint, FullBoundaryColumn } from '../stark/Air.js'
 import { F, FieldElement } from '../stark/Field.js'
 import { LOOKUP_BUS_TUPLE_ARITY } from '../stark/LookupBus.js'
+import {
+  MultiTraceCommittedSegmentSummary
+} from '../stark/Stark.js'
 import { FiatShamirTranscript } from '../stark/Transcript.js'
 
 export const BRC69_SEGMENT_BUS_PUBLIC_INPUT_ID =
   'BRC69_METHOD2_SEGMENT_BUS_PUBLIC_INPUT_V1'
-export const BRC69_SEGMENT_BUS_WRAPPED_AIR_ID =
-  'BRC69_METHOD2_SEGMENT_BUS_WRAPPED_AIR_V1'
+export const BRC69_SEGMENT_BUS_COMPRESSION_CHALLENGES = 2
 
 export const BRC69_SEGMENT_BUS_KIND_SOURCE = 1n
 export const BRC69_SEGMENT_BUS_KIND_TARGET = 2n
@@ -67,7 +69,6 @@ export interface BRC69SegmentBusWrappedLayout {
 }
 
 export interface BRC69SegmentBusPublicInput {
-  challengeDigest: number[]
   segments: Record<string, {
     emissionCount: number
     selectorCount?: number
@@ -76,42 +77,99 @@ export interface BRC69SegmentBusPublicInput {
   }>
 }
 
+export interface BRC69SegmentBusChallengeInput {
+  publicInputDigest: number[]
+  baseTraceRoot: number[]
+  transcriptDomain?: string
+}
+
 export function deriveBRC69SegmentBusChallenges (
-  challengeDigest: number[]
+  input: BRC69SegmentBusChallengeInput
 ): BRC69SegmentBusChallenges {
+  const challengeDigest = brc69SegmentBusChallengeDigest(input)
   const transcript = new FiatShamirTranscript(
     `${BRC69_SEGMENT_BUS_PUBLIC_INPUT_ID}:challenges`
   )
-  transcript.absorb('challenge-digest', challengeDigest)
+  transcript.absorb('post-commitment-challenge-digest', challengeDigest)
   return {
     alpha0: nonZeroChallenge(transcript, 'alpha-0'),
     alpha1: nonZeroChallenge(transcript, 'alpha-1')
   }
 }
 
-export function wrapBRC69SegmentBusTrace (input: {
+export function brc69SegmentBusChallengeDigest (
+  input: BRC69SegmentBusChallengeInput
+): number[] {
+  assertDigest(input.publicInputDigest, 'BRC69 segment bus public input digest')
+  assertDigest(input.baseTraceRoot, 'BRC69 segment bus base trace root')
+  const writer = new Writer()
+  writer.write(toArray('BRC69_SEGMENT_BUS_POST_COMMITMENT_CHALLENGES_V1', 'utf8'))
+  writer.write(toArray(input.transcriptDomain ?? BRC69_SEGMENT_BUS_PUBLIC_INPUT_ID, 'utf8'))
+  writer.write(input.publicInputDigest)
+  writer.write(input.baseTraceRoot)
+  return sha256(writer.toArray())
+}
+
+export function brc69SegmentBusChallengeInputFromRoot (
+  publicInputDigest: number[],
+  baseTraceRoot: number[],
+  transcriptDomain?: string
+): BRC69SegmentBusChallengeInput {
+  return {
+    publicInputDigest: publicInputDigest.slice(),
+    baseTraceRoot: baseTraceRoot.slice(),
+    transcriptDomain
+  }
+}
+
+export function brc69SegmentBusChallengeInput (
+  publicInputDigest: number[],
+  base: MultiTraceCommittedSegmentSummary,
+  transcriptDomain?: string
+): BRC69SegmentBusChallengeInput {
+  return brc69SegmentBusChallengeInputFromRoot(
+    publicInputDigest,
+    base.traceRoot,
+    transcriptDomain
+  )
+}
+
+export function brc69SegmentBusNonAdaptiveCollisionSecurityBits (
+  tupleArity = LOOKUP_BUS_TUPLE_ARITY,
+  challengeCount = BRC69_SEGMENT_BUS_COMPRESSION_CHALLENGES
+): number {
+  if (
+    !Number.isSafeInteger(tupleArity) ||
+    tupleArity < 1 ||
+    !Number.isSafeInteger(challengeCount) ||
+    challengeCount < 1
+  ) {
+    throw new Error('BRC69 segment bus collision parameters are invalid')
+  }
+  return challengeCount * (
+    Math.log2(Number(F.p - 1n)) -
+    Math.log2(tupleArity)
+  )
+}
+
+export function buildBRC69SegmentBusAccumulatorTrace (input: {
   name: string
-  air: AirDefinition
-  rows: FieldElement[][]
+  baseRows: FieldElement[][]
   proofTraceLength?: number
   emissions: BRC69SegmentBusEmission[]
-  challengeDigest: number[]
+  challenges: BRC69SegmentBusChallenges
   start?: BRC69SegmentBusEndpoint
   publicStart?: BRC69SegmentBusEndpoint
   publicEnd?: BRC69SegmentBusEndpoint
 }): BRC69SegmentBusWrappedTrace {
-  const proofTraceLength = input.proofTraceLength ?? input.rows.length
-  const challenges = deriveBRC69SegmentBusChallenges(input.challengeDigest)
+  const proofTraceLength = input.proofTraceLength ?? input.baseRows.length
   const emissionRows = emissionsByRow(input.emissions, proofTraceLength)
   const selectorCount = brc69SegmentBusSelectorCount(input.emissions)
-  const layout = brc69SegmentBusWrappedLayout(
-    input.air.traceWidth,
-    selectorCount
-  )
+  const layout = brc69SegmentBusWrappedLayout(0, selectorCount)
   const contribution = evaluateSegmentContribution(
-    input.rows,
+    input.baseRows,
     emissionRows,
-    challenges
+    input.challenges
   )
   const start = normalizeEndpoint(input.start ?? {
     accumulator0: 0n,
@@ -121,22 +179,18 @@ export function wrapBRC69SegmentBusTrace (input: {
     accumulator0: F.add(start.accumulator0, contribution.accumulator0),
     accumulator1: F.add(start.accumulator1, contribution.accumulator1)
   }
-  const rows = appendAccumulatorColumns(
-    input.rows,
+  const rows = appendAccumulatorOnlyColumns(
+    input.baseRows,
     proofTraceLength,
     emissionRows,
-    challenges,
+    input.challenges,
     start,
     layout
   )
-  const air = wrapBRC69SegmentBusAir({
+  const air = buildBRC69SegmentBusAccumulatorAir({
     name: input.name,
-    air: input.air,
-    baseTraceLength: input.rows.length,
     traceLength: proofTraceLength,
     emissions: input.emissions,
-    challengeDigest: input.challengeDigest,
-    emissionCount: contribution.emissionCount,
     publicStart: input.publicStart,
     publicEnd: input.publicEnd
   })
@@ -151,36 +205,21 @@ export function wrapBRC69SegmentBusTrace (input: {
   }
 }
 
-export function wrapBRC69SegmentBusAir (input: {
+export function buildBRC69SegmentBusAccumulatorAir (input: {
   name: string
-  air: AirDefinition
-  baseTraceLength?: number
   traceLength: number
   emissions: BRC69SegmentBusEmission[]
-  challengeDigest: number[]
-  emissionCount: number
   publicStart?: BRC69SegmentBusEndpoint
   publicEnd?: BRC69SegmentBusEndpoint
 }): AirDefinition {
-  const challenges = deriveBRC69SegmentBusChallenges(input.challengeDigest)
-  const originalWidth = input.air.traceWidth
-  const baseTraceLength = input.baseTraceLength ?? input.traceLength
-  const indexedEmissions = indexBusEmissions(input.emissions)
   const selectorCount = brc69SegmentBusSelectorCount(input.emissions)
-  const layout = brc69SegmentBusWrappedLayout(
-    originalWidth,
-    selectorCount
-  )
+  const layout = brc69SegmentBusWrappedLayout(0, selectorCount)
   return {
-    ...input.air,
     traceWidth: layout.width,
-    unmaskedColumns: input.air.unmaskedColumns,
-    publicInputDigest: brc69SegmentBusWrappedAirDigest({
+    transitionDegree: 2,
+    publicInputDigest: brc69SegmentBusAccumulatorAirDigest({
       name: input.name,
-      originalDigest: input.air.publicInputDigest ?? [],
-      challengeDigest: input.challengeDigest,
-      baseTraceLength,
-      emissionCount: input.emissionCount,
+      traceLength: input.traceLength,
       emissionScheduleDigest: brc69SegmentBusEmissionScheduleDigest(
         input.emissions
       ),
@@ -188,10 +227,6 @@ export function wrapBRC69SegmentBusAir (input: {
       publicEnd: input.publicEnd
     }),
     boundaryConstraints: [
-      ...translateBoundaryConstraints(
-        input.air.boundaryConstraints,
-        baseTraceLength
-      ),
       ...endpointBoundaryConstraints(
         layout.start0,
         layout.start1,
@@ -206,10 +241,6 @@ export function wrapBRC69SegmentBusAir (input: {
       )
     ],
     fullBoundaryColumns: [
-      ...translateFullBoundaryColumns(
-        input.air.fullBoundaryColumns ?? [],
-        input.traceLength
-      ),
       ...busEmissionSelectorColumns(
         layout.selectorStart,
         input.traceLength,
@@ -220,57 +251,66 @@ export function wrapBRC69SegmentBusAir (input: {
       baseTransitionActiveColumn(
         layout.baseTransitionActive,
         input.traceLength,
-        baseTraceLength
+        input.traceLength
       )
     ],
-    transitionDegree: Math.max(
-      (input.air.transitionDegree ?? 2) + 1,
-      2
-    ),
-    evaluateTransition: (current, next) => {
-      const currentBase = current.slice(0, originalWidth)
-      const nextBase = next.slice(0, originalWidth)
-      const baseTransitionActive = current[layout.baseTransitionActive]
-      const constraints = input.air.evaluateTransition(currentBase, nextBase, 0)
-        .map(value => F.mul(baseTransitionActive, value))
-      const contribution = evaluateSelectedRowContribution(
-        currentBase,
-        current,
-        indexedEmissions,
-        layout,
-        challenges
-      )
-      constraints.push(F.sub(
-        next[layout.accumulator0],
-        F.add(current[layout.accumulator0], contribution.accumulator0)
-      ))
-      constraints.push(F.sub(
-        next[layout.accumulator1],
-        F.add(current[layout.accumulator1], contribution.accumulator1)
-      ))
-      constraints.push(F.sub(next[layout.start0], current[layout.start0]))
-      constraints.push(F.sub(next[layout.start1], current[layout.start1]))
-      constraints.push(F.sub(next[layout.end0], current[layout.end0]))
-      constraints.push(F.sub(next[layout.end1], current[layout.end1]))
-      constraints.push(F.mul(
+    evaluateTransition: (current, next) => [
+      F.sub(next[layout.start0], current[layout.start0]),
+      F.sub(next[layout.start1], current[layout.start1]),
+      F.sub(next[layout.end0], current[layout.end0]),
+      F.sub(next[layout.end1], current[layout.end1]),
+      F.mul(
         current[layout.first],
         F.sub(current[layout.accumulator0], current[layout.start0])
-      ))
-      constraints.push(F.mul(
+      ),
+      F.mul(
         current[layout.first],
         F.sub(current[layout.accumulator1], current[layout.start1])
-      ))
-      constraints.push(F.mul(
+      ),
+      F.mul(
         current[layout.penultimate],
         F.sub(next[layout.accumulator0], current[layout.end0])
-      ))
-      constraints.push(F.mul(
+      ),
+      F.mul(
         current[layout.penultimate],
         F.sub(next[layout.accumulator1], current[layout.end1])
-      ))
-      return constraints
-    }
+      )
+    ]
   }
+}
+
+export function evaluateBRC69SegmentBusAccumulatorTransition (input: {
+  baseRow: FieldElement[]
+  accumulatorCurrent: FieldElement[]
+  accumulatorNext: FieldElement[]
+  emissions: BRC69SegmentBusEmission[]
+  layout: BRC69SegmentBusWrappedLayout
+  challenges: BRC69SegmentBusChallenges
+}): FieldElement[] {
+  const contribution = evaluateSelectedRowContribution(
+    input.baseRow,
+    input.accumulatorCurrent,
+    indexBusEmissions(input.emissions),
+    input.layout,
+    input.challenges
+  )
+  const active = input.accumulatorCurrent[input.layout.baseTransitionActive]
+  return [
+    F.mul(active, F.sub(
+      input.accumulatorNext[input.layout.accumulator0],
+      F.add(
+        input.accumulatorCurrent[input.layout.accumulator0],
+        contribution.accumulator0
+      )
+    )),
+    F.mul(active, F.sub(
+      input.accumulatorNext[input.layout.accumulator1],
+      F.add(
+        input.accumulatorCurrent[input.layout.accumulator1],
+        contribution.accumulator1
+      )
+    ))
+  ]
 }
 
 export function brc69SegmentBusWrappedLayout (
@@ -311,8 +351,6 @@ export function brc69SegmentBusPublicInputDigest (
 ): number[] {
   const writer = new Writer()
   writer.write(toArray(BRC69_SEGMENT_BUS_PUBLIC_INPUT_ID, 'utf8'))
-  writer.writeVarIntNum(publicInput.challengeDigest.length)
-  writer.write(publicInput.challengeDigest)
   const names = Object.keys(publicInput.segments).sort()
   writer.writeVarIntNum(names.length)
   for (const name of names) {
@@ -326,25 +364,17 @@ export function brc69SegmentBusPublicInputDigest (
   return sha256(writer.toArray())
 }
 
-export function brc69SegmentBusWrappedAirDigest (input: {
+export function brc69SegmentBusAccumulatorAirDigest (input: {
   name: string
-  originalDigest: number[]
-  challengeDigest: number[]
-  baseTraceLength?: number
-  emissionCount: number
+  traceLength: number
   emissionScheduleDigest?: number[]
   publicStart?: BRC69SegmentBusEndpoint
   publicEnd?: BRC69SegmentBusEndpoint
 }): number[] {
   const writer = new Writer()
-  writer.write(toArray(BRC69_SEGMENT_BUS_WRAPPED_AIR_ID, 'utf8'))
+  writer.write(toArray('BRC69_SEGMENT_BUS_ACCUMULATOR_AIR_V1', 'utf8'))
   writer.write(toArray(input.name, 'utf8'))
-  writer.writeVarIntNum(input.originalDigest.length)
-  writer.write(input.originalDigest)
-  writer.writeVarIntNum(input.challengeDigest.length)
-  writer.write(input.challengeDigest)
-  writer.writeVarIntNum(input.baseTraceLength ?? 0)
-  writer.writeVarIntNum(input.emissionCount)
+  writer.writeVarIntNum(input.traceLength)
   if (input.emissionScheduleDigest === undefined) {
     writer.writeVarIntNum(0)
   } else {
@@ -396,8 +426,8 @@ export function compressBRC69SegmentBusTuple (
   return accumulator
 }
 
-function appendAccumulatorColumns (
-  rows: FieldElement[][],
+function appendAccumulatorOnlyColumns (
+  baseRows: FieldElement[][],
   proofTraceLength: number,
   emissionRows: IndexedBRC69SegmentBusEmission[][],
   challenges: BRC69SegmentBusChallenges,
@@ -406,39 +436,33 @@ function appendAccumulatorColumns (
 ): FieldElement[][] {
   let accumulator0 = start.accumulator0
   let accumulator1 = start.accumulator1
-  const contribution = evaluateSegmentContribution(rows, emissionRows, challenges)
+  const contribution = evaluateSegmentContribution(baseRows, emissionRows, challenges)
   const end = {
     accumulator0: F.add(start.accumulator0, contribution.accumulator0),
     accumulator1: F.add(start.accumulator1, contribution.accumulator1)
   }
   const out = new Array<FieldElement[]>(proofTraceLength)
-  const zeroBase = new Array<FieldElement>(rows[0].length).fill(0n)
+  const zeroBase = new Array<FieldElement>(baseRows[0].length).fill(0n)
   for (let rowIndex = 0; rowIndex < proofTraceLength; rowIndex++) {
-    const row = rows[rowIndex] ?? zeroBase
-    const first = rowIndex === 0 ? 1n : 0n
-    const penultimate = rowIndex === proofTraceLength - 2 ? 1n : 0n
-    const next = row.slice()
-    const selectors = new Array<FieldElement>(layout.selectorCount).fill(0n)
+    const baseRow = baseRows[rowIndex] ?? zeroBase
+    const row = new Array<FieldElement>(layout.width).fill(0n)
     for (const emission of emissionRows[rowIndex] ?? []) {
-      selectors[emission.selectorIndex] = 1n
+      row[layout.selectorStart + emission.selectorIndex] = 1n
     }
-    const baseTransitionActive = rowIndex + 1 < rows.length ? 1n : 0n
-    next.push(...selectors)
-    next.push(
-      accumulator0,
-      accumulator1,
-      start.accumulator0,
-      start.accumulator1,
-      end.accumulator0,
-      end.accumulator1,
-      first,
-      penultimate,
-      baseTransitionActive
-    )
-    out[rowIndex] = next
+    row[layout.accumulator0] = accumulator0
+    row[layout.accumulator1] = accumulator1
+    row[layout.start0] = start.accumulator0
+    row[layout.start1] = start.accumulator1
+    row[layout.end0] = end.accumulator0
+    row[layout.end1] = end.accumulator1
+    row[layout.first] = rowIndex === 0 ? 1n : 0n
+    row[layout.penultimate] = rowIndex === proofTraceLength - 2 ? 1n : 0n
+    row[layout.baseTransitionActive] =
+      rowIndex + 1 < proofTraceLength ? 1n : 0n
+    out[rowIndex] = row
     if (rowIndex + 1 < proofTraceLength) {
       const rowContribution = evaluateRowContribution(
-        row,
+        baseRow,
         emissionRows[rowIndex] ?? [],
         challenges
       )
@@ -621,36 +645,6 @@ function indexBusEmissions (
   })
 }
 
-function translateBoundaryConstraints (
-  constraints: BoundaryConstraint[],
-  traceLength: number
-): BoundaryConstraint[] {
-  return constraints.map(constraint => {
-    if (constraint.row >= traceLength) {
-      throw new Error('BRC69 segment bus boundary row is out of bounds')
-    }
-    return { ...constraint }
-  })
-}
-
-function translateFullBoundaryColumns (
-  columns: FullBoundaryColumn[],
-  traceLength: number
-): FullBoundaryColumn[] {
-  return columns.map(column => {
-    if (column.values.length > traceLength) {
-      throw new Error('BRC69 segment bus full boundary column is too long')
-    }
-    return {
-      column: column.column,
-      values: [
-        ...column.values,
-        ...new Array<FieldElement>(traceLength - column.values.length).fill(0n)
-      ]
-    }
-  })
-}
-
 function busSelectorColumn (
   column: number,
   traceLength: number,
@@ -752,4 +746,15 @@ function writeOptionalEndpoint (
   writer.writeUInt8(1)
   writeField(writer, endpoint.accumulator0)
   writeField(writer, endpoint.accumulator1)
+}
+
+function assertDigest (bytes: number[], name: string): void {
+  if (!Array.isArray(bytes) || bytes.length !== 32) {
+    throw new Error(`${name} must be 32 bytes`)
+  }
+  for (const byte of bytes) {
+    if (!Number.isSafeInteger(byte) || byte < 0 || byte > 255) {
+      throw new Error(`${name} contains invalid byte`)
+    }
+  }
 }

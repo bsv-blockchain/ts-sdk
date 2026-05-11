@@ -8,6 +8,8 @@ import {
   buildMethod2LookupShaHmacTrace,
   buildMethod2LookupBatchedHmacSha256Air,
   buildMethod2LookupBatchedHmacSha256Trace,
+  proveMethod2LookupBatchedHmacSha256,
+  verifyMethod2LookupBatchedHmacSha256,
   buildMethod2CompactHmacSha256Air,
   buildMethod2CompactHmacSha256Trace,
   buildBRC69Method2WholeStatement,
@@ -17,6 +19,7 @@ import {
   method2LookupShaHmacMetrics,
   method2LookupShaHmacPublicInputDigest,
   method2LookupShaHmacTableDigest,
+  proveMethod2LookupShaHmac,
   verifyMethod2LookupShaHmac
 } from '../brc69/method2/index'
 import {
@@ -72,7 +75,7 @@ describe('BRC-69 lookup-centric SHA/HMAC shape', () => {
       .toThrow('Lookup HMAC-SHA256 linkage does not match key and invoice')
   })
 
-  it('proves private lookup multiplicities without putting them in the public schedule', () => {
+  it('keeps private lookup multiplicities out of the public diagnostic schedule', () => {
     const trace = buildLogLookupBusTrace([{
       kind: LOG_LOOKUP_ROW_KIND.supply,
       tag: 77n,
@@ -90,20 +93,23 @@ describe('BRC-69 lookup-centric SHA/HMAC shape', () => {
       values: [1n, 2n, 3n, 0n],
       multiplicity: 1n
     }], { expectedRequests: 2 })
-    const proof = proveLogLookupBus(trace, {
+    const air = buildLogLookupBusAir(trace.publicInput)
+    const emptyProof = JSON.parse('{}') as never
+
+    expect(trace.publicInput.scheduleRows[0].publicTuple)
+      .toEqual([1n, 2n, 3n, 0n])
+    expect(trace.publicInput.scheduleRows[0])
+      .not.toHaveProperty('multiplicity')
+    expect(evaluateAirTrace(air, trace.rows).valid).toBe(true)
+    expect(() => proveLogLookupBus(trace, {
       blowupFactor: 4,
       numQueries: 4,
       maxRemainderSize: 4,
       maskDegree: 1,
       cosetOffset: 7n,
       maskSeed: Array.from(Buffer.from('brc69-test-log-lookup-bus'))
-    })
-
-    expect(trace.publicInput.scheduleRows[0].publicTuple)
-      .toEqual([1n, 2n, 3n, 0n])
-    expect(trace.publicInput.scheduleRows[0])
-      .not.toHaveProperty('multiplicity')
-    expect(verifyLogLookupBusProof(trace.publicInput, proof)).toBe(true)
+    })).toThrow('Standalone log lookup bus proofs are disabled')
+    expect(verifyLogLookupBusProof(trace.publicInput, emptyProof)).toBe(false)
   })
 
   it('rejects an invalid private lookup multiplicity', () => {
@@ -137,10 +143,12 @@ describe('BRC-69 lookup-centric SHA/HMAC shape', () => {
       invoice,
       hmacSha256(key, invoice)
     )
-    const emptyProof: never = JSON.parse('{}')
+    const emptyProof = JSON.parse('{}') as never
 
     expect(verifyMethod2LookupShaHmac(trace.publicInput, emptyProof))
       .toBe(false)
+    expect(() => proveMethod2LookupShaHmac(trace))
+      .toThrow('Standalone lookup HMAC proofs are disabled')
   })
 
   it('batches same-domain SHA helper lookups without serializing every request row', () => {
@@ -158,6 +166,12 @@ describe('BRC-69 lookup-centric SHA/HMAC shape', () => {
       .toBeLessThan(batched.publicInput.expectedLookupRequests)
     expect(batched.publicInput.lookupTableRows).toBe(512)
     expect(evaluateAirTrace(air, batched.rows).valid).toBe(true)
+    expect(() => proveMethod2LookupBatchedHmacSha256(batched))
+      .toThrow('Standalone lookup-batched HMAC proofs are disabled')
+    expect(verifyMethod2LookupBatchedHmacSha256(
+      batched.publicInput,
+      JSON.parse('{}') as never
+    )).toBe(false)
   })
 
   it('rejects a batched lookup inverse that does not match committed HMAC helpers', () => {
@@ -221,7 +235,7 @@ describe('BRC-69 lookup-centric SHA/HMAC shape', () => {
     expect(evaluateAirTrace(air, digestTamperedRows).valid).toBe(false)
   })
 
-  it('keeps lookup HMAC standalone while proofType 1 uses compact HMAC', () => {
+  it('keeps retired lookup HMAC out of proofType 1', () => {
     const status = method2LookupShaHmacIntegrationStatus()
     const statement = buildBRC69Method2WholeStatement({
       scalar: 7n,
@@ -229,8 +243,9 @@ describe('BRC-69 lookup-centric SHA/HMAC shape', () => {
       invoice: [1, 2, 3]
     })
 
-    expect(status.readyForMethod2).toBe(true)
-    expect(status.sameCommittedArithmeticDomain).toBe(true)
+    expect(status.readyForMethod2).toBe(false)
+    expect(status.sameCommittedArithmeticDomain).toBe(false)
+    expect(status.blockers.length).toBeGreaterThan(0)
     expect((statement.publicInput.hmac as { relation?: string }).relation)
       .toBeUndefined()
   })

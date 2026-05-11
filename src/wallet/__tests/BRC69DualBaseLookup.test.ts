@@ -21,6 +21,7 @@ import {
   dualBaseSignedDigitTableIndex,
   estimateDualBaseLookupMetrics,
   evaluateAirTrace,
+  proveLookupBus,
   proveDualBaseLookupPrototype,
   reconstructDualBaseSignedScalar,
   runDualBaseLookupMetricsSweep,
@@ -163,14 +164,20 @@ describe('BRC-69 dual-base signed lookup prototype', () => {
   it('rejects a tampered private point-pair request', () => {
     const config = { windowBits: 4, windowCount: 4, minTraceLength: 128 }
     const prototype = buildDualBaseLookupPrototype(0x1f8n, scalarMultiply(7n), config)
-    const rows = prototype.trace.rows.map(row => row.slice())
+    const rows = prototype.trace.baseRows.map(row => row.slice())
     const firstRequestRow = prototype.table.length
     rows[firstRequestRow][LOOKUP_BUS_LAYOUT.left + 2] += 1n
 
     expect(evaluateAirTrace(
       buildLookupBusAir(prototype.trace.publicInput),
       rows
-    ).valid).toBe(false)
+    ).valid).toBe(true)
+    expect(() => proveLookupBus({
+      ...prototype.trace,
+      baseRows: rows
+    }, {
+      maskSeed: ascii('dual-base-tampered-request-mask')
+    })).toThrow()
   })
 
   it('estimates default signed radix-11 table shape without building the table', () => {

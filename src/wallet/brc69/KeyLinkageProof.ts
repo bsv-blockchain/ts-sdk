@@ -25,8 +25,9 @@ import {
 
 export const BRC69_METHOD2_PROOF_TYPE = 1
 
-const BRC69_METHOD2_MAX_PUBLIC_INPUT_BYTES = 128 * 1024 * 1024
-const BRC69_METHOD2_MAX_PROOF_BYTES = 1024 * 1024 * 1024
+export const BRC69_METHOD2_MAX_PUBLIC_INPUT_BYTES = 16 * 1024 * 1024
+export const BRC69_METHOD2_MAX_PROOF_BYTES = 16 * 1024 * 1024
+export const BRC69_METHOD2_MAX_PAYLOAD_BYTES = 34 * 1024 * 1024
 
 export interface SpecificKeyLinkageStatement {
   prover: string
@@ -127,6 +128,10 @@ export function serializeSpecificKeyLinkageProofPayload (
 export function parseSpecificKeyLinkageProofPayload (
   payload: number[]
 ): ParsedSpecificKeyLinkageProofPayload {
+  if (!Array.isArray(payload)) throw new Error('proof payload must be bytes')
+  if (payload.length > BRC69_METHOD2_MAX_PAYLOAD_BYTES) {
+    throw new Error('BRC69 Method 2 proof payload is too large')
+  }
   assertBytes(payload, 'proof payload')
   if (payload.length < 1) throw new Error('Proof payload is empty')
   const proofType = payload[0]
@@ -162,6 +167,12 @@ export function serializeBRC69SpecificKeyLinkageProof (
 export function parseBRC69SpecificKeyLinkageProof (
   bytes: number[]
 ): BRC69SpecificKeyLinkageProof {
+  if (!Array.isArray(bytes)) {
+    throw new Error('BRC69 key linkage proof must be bytes')
+  }
+  if (bytes.length > BRC69_METHOD2_MAX_PAYLOAD_BYTES - 1) {
+    throw new Error('BRC69 Method 2 proof payload is too large')
+  }
   assertBytes(bytes, 'BRC69 key linkage proof')
   const reader = new BRC69ProofReader(bytes)
   const publicInputLength = reader.readVarIntNum()

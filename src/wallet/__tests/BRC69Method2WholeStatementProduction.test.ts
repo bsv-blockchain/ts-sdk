@@ -6,22 +6,23 @@ import {
 import {
   BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS,
   BRC69_SEGMENT_BUS_KIND_SOURCE,
-  BRC69_PRODUCTION_SCALAR_LAYOUT,
   assertBRC69SegmentBusBalanced,
+  brc69SegmentBusChallengeInputFromRoot,
+  brc69SegmentBusNonAdaptiveCollisionSecurityBits,
   brc69Method2WholeStatementDeterministicFixture,
   brc69Method2WholeStatementMetrics,
   brc69SegmentBusWrappedLayout,
+  buildBRC69SegmentBusAccumulatorTrace,
   buildBRC69Method2LinkBridgeAir,
+  deriveBRC69SegmentBusChallenges,
   validateBRC69Method2WholeStatementPublicInput,
-  verifyBRC69Method2WholeStatement,
-  wrapBRC69SegmentBusTrace
+  verifyBRC69Method2WholeStatement
 } from '../brc69/method2/index'
 import {
   F,
+  lookupBusNonAdaptiveCollisionSecurityBits,
   MultiTraceStarkProof,
-  evaluateAirTrace,
-  proveStark,
-  verifyStark
+  evaluateAirTrace
 } from '../brc69/stark/index'
 
 describe('BRC-69 Method 2 whole-statement proof', () => {
@@ -30,30 +31,20 @@ describe('BRC-69 Method 2 whole-statement proof', () => {
     const metrics = brc69Method2WholeStatementMetrics(statement)
     const publicInput = statement.publicInput as unknown as Record<string, unknown>
 
-    expect(Object.keys(metrics.segments).sort()).toEqual([
-      'bridge',
-      'compression',
-      'ec',
-      'hmac',
-      'lookup',
-      'scalar'
-    ])
+    expect(Object.keys(metrics.segments).sort()).toEqual(['base', 'bus'])
     expect(metrics.totalCommittedCells).toBe(
       Object.values(metrics.segments)
         .reduce((total, segment) => total + segment.committedCells, 0)
     )
-    expect(metrics.segments.lookup.rows).toBe(32768)
-    expect(metrics.segments.ec.rows).toBe(32768)
-    expect(metrics.segments.hmac.rows).toBe(32768)
+    expect(metrics.segments.base.rows).toBe(32768)
+    expect(metrics.segments.bus.rows).toBe(32768)
     expect(Object.values(metrics.segments)
-      .every(segment => segment.rows === metrics.segments.lookup.rows))
+      .every(segment => segment.rows === metrics.segments.base.rows))
       .toBe(true)
-    expect(metrics.totalCommittedCells).toBeLessThan(50000000)
-    expect(statement.wholeSegment.rows).toHaveLength(metrics.segments.lookup.rows)
-    expect(statement.wholeSegment.air.traceWidth).toBe(
-      Object.values(metrics.segments)
-        .reduce((total, segment) => total + segment.width, 0)
-    )
+    expect(metrics.totalCommittedCells).toBeLessThan(60000000)
+    expect(statement.baseSegment.rows).toHaveLength(metrics.segments.base.rows)
+    expect(statement.baseSegment.air.traceWidth)
+      .toBe(metrics.segments.base.width)
     expect(statement.publicInput.preprocessedTableRoot).toHaveLength(32)
     expect(Object.values(statement.publicInput.bus.segments)
       .reduce((total, segment) => total + segment.emissionCount, 0))
@@ -127,40 +118,15 @@ describe('BRC-69 Method 2 whole-statement proof', () => {
     ))).toBe(false)
   })
 
-  it('makes bus emissions depend on committed selector columns', () => {
-    const statement = brc69Method2WholeStatementDeterministicFixture()
-    const segment = statement.busSegments.scalar
-    const layout = brc69SegmentBusWrappedLayout(
-      BRC69_PRODUCTION_SCALAR_LAYOUT.width,
-      statement.publicInput.bus.segments.scalar.selectorCount ??
-        statement.publicInput.bus.segments.scalar.emissionCount
-    )
-    const current = segment.rows[0].slice()
-    const next = segment.rows[1]
-
-    expect(transitionIsZero(segment.air.evaluateTransition(
-      current,
-      next,
-      0
-    ))).toBe(true)
-
-    current[layout.selectorStart] = 0n
-    expect(transitionIsZero(segment.air.evaluateTransition(
-      current,
-      next,
-      0
-    ))).toBe(false)
-  })
-
   it('shares one selector across multiple bus emissions on the same row', () => {
-    const wrapped = wrapBRC69SegmentBusTrace({
+    const challengeInput = brc69SegmentBusChallengeInputFromRoot(
+      new Array(32).fill(1),
+      new Array(32).fill(2),
+      'BRC69_TEST_SEGMENT_BUS_SELECTOR_SHARING'
+    )
+    const wrapped = buildBRC69SegmentBusAccumulatorTrace({
       name: 'selector-sharing-regression',
-      air: {
-        traceWidth: 2,
-        boundaryConstraints: [],
-        evaluateTransition: () => []
-      },
-      rows: [
+      baseRows: [
         [5n, 8n],
         [13n, 21n],
         [0n, 0n],
@@ -177,64 +143,16 @@ describe('BRC-69 Method 2 whole-statement proof', () => {
         tag: 2n,
         values: current => [current[1]]
       }],
-      challengeDigest: ascii('selector-sharing-regression')
+      challenges: deriveBRC69SegmentBusChallenges(challengeInput)
     })
 
     expect(wrapped.selectorCount).toBe(1)
     expect(wrapped.contribution.emissionCount).toBe(2)
     expect(evaluateAirTrace(wrapped.air, wrapped.rows).valid).toBe(true)
-  })
-
-  it('gates padded base transitions with a committed selector column', () => {
-    const wrapped = wrapBRC69SegmentBusTrace({
-      name: 'base-transition-selector-regression',
-      air: {
-        traceWidth: 1,
-        transitionDegree: 1,
-        boundaryConstraints: [],
-        evaluateTransition: (current, next) => [
-          F.sub(F.sub(next[0], current[0]), 1n)
-        ]
-      },
-      rows: [
-        [1n],
-        [2n],
-        [3n],
-        [4n]
-      ],
-      proofTraceLength: 8,
-      emissions: [],
-      challengeDigest: ascii('base-transition-selector-regression')
-    })
-    const layout = brc69SegmentBusWrappedLayout(1, 0)
-
-    expect(wrapped.rows.map(row => row[layout.baseTransitionActive]))
-      .toEqual([1n, 1n, 1n, 0n, 0n, 0n, 0n, 0n])
-    expect(evaluateAirTrace(wrapped.air, wrapped.rows).valid).toBe(true)
-
+    const layout = brc69SegmentBusWrappedLayout(0, wrapped.selectorCount)
     const tampered = wrapped.rows.map(row => row.slice())
-    tampered[3][layout.baseTransitionActive] = 1n
+    tampered[0][layout.selectorStart] = 0n
     expect(evaluateAirTrace(wrapped.air, tampered).valid).toBe(false)
-
-    const proverOptions = {
-      blowupFactor: 4,
-      numQueries: 4,
-      maxRemainderSize: 4,
-      maskDegree: 1,
-      cosetOffset: 7n,
-      transcriptDomain: 'BRC69_TEST_SEGMENT_BUS_NO_STEP_BRANCH',
-      maskSeed: ascii('base-transition-selector-regression-mask')
-    }
-    const verifierOptions = {
-      blowupFactor: proverOptions.blowupFactor,
-      numQueries: proverOptions.numQueries,
-      maxRemainderSize: proverOptions.maxRemainderSize,
-      maskDegree: proverOptions.maskDegree,
-      cosetOffset: proverOptions.cosetOffset,
-      transcriptDomain: proverOptions.transcriptDomain
-    }
-    const proof = proveStark(wrapped.air, wrapped.rows, proverOptions)
-    expect(verifyStark(wrapped.air, proof, verifierOptions)).toBe(true)
   })
 
   it('fails closed for weak proof parameters', () => {
@@ -263,6 +181,13 @@ describe('BRC-69 Method 2 whole-statement proof', () => {
       weakProof
     )).toBe(false)
   })
+
+  it('documents base-field bus compression collision estimates', () => {
+    expect(brc69SegmentBusNonAdaptiveCollisionSecurityBits())
+      .toBeGreaterThan(118)
+    expect(lookupBusNonAdaptiveCollisionSecurityBits())
+      .toBeGreaterThan(118)
+  })
 })
 
 function clonePublicInput<T> (value: T): T {
@@ -281,8 +206,4 @@ function clonePublicInput<T> (value: T): T {
 
 function transitionIsZero (values: bigint[]): boolean {
   return values.every(value => F.normalize(value) === 0n)
-}
-
-function ascii (value: string): number[] {
-  return Array.from(value).map(char => char.charCodeAt(0))
 }

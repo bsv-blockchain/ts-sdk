@@ -24,7 +24,8 @@ export const SECP256K1_FIELD_MUL_LIMB_BITS = 26
 export const SECP256K1_FIELD_MUL_LIMBS = 10
 export const SECP256K1_FIELD_MUL_PRODUCT_LIMBS = 20
 export const SECP256K1_FIELD_LINEAR_CARRY_BITS = 8
-export const SECP256K1_FIELD_MUL_CARRY_BITS = 44
+// Keeps carry * 2^26 and per-limb mul terms below the Goldilocks modulus.
+export const SECP256K1_FIELD_MUL_CARRY_BITS = 32
 export const SECP256K1_FIELD_LINEAR_ADD = 1n
 export const SECP256K1_FIELD_LINEAR_SUB = 2n
 

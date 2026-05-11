@@ -149,6 +149,33 @@ export interface MultiTraceStarkSegmentProof {
   proof: StarkProof
 }
 
+export interface MultiTraceCommittedSegmentSummary {
+  name: string
+  traceLength: number
+  traceWidth: number
+  ldeSize: number
+  blowupFactor: number
+  numQueries: number
+  maxRemainderSize: number
+  maskDegree: number
+  traceDegreeBound: number
+  compositionDegreeBound: number
+  cosetOffset: FieldElement
+  publicInputDigest: number[]
+  traceRoot: MerkleHash
+}
+
+export interface PhasedMultiTraceSecondPhaseInput {
+  transcriptDomain: string
+  committedSegments: MultiTraceCommittedSegmentSummary[]
+}
+
+export interface PhasedMultiTraceSecondPhaseOutput {
+  segments: MultiTraceStarkSegmentInput[]
+  crossConstraints?: MultiTraceCrossConstraintInput[]
+  constantLinks?: MultiTraceConstantColumnLinkInput[]
+}
+
 export interface MultiTraceStarkProof {
   transcriptDomain: string
   contextDigest: number[]
@@ -626,6 +653,142 @@ export function proveMultiTraceStark (
     status: 'end',
     count: segments.length,
     total: segments.length,
+    elapsedMs: Date.now() - start
+  })
+  return proof
+}
+
+export function provePhasedMultiTraceStark (
+  firstPhaseSegments: MultiTraceStarkSegmentInput[],
+  buildSecondPhase: (
+    input: PhasedMultiTraceSecondPhaseInput
+  ) => PhasedMultiTraceSecondPhaseOutput,
+  options: StarkProverOptions = {},
+  firstPhaseCrossConstraints: MultiTraceCrossConstraintInput[] = [],
+  firstPhaseConstantLinks: MultiTraceConstantColumnLinkInput[] = []
+): MultiTraceStarkProof {
+  const start = Date.now()
+  validateMultiTraceSegmentNames(firstPhaseSegments.map(segment => segment.name))
+  validateMultiTraceCrossConstraints(firstPhaseCrossConstraints)
+  validateMultiTraceConstantLinks(firstPhaseConstantLinks)
+  if (firstPhaseConstantLinks.length !== 0) {
+    throw new Error('phased multi-trace STARK does not support first-phase constant links')
+  }
+  const transcriptDomain = options.transcriptDomain ?? STARK_TRANSCRIPT_DOMAIN
+  emitStarkProgress(options.progress, {
+    phase: 'phased-multi-trace.prove',
+    status: 'start',
+    count: firstPhaseSegments.length,
+    total: firstPhaseSegments.length
+  })
+
+  const firstPhase = prepareMultiTraceSegments(
+    firstPhaseSegments,
+    transcriptDomain,
+    options
+  )
+  commitPreparedMultiTraceSegments(
+    firstPhase,
+    options.maskSeed,
+    options.progress
+  )
+
+  const secondPhase = buildSecondPhase({
+    transcriptDomain,
+    committedSegments: firstPhase.map(committedSegmentSummary)
+  })
+  validateMultiTraceSegmentNames(secondPhase.segments.map(segment => segment.name))
+  validateMultiTraceSegmentNames([
+    ...firstPhaseSegments.map(segment => segment.name),
+    ...secondPhase.segments.map(segment => segment.name)
+  ])
+  validateMultiTraceCrossConstraints(secondPhase.crossConstraints ?? [])
+  validateMultiTraceConstantLinks(secondPhase.constantLinks ?? [])
+  if ((secondPhase.constantLinks ?? []).length !== 0) {
+    throw new Error('phased multi-trace STARK does not support second-phase constant links')
+  }
+
+  const secondPrepared = prepareMultiTraceSegments(
+    secondPhase.segments,
+    transcriptDomain,
+    options
+  )
+  commitPreparedMultiTraceSegments(
+    secondPrepared,
+    options.maskSeed,
+    options.progress
+  )
+
+  const prepared = [...firstPhase, ...secondPrepared]
+  const crossConstraints = [
+    ...firstPhaseCrossConstraints,
+    ...(secondPhase.crossConstraints ?? [])
+  ]
+  const constantLinks = [
+    ...firstPhaseConstantLinks,
+    ...(secondPhase.constantLinks ?? [])
+  ]
+  validateMultiTraceCrossConstraints(crossConstraints)
+  validateMultiTraceConstantLinks(constantLinks)
+
+  emitStarkProgress(options.progress, {
+    phase: 'phased-multi-trace.context-digest',
+    status: 'start',
+    count: prepared.length,
+    total: prepared.length
+  })
+  const contextDigest = multiTraceContextDigest(transcriptDomain, prepared)
+  emitStarkProgress(options.progress, {
+    phase: 'phased-multi-trace.context-digest',
+    status: 'end',
+    count: prepared.length,
+    total: prepared.length
+  })
+
+  const crossProofs = crossConstraints.map(constraint => {
+    const crossProgress = withStarkProgressContext(options.progress, {
+      crossConstraint: constraint.name
+    })
+    return proveMultiTraceCrossConstraint(
+      constraint,
+      prepared,
+      transcriptDomain,
+      contextDigest,
+      crossProgress
+    )
+  })
+  const constantColumnProofs = constantLinks.map(link =>
+    proveMultiTraceConstantColumnLink(
+      link,
+      prepared,
+      transcriptDomain,
+      contextDigest
+    )
+  )
+  const proofSegments: MultiTraceStarkSegmentProof[] = prepared.map(segment => {
+    const segmentProgress = withStarkProgressContext(options.progress, {
+      segment: segment.name
+    })
+    return {
+      name: segment.name,
+      proof: proveCommittedStark(segment.air, segment.commitment, {
+        ...segment.resolved,
+        transcriptContext: contextDigest
+      }, segmentProgress)
+    }
+  })
+  const proof = {
+    transcriptDomain,
+    contextDigest,
+    segments: proofSegments,
+    crossProofs,
+    constantColumnProofs
+  }
+  emitStarkProgress(options.progress, {
+    phase: 'phased-multi-trace.prove',
+    status: 'end',
+    count: prepared.length,
+    total: prepared.length,
     elapsedMs: Date.now() - start
   })
   return proof
@@ -1287,28 +1450,40 @@ export function serializeMultiTraceStarkProof (
   }
   writer.writeVarIntNum(proof.crossProofs?.length ?? 0)
   for (const crossProof of proof.crossProofs ?? []) {
+    const merkleHashes = crossProofMerklePathDictionary(crossProof.openings)
+    const merkleHashIndex = new Map(
+      merkleHashes.map((hash, index) => [bytesKey(hash), index])
+    )
     writeString(writer, crossProof.name)
     writeHash(writer, crossProof.compositionRoot)
     const friBytes = serializeFriProof(crossProof.friProof)
     writer.writeVarIntNum(friBytes.length)
     writer.write(friBytes)
+    writeHashDictionary(writer, merkleHashes)
     writer.writeVarIntNum(crossProof.openings.length)
     for (const opening of crossProof.openings) {
-      writeTraceOpening(writer, opening.composition)
+      writeCompactTraceOpening(writer, opening.composition, merkleHashIndex)
       writer.writeVarIntNum(opening.traces.length)
       for (const trace of opening.traces) {
         writeString(writer, trace.alias)
-        writeTraceOpening(writer, trace.opening)
+        writeCompactTraceOpening(writer, trace.opening, merkleHashIndex)
       }
     }
   }
   writer.writeVarIntNum(proof.constantColumnProofs?.length ?? 0)
   for (const constantProof of proof.constantColumnProofs ?? []) {
+    const merkleHashes = constantColumnMerklePathDictionary(
+      constantProof.queries
+    )
+    const merkleHashIndex = new Map(
+      merkleHashes.map((hash, index) => [bytesKey(hash), index])
+    )
     writeString(writer, constantProof.name)
+    writeHashDictionary(writer, merkleHashes)
     writer.writeVarIntNum(constantProof.queries.length)
     for (const query of constantProof.queries) {
-      writeTraceOpening(writer, query.left)
-      writeTraceOpening(writer, query.right)
+      writeCompactTraceOpening(writer, query.left, merkleHashIndex)
+      writeCompactTraceOpening(writer, query.right, merkleHashIndex)
     }
   }
   return writer.toArray()
@@ -1350,13 +1525,14 @@ export function parseMultiTraceStarkProof (
       throw new Error('multi-trace STARK cross FRI proof is too large')
     }
     const friProof = parseFriProof(reader.read(friLength))
+    const merkleHashes = readHashDictionary(reader)
     const openingCount = reader.readVarIntNum()
     if (openingCount > 1048576) {
       throw new Error('Too many multi-trace STARK cross openings')
     }
     const openings: MultiTraceStarkCrossQueryOpenings[] = []
     for (let query = 0; query < openingCount; query++) {
-      const composition = readTraceOpening(reader)
+      const composition = readCompactTraceOpening(reader, merkleHashes)
       const traceCount = reader.readVarIntNum()
       if (traceCount > 64) {
         throw new Error('Too many multi-trace STARK cross traces')
@@ -1365,7 +1541,7 @@ export function parseMultiTraceStarkProof (
       for (let trace = 0; trace < traceCount; trace++) {
         traces.push({
           alias: readString(reader),
-          opening: readTraceOpening(reader)
+          opening: readCompactTraceOpening(reader, merkleHashes)
         })
       }
       openings.push({ composition, traces })
@@ -1379,6 +1555,7 @@ export function parseMultiTraceStarkProof (
   const constantColumnProofs: MultiTraceStarkConstantColumnProof[] = []
   for (let i = 0; i < constantColumnProofCount; i++) {
     const name = readString(reader)
+    const merkleHashes = readHashDictionary(reader)
     const queryCount = reader.readVarIntNum()
     if (queryCount > 1048576) {
       throw new Error('Too many multi-trace STARK constant-column queries')
@@ -1386,8 +1563,8 @@ export function parseMultiTraceStarkProof (
     const queries: MultiTraceStarkConstantColumnQuery[] = []
     for (let query = 0; query < queryCount; query++) {
       queries.push({
-        left: readTraceOpening(reader),
-        right: readTraceOpening(reader)
+        left: readCompactTraceOpening(reader, merkleHashes),
+        right: readCompactTraceOpening(reader, merkleHashes)
       })
     }
     constantColumnProofs.push({ name, queries })
@@ -2183,6 +2360,111 @@ function makeTraceMasks (
     masks.push(columnMask)
   }
   return masks
+}
+
+function prepareMultiTraceSegments (
+  segments: MultiTraceStarkSegmentInput[],
+  transcriptDomain: string,
+  options: StarkProverOptions
+): Array<{
+    name: string
+    air: AirDefinition
+    traceRows: FieldElement[][]
+    segmentOptions: StarkProverOptions
+    prepareStart: number
+    commitment: TraceCommitment
+    resolved: ResolvedStarkOptions
+  }> {
+  return segments.map(segment => {
+    const segmentProgress = withStarkProgressContext(options.progress, {
+      segment: segment.name
+    })
+    const prepareStart = Date.now()
+    emitStarkProgress(segmentProgress, {
+      phase: 'multi-trace.segment-prepare',
+      status: 'start',
+      traceLength: segment.traceRows.length,
+      traceWidth: segment.air.traceWidth
+    })
+    assertAirTrace(segment.air, segment.traceRows)
+    const segmentOptions = multiTraceSegmentProverOptions(
+      transcriptDomain,
+      segment,
+      options
+    )
+    const resolved = resolveProverOptions(
+      segment.air,
+      segment.traceRows.length,
+      segmentOptions
+    )
+    validateStarkParameters(segment.traceRows.length, segment.air.traceWidth, resolved)
+    assertCosetDisjoint(segment.traceRows.length, resolved.cosetOffset)
+    return {
+      name: segment.name,
+      air: segment.air,
+      traceRows: segment.traceRows,
+      segmentOptions,
+      prepareStart,
+      commitment: undefined as unknown as TraceCommitment,
+      resolved
+    }
+  })
+}
+
+function commitPreparedMultiTraceSegments (
+  prepared: Array<{
+    name: string
+    air: AirDefinition
+    traceRows: FieldElement[][]
+    prepareStart: number
+    commitment: TraceCommitment
+    resolved: ResolvedStarkOptions
+  }>,
+  maskSeed: number[] | undefined,
+  progress?: StarkProgressCallback
+): void {
+  const sharedMasks = makeMultiTraceMasks(prepared, [], maskSeed)
+  for (const segment of prepared) {
+    const segmentProgress = withStarkProgressContext(progress, {
+      segment: segment.name
+    })
+    const commitment = commitTraceLde(segment.traceRows, {
+      blowupFactor: segment.resolved.blowupFactor,
+      cosetOffset: segment.resolved.cosetOffset,
+      maskCoefficients: sharedMasks.get(segment.name),
+      progress: segmentProgress
+    })
+    segment.commitment = commitment
+    emitStarkProgress(segmentProgress, {
+      phase: 'multi-trace.segment-prepare',
+      status: 'end',
+      traceLength: segment.traceRows.length,
+      traceWidth: segment.air.traceWidth,
+      elapsedMs: Date.now() - segment.prepareStart
+    })
+  }
+}
+
+function committedSegmentSummary (segment: {
+  name: string
+  commitment: TraceCommitment
+  resolved: ResolvedStarkOptions
+}): MultiTraceCommittedSegmentSummary {
+  return {
+    name: segment.name,
+    traceLength: segment.commitment.traceLength,
+    traceWidth: segment.commitment.traceWidth,
+    ldeSize: segment.commitment.ldeSize,
+    blowupFactor: segment.resolved.blowupFactor,
+    numQueries: segment.resolved.numQueries,
+    maxRemainderSize: segment.resolved.maxRemainderSize,
+    maskDegree: segment.resolved.maskDegree,
+    traceDegreeBound: segment.resolved.traceDegreeBound,
+    compositionDegreeBound: segment.resolved.compositionDegreeBound,
+    cosetOffset: segment.resolved.cosetOffset,
+    publicInputDigest: segment.resolved.publicInputDigest.slice(),
+    traceRoot: segment.commitment.tree.root.slice()
+  }
 }
 
 function makeMultiTraceMasks (
@@ -3148,6 +3430,48 @@ function starkMerklePathDictionary (proof: StarkProof): MerkleHash[] {
   return hashes
 }
 
+function crossProofMerklePathDictionary (
+  openings: MultiTraceStarkCrossQueryOpenings[]
+): MerkleHash[] {
+  const hashes: MerkleHash[] = []
+  const seen = new Set<string>()
+  const addPath = (path: MerklePathItem[]): void => {
+    for (const item of path) {
+      const key = bytesKey(item.sibling)
+      if (!seen.has(key)) {
+        seen.add(key)
+        hashes.push(item.sibling)
+      }
+    }
+  }
+  for (const opening of openings) {
+    addPath(opening.composition.path)
+    for (const trace of opening.traces) addPath(trace.opening.path)
+  }
+  return hashes
+}
+
+function constantColumnMerklePathDictionary (
+  queries: MultiTraceStarkConstantColumnQuery[]
+): MerkleHash[] {
+  const hashes: MerkleHash[] = []
+  const seen = new Set<string>()
+  const addPath = (path: MerklePathItem[]): void => {
+    for (const item of path) {
+      const key = bytesKey(item.sibling)
+      if (!seen.has(key)) {
+        seen.add(key)
+        hashes.push(item.sibling)
+      }
+    }
+  }
+  for (const query of queries) {
+    addPath(query.left.path)
+    addPath(query.right.path)
+  }
+  return hashes
+}
+
 function writeHashDictionary (
   writer: Writer,
   hashes: MerkleHash[]
@@ -3171,11 +3495,19 @@ function writeCompactTraceOpenings (
 ): void {
   writer.writeVarIntNum(openings.length)
   for (const opening of openings) {
-    writer.writeVarIntNum(opening.rowIndex)
-    writer.writeVarIntNum(opening.row.length)
-    for (const value of opening.row) writeField(writer, value)
-    writeCompactMerklePath(writer, opening.path, merkleHashIndex)
+    writeCompactTraceOpening(writer, opening, merkleHashIndex)
   }
+}
+
+function writeCompactTraceOpening (
+  writer: Writer,
+  opening: TraceRowOpening,
+  merkleHashIndex: Map<string, number>
+): void {
+  writer.writeVarIntNum(opening.rowIndex)
+  writer.writeVarIntNum(opening.row.length)
+  for (const value of opening.row) writeField(writer, value)
+  writeCompactMerklePath(writer, opening.path, merkleHashIndex)
 }
 
 function readCompactTraceOpenings (
@@ -3186,22 +3518,29 @@ function readCompactTraceOpenings (
   if (length > 1048576) throw new Error('Too many STARK openings')
   const openings: TraceRowOpening[] = []
   for (let i = 0; i < length; i++) {
-    const rowIndex = reader.readVarIntNum()
-    const rowLength = reader.readVarIntNum()
-    if (rowLength > STARK_MAX_TRACE_WIDTH) {
-      throw new Error('STARK opening row too wide')
-    }
-    const row: FieldElement[] = []
-    for (let column = 0; column < rowLength; column++) {
-      row.push(readField(reader))
-    }
-    openings.push({
-      rowIndex,
-      row,
-      path: readCompactMerklePath(reader, merkleHashes)
-    })
+    openings.push(readCompactTraceOpening(reader, merkleHashes))
   }
   return openings
+}
+
+function readCompactTraceOpening (
+  reader: StarkBinaryReader,
+  merkleHashes: MerkleHash[]
+): TraceRowOpening {
+  const rowIndex = reader.readVarIntNum()
+  const rowLength = reader.readVarIntNum()
+  if (rowLength > STARK_MAX_TRACE_WIDTH) {
+    throw new Error('STARK opening row too wide')
+  }
+  const row: FieldElement[] = []
+  for (let column = 0; column < rowLength; column++) {
+    row.push(readField(reader))
+  }
+  return {
+    rowIndex,
+    row,
+    path: readCompactMerklePath(reader, merkleHashes)
+  }
 }
 
 function writeCompactMerklePath (

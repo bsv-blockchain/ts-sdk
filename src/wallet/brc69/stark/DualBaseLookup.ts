@@ -23,7 +23,7 @@ import {
   proveLookupBus,
   verifyLookupBusProof
 } from './LookupBus.js'
-import { StarkProof, StarkProverOptions } from './Stark.js'
+import { MultiTraceStarkProof, StarkProverOptions } from './Stark.js'
 
 export const DUAL_BASE_SIGNED_WINDOW_BITS = 11
 export const DUAL_BASE_WINDOW_COUNT = 24
@@ -306,20 +306,20 @@ export function buildDualBaseLookupPrototype (
 export function proveDualBaseLookupPrototype (
   prototype: DualBaseLookupPrototype,
   options: StarkProverOptions = {}
-): StarkProof {
+): MultiTraceStarkProof {
   return proveLookupBus(prototype.trace, options)
 }
 
 export function verifyDualBaseLookupPrototypeProof (
   prototype: DualBaseLookupPrototype,
-  proof: StarkProof
+  proof: MultiTraceStarkProof
 ): boolean {
   return verifyLookupBusProof(prototype.trace.publicInput, proof)
 }
 
 export function dualBaseLookupMetrics (
   prototype: DualBaseLookupPrototype,
-  proof?: StarkProof
+  proof?: MultiTraceStarkProof
 ): DualBaseLookupMetrics {
   const metrics = lookupBusMetrics(prototype.trace, proof)
   const shape = dualBaseLookupShape(prototype.config)

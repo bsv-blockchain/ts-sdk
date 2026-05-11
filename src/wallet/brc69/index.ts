@@ -1,4 +1,7 @@
 export {
+  BRC69_METHOD2_MAX_PAYLOAD_BYTES,
+  BRC69_METHOD2_MAX_PROOF_BYTES,
+  BRC69_METHOD2_MAX_PUBLIC_INPUT_BYTES,
   BRC69_METHOD2_PROOF_TYPE,
   createSpecificKeyLinkageProof,
   normalizeSpecificKeyLinkageCounterparty,

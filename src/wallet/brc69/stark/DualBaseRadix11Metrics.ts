@@ -26,7 +26,7 @@ import {
 } from './LookupBus.js'
 import { buildMerkleTree } from './Merkle.js'
 import { serializeFieldElements } from './Polynomial.js'
-import { StarkProof, StarkProverOptions } from './Stark.js'
+import { MultiTraceStarkProof, StarkProverOptions } from './Stark.js'
 
 export const BRC69_RADIX11_WINDOW_BITS = 11
 export const BRC69_RADIX11_WINDOW_COUNT = 24
@@ -163,20 +163,20 @@ export function buildProductionRadix11LookupPrototype (
 export function proveProductionRadix11Lookup (
   prototype: ProductionRadix11LookupPrototype,
   options: StarkProverOptions = {}
-): StarkProof {
+): MultiTraceStarkProof {
   return proveLookupBus(prototype.trace, options)
 }
 
 export function verifyProductionRadix11Lookup (
   prototype: ProductionRadix11LookupPrototype,
-  proof: StarkProof
+  proof: MultiTraceStarkProof
 ): boolean {
   return verifyLookupBusProof(prototype.trace.publicInput, proof)
 }
 
 export function productionRadix11LookupMetrics (
   prototype?: ProductionRadix11LookupPrototype,
-  proof?: StarkProof,
+  proof?: MultiTraceStarkProof,
   blowupFactor: number = 16
 ): ProductionRadix11LookupMetrics {
   const activeRows = BRC69_RADIX11_TABLE_ROWS + BRC69_RADIX11_WINDOW_COUNT

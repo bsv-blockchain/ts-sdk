@@ -171,7 +171,7 @@ describe('WalletClient.revealSpecificKeyLinkage – substrate delegation', () =>
       keyID: '1',
       encryptedLinkage: [1],
       encryptedLinkageProof: [2],
-      proofType: 1,
+      proofType: 1 as const,
     }
     mock.revealSpecificKeyLinkage.mockResolvedValue(fakeResult)
     const client = clientWith(mock)

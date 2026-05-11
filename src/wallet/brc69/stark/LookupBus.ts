@@ -2,7 +2,16 @@ import { sha256 } from '../../../primitives/Hash.js'
 import { Writer, toArray } from '../../../primitives/utils.js'
 import { AirDefinition } from './Air.js'
 import { F, FieldElement } from './Field.js'
-import { StarkProof, StarkProverOptions, proveStark, serializeStarkProof, verifyStark } from './Stark.js'
+import {
+  MultiTraceCommittedSegmentSummary,
+  MultiTraceCrossConstraintInput,
+  MultiTraceStarkProof,
+  StarkProverOptions,
+  diagnoseMultiTraceStark,
+  provePhasedMultiTraceStark,
+  serializeMultiTraceStarkProof,
+  verifyMultiTraceStark
+} from './Stark.js'
 import { FiatShamirTranscript } from './Transcript.js'
 
 export const LOOKUP_BUS_TRANSCRIPT_DOMAIN = 'BRC69_LOOKUP_BUS_PROTOTYPE_V1'
@@ -16,6 +25,7 @@ export const LOOKUP_BUS_TAG_TOY_POINT_PAIR = 2n
 export const LOOKUP_BUS_TAG_PRIVATE_EQUALITY = 3n
 export const LOOKUP_BUS_TAG_PUBLIC_EQUALITY = 4n
 export const LOOKUP_BUS_TAG_DUAL_BASE_POINT_PAIR = 5n
+export const LOOKUP_BUS_COMPRESSION_CHALLENGES = 2
 
 export const LOOKUP_BUS_ROW_KIND = {
   inactive: 0n,
@@ -74,12 +84,6 @@ export interface LookupBusLayout {
   left: number
   right: number
   publicTuple: number
-  compressedLeft0: number
-  compressedLeft1: number
-  compressedRight0: number
-  compressedRight1: number
-  lookupFactor0: number
-  lookupFactor1: number
   lookupInverse0: number
   lookupInverse1: number
   equalityAccumulator0: number
@@ -87,6 +91,29 @@ export interface LookupBusLayout {
   lookupAccumulator0: number
   lookupAccumulator1: number
   lookupRequestCount: number
+  transitionActive: number
+  width: number
+}
+
+export interface LookupBusBaseLayout {
+  kind: number
+  tag: number
+  multiplicity: number
+  left: number
+  right: number
+  publicTuple: number
+  width: number
+}
+
+export interface LookupBusAccumulatorLayout {
+  lookupInverse0: number
+  lookupInverse1: number
+  equalityAccumulator0: number
+  equalityAccumulator1: number
+  lookupAccumulator0: number
+  lookupAccumulator1: number
+  lookupRequestCount: number
+  transitionActive: number
   width: number
 }
 
@@ -113,7 +140,7 @@ export interface LookupBusPublicInput {
 
 export interface LookupBusTrace {
   publicInput: LookupBusPublicInput
-  rows: FieldElement[][]
+  baseRows: FieldElement[][]
   metrics: LookupBusMetrics
 }
 
@@ -126,6 +153,8 @@ export interface LookupBusMetrics {
   lookupSupplies: number
   fixedLookups: number
   equalityRows: number
+  baseTraceWidth?: number
+  accumulatorTraceWidth?: number
   proofBytes?: number
 }
 
@@ -134,30 +163,48 @@ export interface LookupBusTableRow {
   values: FieldElement[]
 }
 
-export const LOOKUP_BUS_LAYOUT: LookupBusLayout = {
+export const LOOKUP_BUS_BASE_LAYOUT: LookupBusBaseLayout = {
   kind: 0,
   tag: 1,
   multiplicity: 2,
   left: 3,
   right: 3 + LOOKUP_BUS_TUPLE_ARITY,
   publicTuple: 3 + LOOKUP_BUS_TUPLE_ARITY * 2,
-  compressedLeft0: 3 + LOOKUP_BUS_TUPLE_ARITY * 3,
-  compressedLeft1: 4 + LOOKUP_BUS_TUPLE_ARITY * 3,
-  compressedRight0: 5 + LOOKUP_BUS_TUPLE_ARITY * 3,
-  compressedRight1: 6 + LOOKUP_BUS_TUPLE_ARITY * 3,
-  lookupFactor0: 7 + LOOKUP_BUS_TUPLE_ARITY * 3,
-  lookupFactor1: 8 + LOOKUP_BUS_TUPLE_ARITY * 3,
-  lookupInverse0: 9 + LOOKUP_BUS_TUPLE_ARITY * 3,
-  lookupInverse1: 10 + LOOKUP_BUS_TUPLE_ARITY * 3,
-  equalityAccumulator0: 11 + LOOKUP_BUS_TUPLE_ARITY * 3,
-  equalityAccumulator1: 12 + LOOKUP_BUS_TUPLE_ARITY * 3,
-  lookupAccumulator0: 13 + LOOKUP_BUS_TUPLE_ARITY * 3,
-  lookupAccumulator1: 14 + LOOKUP_BUS_TUPLE_ARITY * 3,
-  lookupRequestCount: 15 + LOOKUP_BUS_TUPLE_ARITY * 3,
-  width: 16 + LOOKUP_BUS_TUPLE_ARITY * 3
+  width: 3 + LOOKUP_BUS_TUPLE_ARITY * 3
 }
 
-interface LookupBusChallenges {
+export const LOOKUP_BUS_ACCUMULATOR_LAYOUT: LookupBusAccumulatorLayout = {
+  lookupInverse0: 0,
+  lookupInverse1: 1,
+  equalityAccumulator0: 2,
+  equalityAccumulator1: 3,
+  lookupAccumulator0: 4,
+  lookupAccumulator1: 5,
+  lookupRequestCount: 6,
+  transitionActive: 7,
+  width: 8
+}
+
+export const LOOKUP_BUS_LAYOUT: LookupBusLayout = {
+  ...LOOKUP_BUS_BASE_LAYOUT,
+  lookupInverse0: LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupInverse0,
+  lookupInverse1: LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupInverse1,
+  equalityAccumulator0: LOOKUP_BUS_ACCUMULATOR_LAYOUT.equalityAccumulator0,
+  equalityAccumulator1: LOOKUP_BUS_ACCUMULATOR_LAYOUT.equalityAccumulator1,
+  lookupAccumulator0: LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupAccumulator0,
+  lookupAccumulator1: LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupAccumulator1,
+  lookupRequestCount: LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupRequestCount,
+  transitionActive: LOOKUP_BUS_ACCUMULATOR_LAYOUT.transitionActive,
+  width: LOOKUP_BUS_BASE_LAYOUT.width
+}
+
+export interface LookupBusChallengeInput {
+  publicInputDigest: number[]
+  baseTraceRoot: number[]
+  transcriptDomain?: string
+}
+
+export interface LookupBusChallenges {
   alpha0: FieldElement
   alpha1: FieldElement
   alphaPowers0: FieldElement[]
@@ -179,6 +226,24 @@ export function buildLookupBusRange16Table (): LookupBusTableRow[] {
     tag: LOOKUP_BUS_TAG_RANGE16,
     values: padTuple([BigInt(value)])
   }))
+}
+
+export function lookupBusNonAdaptiveCollisionSecurityBits (
+  tupleArity = LOOKUP_BUS_TUPLE_ARITY,
+  challengeCount = LOOKUP_BUS_COMPRESSION_CHALLENGES
+): number {
+  if (
+    !Number.isSafeInteger(tupleArity) ||
+    tupleArity < 1 ||
+    !Number.isSafeInteger(challengeCount) ||
+    challengeCount < 1
+  ) {
+    throw new Error('Lookup bus collision parameters are invalid')
+  }
+  return challengeCount * (
+    Math.log2(Number(F.p - 1n)) -
+    Math.log2(tupleArity)
+  )
 }
 
 export function buildLookupBusToyPointPairTable (
@@ -293,14 +358,6 @@ export function buildLookupBusTrace (
       publicTuple
     }
   }
-  const digest = lookupBusPublicInputDigest(publicInput)
-  const challenges = deriveLookupBusChallenges(digest)
-  let equalityAccumulator0 = 0n
-  let equalityAccumulator1 = 0n
-  let lookupAccumulator0 = 1n
-  let lookupAccumulator1 = 1n
-  let lookupRequestCount = 0n
-
   for (let rowIndex = 0; rowIndex < traceLength; rowIndex++) {
     const item = items[rowIndex]
     const schedule = scheduleRows[rowIndex]
@@ -316,90 +373,24 @@ export function buildLookupBusTrace (
     const multiplicityValue = itemMultiplicity(item, kind)
     validateMultiplicity(multiplicityValue)
     const multiplicity = BigInt(multiplicityValue)
-    const compressedLeft0 = kind === LOOKUP_BUS_ROW_KIND.inactive
-      ? 0n
-      : compressPaddedLookupBusTuple(tag, left, 0, challenges.alphaPowers0)
-    const compressedLeft1 = kind === LOOKUP_BUS_ROW_KIND.inactive
-      ? 0n
-      : compressPaddedLookupBusTuple(tag, left, 0, challenges.alphaPowers1)
-    const sameTuple = left === right || tuplesEqual(left, right)
-    const compressedRight0 = kind === LOOKUP_BUS_ROW_KIND.inactive
-      ? 0n
-      : sameTuple
-        ? compressedLeft0
-        : compressPaddedLookupBusTuple(tag, right, 0, challenges.alphaPowers0)
-    const compressedRight1 = kind === LOOKUP_BUS_ROW_KIND.inactive
-      ? 0n
-      : sameTuple
-        ? compressedLeft1
-        : compressPaddedLookupBusTuple(tag, right, 0, challenges.alphaPowers1)
-    const lookupFactor0 = isLookupKind(kind)
-      ? F.add(challenges.beta0, compressedLeft0)
-      : 0n
-    const lookupFactor1 = isLookupKind(kind)
-      ? F.add(challenges.beta1, compressedLeft1)
-      : 0n
-    const lookupInverse0 = kind === LOOKUP_BUS_ROW_KIND.lookupSupply
-      ? F.inv(powerForMultiplicityValue(lookupFactor0, Number(multiplicity)))
-      : 0n
-    const lookupInverse1 = kind === LOOKUP_BUS_ROW_KIND.lookupSupply
-      ? F.inv(powerForMultiplicityValue(lookupFactor1, Number(multiplicity)))
-      : 0n
-
-    rows[rowIndex] = emptyLookupBusRow()
+    rows[rowIndex] = emptyLookupBusBaseRow()
     rows[rowIndex][LOOKUP_BUS_LAYOUT.kind] = kind
     rows[rowIndex][LOOKUP_BUS_LAYOUT.tag] = tag
     rows[rowIndex][LOOKUP_BUS_LAYOUT.multiplicity] = multiplicity
     writePaddedTuple(rows[rowIndex], LOOKUP_BUS_LAYOUT.left, left)
     writePaddedTuple(rows[rowIndex], LOOKUP_BUS_LAYOUT.right, right)
     writePaddedTuple(rows[rowIndex], LOOKUP_BUS_LAYOUT.publicTuple, publicTuple)
-    rows[rowIndex][LOOKUP_BUS_LAYOUT.compressedLeft0] = compressedLeft0
-    rows[rowIndex][LOOKUP_BUS_LAYOUT.compressedLeft1] = compressedLeft1
-    rows[rowIndex][LOOKUP_BUS_LAYOUT.compressedRight0] = compressedRight0
-    rows[rowIndex][LOOKUP_BUS_LAYOUT.compressedRight1] = compressedRight1
-    rows[rowIndex][LOOKUP_BUS_LAYOUT.lookupFactor0] = lookupFactor0
-    rows[rowIndex][LOOKUP_BUS_LAYOUT.lookupFactor1] = lookupFactor1
-    rows[rowIndex][LOOKUP_BUS_LAYOUT.lookupInverse0] = lookupInverse0
-    rows[rowIndex][LOOKUP_BUS_LAYOUT.lookupInverse1] = lookupInverse1
-    rows[rowIndex][LOOKUP_BUS_LAYOUT.equalityAccumulator0] = equalityAccumulator0
-    rows[rowIndex][LOOKUP_BUS_LAYOUT.equalityAccumulator1] = equalityAccumulator1
-    rows[rowIndex][LOOKUP_BUS_LAYOUT.lookupAccumulator0] = lookupAccumulator0
-    rows[rowIndex][LOOKUP_BUS_LAYOUT.lookupAccumulator1] = lookupAccumulator1
-    rows[rowIndex][LOOKUP_BUS_LAYOUT.lookupRequestCount] = lookupRequestCount
-
-    if (rowIndex < traceLength - 1) {
-      const equalityDelta0 = equalityContribution(
-        kind,
-        multiplicity,
-        compressedLeft0,
-        compressedRight0
-      )
-      const equalityDelta1 = equalityContribution(
-        kind,
-        multiplicity,
-        compressedLeft1,
-        compressedRight1
-      )
-      equalityAccumulator0 = F.add(equalityAccumulator0, equalityDelta0)
-      equalityAccumulator1 = F.add(equalityAccumulator1, equalityDelta1)
-      if (kind === LOOKUP_BUS_ROW_KIND.lookupRequest) {
-        lookupAccumulator0 = F.mul(lookupAccumulator0, lookupFactor0)
-        lookupAccumulator1 = F.mul(lookupAccumulator1, lookupFactor1)
-        lookupRequestCount = F.add(lookupRequestCount, 1n)
-      } else if (kind === LOOKUP_BUS_ROW_KIND.lookupSupply) {
-        lookupAccumulator0 = F.mul(lookupAccumulator0, lookupInverse0)
-        lookupAccumulator1 = F.mul(lookupAccumulator1, lookupInverse1)
-      }
-    }
   }
 
   return {
     publicInput,
-    rows,
+    baseRows: rows,
     metrics: {
       activeRows,
       paddedRows: traceLength,
       traceWidth: LOOKUP_BUS_LAYOUT.width,
+      baseTraceWidth: LOOKUP_BUS_BASE_LAYOUT.width,
+      accumulatorTraceWidth: LOOKUP_BUS_ACCUMULATOR_LAYOUT.width,
       fixedTableRows: items.filter(item => item.kind === LOOKUP_BUS_ROW_KIND.lookupSupply).length,
       lookupRequests,
       lookupSupplies,
@@ -417,28 +408,11 @@ export function buildLookupBusAir (
 ): AirDefinition {
   validateLookupBusPublicInput(publicInput)
   const digest = lookupBusPublicInputDigest(publicInput)
-  const challenges = deriveLookupBusChallenges(digest)
-  const lastRow = publicInput.traceLength - 1
   return {
     traceWidth: LOOKUP_BUS_LAYOUT.width,
     transitionDegree: 11,
     publicInputDigest: digest,
-    boundaryConstraints: [
-      { column: LOOKUP_BUS_LAYOUT.equalityAccumulator0, row: 0, value: 0n },
-      { column: LOOKUP_BUS_LAYOUT.equalityAccumulator1, row: 0, value: 0n },
-      { column: LOOKUP_BUS_LAYOUT.lookupAccumulator0, row: 0, value: 1n },
-      { column: LOOKUP_BUS_LAYOUT.lookupAccumulator1, row: 0, value: 1n },
-      { column: LOOKUP_BUS_LAYOUT.lookupRequestCount, row: 0, value: 0n },
-      { column: LOOKUP_BUS_LAYOUT.equalityAccumulator0, row: lastRow, value: 0n },
-      { column: LOOKUP_BUS_LAYOUT.equalityAccumulator1, row: lastRow, value: 0n },
-      { column: LOOKUP_BUS_LAYOUT.lookupAccumulator0, row: lastRow, value: 1n },
-      { column: LOOKUP_BUS_LAYOUT.lookupAccumulator1, row: lastRow, value: 1n },
-      {
-        column: LOOKUP_BUS_LAYOUT.lookupRequestCount,
-        row: lastRow,
-        value: BigInt(publicInput.expectedLookupRequests)
-      }
-    ],
+    boundaryConstraints: [],
     fullBoundaryColumns: [
       {
         column: LOOKUP_BUS_LAYOUT.kind,
@@ -454,42 +428,219 @@ export function buildLookupBusAir (
       }))
     ],
     evaluateTransition: (current, next) =>
-      evaluateLookupBusTransition(current, next, challenges)
+      evaluateLookupBusBaseTransition(current, next)
+  }
+}
+
+export function buildLookupBusAccumulatorAir (
+  publicInput: LookupBusPublicInput,
+  challengeInput: LookupBusChallengeInput
+): AirDefinition {
+  validateLookupBusPublicInput(publicInput)
+  const lastRow = publicInput.traceLength - 1
+  return {
+    traceWidth: LOOKUP_BUS_ACCUMULATOR_LAYOUT.width,
+    transitionDegree: 1,
+    publicInputDigest: lookupBusAccumulatorPublicInputDigest(
+      publicInput,
+      challengeInput
+    ),
+    boundaryConstraints: [
+      { column: LOOKUP_BUS_ACCUMULATOR_LAYOUT.equalityAccumulator0, row: 0, value: 0n },
+      { column: LOOKUP_BUS_ACCUMULATOR_LAYOUT.equalityAccumulator1, row: 0, value: 0n },
+      { column: LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupAccumulator0, row: 0, value: 1n },
+      { column: LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupAccumulator1, row: 0, value: 1n },
+      { column: LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupRequestCount, row: 0, value: 0n },
+      { column: LOOKUP_BUS_ACCUMULATOR_LAYOUT.equalityAccumulator0, row: lastRow, value: 0n },
+      { column: LOOKUP_BUS_ACCUMULATOR_LAYOUT.equalityAccumulator1, row: lastRow, value: 0n },
+      { column: LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupAccumulator0, row: lastRow, value: 1n },
+      { column: LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupAccumulator1, row: lastRow, value: 1n },
+      {
+        column: LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupRequestCount,
+        row: lastRow,
+        value: BigInt(publicInput.expectedLookupRequests)
+      }
+    ],
+    fullBoundaryColumns: [{
+      column: LOOKUP_BUS_ACCUMULATOR_LAYOUT.transitionActive,
+      values: Array.from({ length: publicInput.traceLength }, (_, row) =>
+        row + 1 < publicInput.traceLength ? 1n : 0n
+      )
+    }],
+    evaluateTransition: () => []
   }
 }
 
 export function proveLookupBus (
   trace: LookupBusTrace,
   options: StarkProverOptions = {}
-): StarkProof {
+): MultiTraceStarkProof {
   const air = buildLookupBusAir(trace.publicInput)
-  return proveStark(air, trace.rows, {
+  return provePhasedMultiTraceStark([{
+    name: 'lookup-base',
+    air,
+    traceRows: trace.baseRows
+  }], ({ committedSegments }) => {
+    const base = committedSegmentByName(committedSegments, 'lookup-base')
+    const challengeInput = lookupBusChallengeInput(
+      trace.publicInput,
+      base,
+      LOOKUP_BUS_TRANSCRIPT_DOMAIN
+    )
+    const challenges = deriveLookupBusChallenges(challengeInput)
+    const accumulatorRows = buildLookupBusAccumulatorRows(
+      trace.baseRows,
+      challenges
+    )
+    return {
+      segments: [{
+        name: 'lookup-accumulator',
+        air: buildLookupBusAccumulatorAir(trace.publicInput, challengeInput),
+        traceRows: accumulatorRows
+      }],
+      crossConstraints: [
+        lookupBusAccumulatorCrossConstraint(
+          'lookup-base',
+          'lookup-accumulator',
+          challengeInput,
+          lookupBusCrossDegreeBound(
+            trace.publicInput.traceLength,
+            options.blowupFactor ?? LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.blowupFactor
+          )
+        )
+      ]
+    }
+  }, {
     ...LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS,
     ...options,
-    publicInputDigest: air.publicInputDigest,
     transcriptDomain: LOOKUP_BUS_TRANSCRIPT_DOMAIN
   })
 }
 
 export function verifyLookupBusProof (
   publicInput: LookupBusPublicInput,
-  proof: StarkProof
+  proof: MultiTraceStarkProof
 ): boolean {
+  if (!lookupBusProofMeetsMinimumProfile(proof)) return false
   const air = buildLookupBusAir(publicInput)
-  return verifyStark(air, proof, {
-    ...LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS,
-    publicInputDigest: air.publicInputDigest,
+  const baseProof = proof.segments.find(segment => segment.name === 'lookup-base')
+  if (baseProof === undefined) return false
+  const challengeInput = lookupBusChallengeInputFromRoot(
+    publicInput,
+    baseProof.proof.traceRoot,
+    LOOKUP_BUS_TRANSCRIPT_DOMAIN
+  )
+  return verifyMultiTraceStark([
+    {
+      name: 'lookup-base',
+      air
+    },
+    {
+      name: 'lookup-accumulator',
+      air: buildLookupBusAccumulatorAir(publicInput, challengeInput)
+    }
+  ], proof, {
+    blowupFactor: baseProof.proof.blowupFactor,
+    numQueries: baseProof.proof.numQueries,
+    maxRemainderSize: baseProof.proof.maxRemainderSize,
+    maskDegree: baseProof.proof.maskDegree,
+    cosetOffset: baseProof.proof.cosetOffset,
     transcriptDomain: LOOKUP_BUS_TRANSCRIPT_DOMAIN
-  })
+  }, [
+    lookupBusAccumulatorCrossConstraint(
+      'lookup-base',
+      'lookup-accumulator',
+      challengeInput,
+      lookupBusCrossDegreeBound(
+        publicInput.traceLength,
+        baseProof.proof.blowupFactor
+      )
+    )
+  ])
+}
+
+export function diagnoseLookupBusProof (
+  publicInput: LookupBusPublicInput,
+  proof: MultiTraceStarkProof
+): ReturnType<typeof diagnoseMultiTraceStark> {
+  if (!lookupBusProofMeetsMinimumProfile(proof)) {
+    return { ok: false, stage: 'proof-shape' }
+  }
+  const air = buildLookupBusAir(publicInput)
+  const baseProof = proof.segments.find(segment => segment.name === 'lookup-base')
+  if (baseProof === undefined) return { ok: false, stage: 'proof-shape' }
+  const challengeInput = lookupBusChallengeInputFromRoot(
+    publicInput,
+    baseProof.proof.traceRoot,
+    LOOKUP_BUS_TRANSCRIPT_DOMAIN
+  )
+  return diagnoseMultiTraceStark([
+    {
+      name: 'lookup-base',
+      air
+    },
+    {
+      name: 'lookup-accumulator',
+      air: buildLookupBusAccumulatorAir(publicInput, challengeInput)
+    }
+  ], proof, {
+    blowupFactor: baseProof.proof.blowupFactor,
+    numQueries: baseProof.proof.numQueries,
+    maxRemainderSize: baseProof.proof.maxRemainderSize,
+    maskDegree: baseProof.proof.maskDegree,
+    cosetOffset: baseProof.proof.cosetOffset,
+    transcriptDomain: LOOKUP_BUS_TRANSCRIPT_DOMAIN
+  }, [
+    lookupBusAccumulatorCrossConstraint(
+      'lookup-base',
+      'lookup-accumulator',
+      challengeInput,
+      lookupBusCrossDegreeBound(
+        publicInput.traceLength,
+        baseProof.proof.blowupFactor
+      )
+    )
+  ])
+}
+
+function lookupBusProofMeetsMinimumProfile (
+  proof: MultiTraceStarkProof
+): boolean {
+  if (proof.transcriptDomain !== LOOKUP_BUS_TRANSCRIPT_DOMAIN) return false
+  if (
+    proof.segments.length !== 2 ||
+    proof.segments[0].name !== 'lookup-base' ||
+    proof.segments[1].name !== 'lookup-accumulator'
+  ) {
+    return false
+  }
+  if ((proof.crossProofs ?? []).length !== 1) return false
+  if ((proof.constantColumnProofs ?? []).length !== 0) return false
+  return proof.segments.every(segment =>
+    segment.proof.blowupFactor >= LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.blowupFactor &&
+    segment.proof.numQueries >= LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.numQueries &&
+    segment.proof.maxRemainderSize >= LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.maxRemainderSize &&
+    segment.proof.maskDegree >= LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.maskDegree &&
+    segment.proof.cosetOffset !== 0n
+  )
+}
+
+function lookupBusCrossDegreeBound (
+  traceLength: number,
+  blowupFactor: number
+): number {
+  return Math.min(traceLength * 12, traceLength * blowupFactor - 1)
 }
 
 export function lookupBusMetrics (
   trace: LookupBusTrace,
-  proof?: StarkProof
+  proof?: MultiTraceStarkProof
 ): LookupBusMetrics {
   return {
     ...trace.metrics,
-    proofBytes: proof === undefined ? undefined : serializeStarkProof(proof).length
+    proofBytes: proof === undefined
+      ? undefined
+      : serializeMultiTraceStarkProof(proof).length
   }
 }
 
@@ -510,14 +661,13 @@ export function lookupBusPublicInputDigest (
   return sha256(writer.toArray())
 }
 
-export function evaluateLookupBusTransition (
+export function evaluateLookupBusBaseTransition (
   current: FieldElement[],
-  next: FieldElement[],
-  challenges: LookupBusChallenges
+  next: FieldElement[]
 ): FieldElement[] {
+  void next
   const layout = LOOKUP_BUS_LAYOUT
   const kind = current[layout.kind]
-  const tag = current[layout.tag]
   const multiplicity = current[layout.multiplicity]
   const inactive = kindSelector(kind, LOOKUP_BUS_ROW_KIND.inactive)
   const request = kindSelector(kind, LOOKUP_BUS_ROW_KIND.lookupRequest)
@@ -525,114 +675,128 @@ export function evaluateLookupBusTransition (
   const privateEquality = kindSelector(kind, LOOKUP_BUS_ROW_KIND.privateEquality)
   const publicEquality = kindSelector(kind, LOOKUP_BUS_ROW_KIND.publicEquality)
   const equality = F.add(privateEquality, publicEquality)
-  const lookup = F.add(request, supply)
-  const active = F.sub(1n, inactive)
-  const compressedLeft0 = compressPaddedLookupBusTuple(
-    tag,
-    current,
-    layout.left,
-    challenges.alphaPowers0
-  )
-  const compressedLeft1 = compressPaddedLookupBusTuple(
-    tag,
-    current,
-    layout.left,
-    challenges.alphaPowers1
-  )
-  const compressedRight0 = compressPaddedLookupBusTuple(
-    tag,
-    current,
-    layout.right,
-    challenges.alphaPowers0
-  )
-  const compressedRight1 = compressPaddedLookupBusTuple(
-    tag,
-    current,
-    layout.right,
-    challenges.alphaPowers1
-  )
-  const lookupFactor0 = F.add(challenges.beta0, current[layout.compressedLeft0])
-  const lookupFactor1 = F.add(challenges.beta1, current[layout.compressedLeft1])
-  const lookupFactorPower0 = powerForMultiplicity(lookupFactor0, multiplicity)
-  const lookupFactorPower1 = powerForMultiplicity(lookupFactor1, multiplicity)
-  const equalityDelta0 = equalityContribution(
-    kind,
-    multiplicity,
-    current[layout.compressedLeft0],
-    current[layout.compressedRight0]
-  )
-  const equalityDelta1 = equalityContribution(
-    kind,
-    multiplicity,
-    current[layout.compressedLeft1],
-    current[layout.compressedRight1]
-  )
-  const expectedLookupAccumulator0 = lookupAccumulatorNext(
-    current[layout.lookupAccumulator0],
-    request,
-    supply,
-    current[layout.lookupFactor0],
-    current[layout.lookupInverse0]
-  )
-  const expectedLookupAccumulator1 = lookupAccumulatorNext(
-    current[layout.lookupAccumulator1],
-    request,
-    supply,
-    current[layout.lookupFactor1],
-    current[layout.lookupInverse1]
-  )
   const constraints: FieldElement[] = [
     kindDomainConstraint(kind),
     F.mul(inactive, multiplicity),
     F.mul(request, F.sub(multiplicity, 1n)),
     F.mul(supply, multiplicityRangeConstraint(multiplicity)),
-    F.mul(equality, F.sub(multiplicity, 1n)),
-    F.mul(active, F.sub(current[layout.compressedLeft0], compressedLeft0)),
-    F.mul(active, F.sub(current[layout.compressedLeft1], compressedLeft1)),
-    F.mul(active, F.sub(current[layout.compressedRight0], compressedRight0)),
-    F.mul(active, F.sub(current[layout.compressedRight1], compressedRight1)),
-    F.mul(active, F.sub(current[layout.compressedLeft0], current[layout.compressedRight0])),
-    F.mul(active, F.sub(current[layout.compressedLeft1], current[layout.compressedRight1])),
-    F.mul(lookup, F.sub(current[layout.lookupFactor0], lookupFactor0)),
-    F.mul(lookup, F.sub(current[layout.lookupFactor1], lookupFactor1)),
-    F.mul(F.sub(1n, lookup), current[layout.lookupFactor0]),
-    F.mul(F.sub(1n, lookup), current[layout.lookupFactor1]),
-    F.mul(supply, F.sub(F.mul(current[layout.lookupInverse0], lookupFactorPower0), 1n)),
-    F.mul(supply, F.sub(F.mul(current[layout.lookupInverse1], lookupFactorPower1), 1n)),
-    F.mul(F.sub(1n, supply), current[layout.lookupInverse0]),
-    F.mul(F.sub(1n, supply), current[layout.lookupInverse1]),
-    F.sub(next[layout.equalityAccumulator0], F.add(
-      current[layout.equalityAccumulator0],
-      equalityDelta0
-    )),
-    F.sub(next[layout.equalityAccumulator1], F.add(
-      current[layout.equalityAccumulator1],
-      equalityDelta1
-    )),
-    F.sub(next[layout.lookupAccumulator0], expectedLookupAccumulator0),
-    F.sub(next[layout.lookupAccumulator1], expectedLookupAccumulator1),
-    F.sub(next[layout.lookupRequestCount], F.add(
-      current[layout.lookupRequestCount],
-      request
-    ))
+    F.mul(equality, F.sub(multiplicity, 1n))
   ]
 
   for (let i = 0; i < LOOKUP_BUS_TUPLE_ARITY; i++) {
     const left = current[layout.left + i]
     const right = current[layout.right + i]
     const publicValue = current[layout.publicTuple + i]
+    constraints.push(F.mul(equality, F.sub(left, right)))
     constraints.push(F.mul(supply, F.sub(left, publicValue)))
     constraints.push(F.mul(supply, F.sub(right, publicValue)))
     constraints.push(F.mul(publicEquality, F.sub(right, publicValue)))
     constraints.push(F.mul(inactive, left))
     constraints.push(F.mul(inactive, right))
   }
-  constraints.push(F.mul(inactive, current[layout.compressedLeft0]))
-  constraints.push(F.mul(inactive, current[layout.compressedLeft1]))
-  constraints.push(F.mul(inactive, current[layout.compressedRight0]))
-  constraints.push(F.mul(inactive, current[layout.compressedRight1]))
 
   return constraints
+}
+
+export function evaluateLookupBusAccumulatorTransition (
+  baseCurrent: FieldElement[],
+  accumulatorCurrent: FieldElement[],
+  accumulatorNext: FieldElement[],
+  challenges: LookupBusChallenges
+): FieldElement[] {
+  const base = LOOKUP_BUS_BASE_LAYOUT
+  const acc = LOOKUP_BUS_ACCUMULATOR_LAYOUT
+  const kind = baseCurrent[base.kind]
+  const tag = baseCurrent[base.tag]
+  const multiplicity = baseCurrent[base.multiplicity]
+  const request = kindSelector(kind, LOOKUP_BUS_ROW_KIND.lookupRequest)
+  const supply = kindSelector(kind, LOOKUP_BUS_ROW_KIND.lookupSupply)
+  const privateEquality = kindSelector(kind, LOOKUP_BUS_ROW_KIND.privateEquality)
+  const publicEquality = kindSelector(kind, LOOKUP_BUS_ROW_KIND.publicEquality)
+  const lookup = F.add(request, supply)
+  const active = accumulatorCurrent[acc.transitionActive]
+  const compressedLeft0 = compressPaddedLookupBusTuple(
+    tag,
+    baseCurrent,
+    base.left,
+    challenges.alphaPowers0
+  )
+  const compressedLeft1 = compressPaddedLookupBusTuple(
+    tag,
+    baseCurrent,
+    base.left,
+    challenges.alphaPowers1
+  )
+  const compressedRight0 = compressPaddedLookupBusTuple(
+    tag,
+    baseCurrent,
+    base.right,
+    challenges.alphaPowers0
+  )
+  const compressedRight1 = compressPaddedLookupBusTuple(
+    tag,
+    baseCurrent,
+    base.right,
+    challenges.alphaPowers1
+  )
+  const lookupFactor0 = F.add(challenges.beta0, compressedLeft0)
+  const lookupFactor1 = F.add(challenges.beta1, compressedLeft1)
+  const lookupFactorPower0 = powerForMultiplicity(lookupFactor0, multiplicity)
+  const lookupFactorPower1 = powerForMultiplicity(lookupFactor1, multiplicity)
+  const equalityDelta0 = equalityContribution(
+    kind,
+    multiplicity,
+    compressedLeft0,
+    compressedRight0
+  )
+  const equalityDelta1 = equalityContribution(
+    kind,
+    multiplicity,
+    compressedLeft1,
+    compressedRight1
+  )
+  const expectedLookupAccumulator0 = lookupAccumulatorNext(
+    accumulatorCurrent[acc.lookupAccumulator0],
+    request,
+    supply,
+    lookupFactor0,
+    accumulatorCurrent[acc.lookupInverse0]
+  )
+  const expectedLookupAccumulator1 = lookupAccumulatorNext(
+    accumulatorCurrent[acc.lookupAccumulator1],
+    request,
+    supply,
+    lookupFactor1,
+    accumulatorCurrent[acc.lookupInverse1]
+  )
+  return [
+    F.mul(active, F.mul(supply, F.sub(
+      F.mul(accumulatorCurrent[acc.lookupInverse0], lookupFactorPower0),
+      1n
+    ))),
+    F.mul(active, F.mul(supply, F.sub(
+      F.mul(accumulatorCurrent[acc.lookupInverse1], lookupFactorPower1),
+      1n
+    ))),
+    F.mul(active, F.mul(F.sub(1n, supply), accumulatorCurrent[acc.lookupInverse0])),
+    F.mul(active, F.mul(F.sub(1n, supply), accumulatorCurrent[acc.lookupInverse1])),
+    F.mul(active, F.sub(accumulatorNext[acc.equalityAccumulator0], F.add(
+      accumulatorCurrent[acc.equalityAccumulator0],
+      equalityDelta0
+    ))),
+    F.mul(active, F.sub(accumulatorNext[acc.equalityAccumulator1], F.add(
+      accumulatorCurrent[acc.equalityAccumulator1],
+      equalityDelta1
+    ))),
+    F.mul(active, F.sub(accumulatorNext[acc.lookupAccumulator0], expectedLookupAccumulator0)),
+    F.mul(active, F.sub(accumulatorNext[acc.lookupAccumulator1], expectedLookupAccumulator1)),
+    F.mul(active, F.sub(accumulatorNext[acc.lookupRequestCount], F.add(
+      accumulatorCurrent[acc.lookupRequestCount],
+      request
+    ))),
+    F.mul(active, F.mul(F.sub(1n, lookup), accumulatorCurrent[acc.lookupInverse0])),
+    F.mul(active, F.mul(F.sub(1n, lookup), accumulatorCurrent[acc.lookupInverse1]))
+  ]
 }
 
 export function compressLookupBusTuple (
@@ -661,9 +825,60 @@ function compressPaddedLookupBusTuple (
   return accumulator
 }
 
-function deriveLookupBusChallenges (publicInputDigest: number[]): LookupBusChallenges {
+export function lookupBusChallengeDigest (
+  input: LookupBusChallengeInput
+): number[] {
+  assertDigest(input.publicInputDigest, 'lookup bus public input digest')
+  assertDigest(input.baseTraceRoot, 'lookup bus base trace root')
+  const writer = new Writer()
+  writer.write(toArray('BRC69_LOOKUP_BUS_POST_COMMITMENT_CHALLENGES_V1', 'utf8'))
+  writer.write(toArray(input.transcriptDomain ?? LOOKUP_BUS_TRANSCRIPT_DOMAIN, 'utf8'))
+  writer.write(input.publicInputDigest)
+  writer.write(input.baseTraceRoot)
+  return sha256(writer.toArray())
+}
+
+export function lookupBusChallengeInputFromRoot (
+  publicInput: LookupBusPublicInput,
+  baseTraceRoot: number[],
+  transcriptDomain = LOOKUP_BUS_TRANSCRIPT_DOMAIN
+): LookupBusChallengeInput {
+  return {
+    publicInputDigest: lookupBusPublicInputDigest(publicInput),
+    baseTraceRoot: baseTraceRoot.slice(),
+    transcriptDomain
+  }
+}
+
+export function lookupBusChallengeInput (
+  publicInput: LookupBusPublicInput,
+  base: MultiTraceCommittedSegmentSummary,
+  transcriptDomain = LOOKUP_BUS_TRANSCRIPT_DOMAIN
+): LookupBusChallengeInput {
+  return lookupBusChallengeInputFromRoot(
+    publicInput,
+    base.traceRoot,
+    transcriptDomain
+  )
+}
+
+export function lookupBusAccumulatorPublicInputDigest (
+  publicInput: LookupBusPublicInput,
+  challengeInput: LookupBusChallengeInput
+): number[] {
+  const writer = new Writer()
+  writer.write(toArray('BRC69_LOOKUP_BUS_ACCUMULATOR_AIR_V1', 'utf8'))
+  writer.write(lookupBusPublicInputDigest(publicInput))
+  writer.write(lookupBusChallengeDigest(challengeInput))
+  return sha256(writer.toArray())
+}
+
+export function deriveLookupBusChallenges (
+  input: LookupBusChallengeInput
+): LookupBusChallenges {
+  const challengeDigest = lookupBusChallengeDigest(input)
   const transcript = new FiatShamirTranscript(`${LOOKUP_BUS_TRANSCRIPT_DOMAIN}:challenges`)
-  transcript.absorb('public-input', publicInputDigest)
+  transcript.absorb('post-commitment-challenge-digest', challengeDigest)
   const alpha0 = nonZeroChallenge(transcript, 'alpha-0')
   const alpha1 = nonZeroChallenge(transcript, 'alpha-1')
   return {
@@ -673,6 +888,110 @@ function deriveLookupBusChallenges (publicInputDigest: number[]): LookupBusChall
     alphaPowers1: lookupChallengePowers(alpha1),
     beta0: nonZeroChallenge(transcript, 'beta-0'),
     beta1: nonZeroChallenge(transcript, 'beta-1')
+  }
+}
+
+export function buildLookupBusAccumulatorRows (
+  baseRows: FieldElement[][],
+  challenges: LookupBusChallenges
+): FieldElement[][] {
+  const rows = new Array<FieldElement[]>(baseRows.length)
+  let equalityAccumulator0 = 0n
+  let equalityAccumulator1 = 0n
+  let lookupAccumulator0 = 1n
+  let lookupAccumulator1 = 1n
+  let lookupRequestCount = 0n
+  for (let rowIndex = 0; rowIndex < baseRows.length; rowIndex++) {
+    const baseRow = baseRows[rowIndex]
+    const kind = baseRow[LOOKUP_BUS_BASE_LAYOUT.kind]
+    const tag = baseRow[LOOKUP_BUS_BASE_LAYOUT.tag]
+    const multiplicity = baseRow[LOOKUP_BUS_BASE_LAYOUT.multiplicity]
+    const compressedLeft0 = kind === LOOKUP_BUS_ROW_KIND.inactive
+      ? 0n
+      : compressPaddedLookupBusTuple(
+        tag,
+        baseRow,
+        LOOKUP_BUS_BASE_LAYOUT.left,
+        challenges.alphaPowers0
+      )
+    const compressedLeft1 = kind === LOOKUP_BUS_ROW_KIND.inactive
+      ? 0n
+      : compressPaddedLookupBusTuple(
+        tag,
+        baseRow,
+        LOOKUP_BUS_BASE_LAYOUT.left,
+        challenges.alphaPowers1
+      )
+    const lookupFactor0 = isLookupKind(kind)
+      ? F.add(challenges.beta0, compressedLeft0)
+      : 0n
+    const lookupFactor1 = isLookupKind(kind)
+      ? F.add(challenges.beta1, compressedLeft1)
+      : 0n
+    const lookupInverse0 = kind === LOOKUP_BUS_ROW_KIND.lookupSupply
+      ? F.inv(powerForMultiplicityValue(lookupFactor0, Number(multiplicity)))
+      : 0n
+    const lookupInverse1 = kind === LOOKUP_BUS_ROW_KIND.lookupSupply
+      ? F.inv(powerForMultiplicityValue(lookupFactor1, Number(multiplicity)))
+      : 0n
+    const row = new Array<FieldElement>(LOOKUP_BUS_ACCUMULATOR_LAYOUT.width).fill(0n)
+    row[LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupInverse0] = lookupInverse0
+    row[LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupInverse1] = lookupInverse1
+    row[LOOKUP_BUS_ACCUMULATOR_LAYOUT.equalityAccumulator0] = equalityAccumulator0
+    row[LOOKUP_BUS_ACCUMULATOR_LAYOUT.equalityAccumulator1] = equalityAccumulator1
+    row[LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupAccumulator0] = lookupAccumulator0
+    row[LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupAccumulator1] = lookupAccumulator1
+    row[LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupRequestCount] = lookupRequestCount
+    row[LOOKUP_BUS_ACCUMULATOR_LAYOUT.transitionActive] =
+      rowIndex + 1 < baseRows.length ? 1n : 0n
+    rows[rowIndex] = row
+
+    if (rowIndex + 1 < baseRows.length) {
+      const contribution = evaluateLookupBusAccumulatorStep(
+        baseRow,
+        row,
+        challenges
+      )
+      equalityAccumulator0 = F.add(
+        equalityAccumulator0,
+        contribution.equalityDelta0
+      )
+      equalityAccumulator1 = F.add(
+        equalityAccumulator1,
+        contribution.equalityDelta1
+      )
+      lookupAccumulator0 = contribution.lookupAccumulator0
+      lookupAccumulator1 = contribution.lookupAccumulator1
+      lookupRequestCount = F.add(
+        lookupRequestCount,
+        kindSelector(kind, LOOKUP_BUS_ROW_KIND.lookupRequest)
+      )
+    }
+  }
+  return rows
+}
+
+export function lookupBusAccumulatorCrossConstraint (
+  baseSegment: string,
+  accumulatorSegment: string,
+  challengeInput: LookupBusChallengeInput,
+  degreeBound?: number
+): MultiTraceCrossConstraintInput {
+  const challenges = deriveLookupBusChallenges(challengeInput)
+  return {
+    name: 'lookup-bus-accumulator',
+    degreeBound,
+    refs: [
+      { alias: 'base', segment: baseSegment },
+      { alias: 'accumulator', segment: accumulatorSegment },
+      { alias: 'nextAccumulator', segment: accumulatorSegment, shift: 1 }
+    ],
+    evaluate: ({ rows }) => evaluateLookupBusAccumulatorTransition(
+      rows.base,
+      rows.accumulator,
+      rows.nextAccumulator,
+      challenges
+    )
   }
 }
 
@@ -723,6 +1042,77 @@ function lookupAccumulatorNext (
   expected = F.add(expected, F.mul(request, F.sub(requestNext, current)))
   expected = F.add(expected, F.mul(supply, F.sub(supplyNext, current)))
   return expected
+}
+
+function evaluateLookupBusAccumulatorStep (
+  baseRow: FieldElement[],
+  accumulatorRow: FieldElement[],
+  challenges: LookupBusChallenges
+): {
+    equalityDelta0: FieldElement
+    equalityDelta1: FieldElement
+    lookupAccumulator0: FieldElement
+    lookupAccumulator1: FieldElement
+  } {
+  const kind = baseRow[LOOKUP_BUS_BASE_LAYOUT.kind]
+  const tag = baseRow[LOOKUP_BUS_BASE_LAYOUT.tag]
+  const multiplicity = baseRow[LOOKUP_BUS_BASE_LAYOUT.multiplicity]
+  const request = kindSelector(kind, LOOKUP_BUS_ROW_KIND.lookupRequest)
+  const supply = kindSelector(kind, LOOKUP_BUS_ROW_KIND.lookupSupply)
+  const compressedLeft0 = compressPaddedLookupBusTuple(
+    tag,
+    baseRow,
+    LOOKUP_BUS_BASE_LAYOUT.left,
+    challenges.alphaPowers0
+  )
+  const compressedLeft1 = compressPaddedLookupBusTuple(
+    tag,
+    baseRow,
+    LOOKUP_BUS_BASE_LAYOUT.left,
+    challenges.alphaPowers1
+  )
+  const compressedRight0 = compressPaddedLookupBusTuple(
+    tag,
+    baseRow,
+    LOOKUP_BUS_BASE_LAYOUT.right,
+    challenges.alphaPowers0
+  )
+  const compressedRight1 = compressPaddedLookupBusTuple(
+    tag,
+    baseRow,
+    LOOKUP_BUS_BASE_LAYOUT.right,
+    challenges.alphaPowers1
+  )
+  const lookupFactor0 = F.add(challenges.beta0, compressedLeft0)
+  const lookupFactor1 = F.add(challenges.beta1, compressedLeft1)
+  return {
+    equalityDelta0: equalityContribution(
+      kind,
+      multiplicity,
+      compressedLeft0,
+      compressedRight0
+    ),
+    equalityDelta1: equalityContribution(
+      kind,
+      multiplicity,
+      compressedLeft1,
+      compressedRight1
+    ),
+    lookupAccumulator0: lookupAccumulatorNext(
+      accumulatorRow[LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupAccumulator0],
+      request,
+      supply,
+      lookupFactor0,
+      accumulatorRow[LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupInverse0]
+    ),
+    lookupAccumulator1: lookupAccumulatorNext(
+      accumulatorRow[LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupAccumulator1],
+      request,
+      supply,
+      lookupFactor1,
+      accumulatorRow[LOOKUP_BUS_ACCUMULATOR_LAYOUT.lookupInverse1]
+    )
+  }
 }
 
 function kindDomainConstraint (kind: FieldElement): FieldElement {
@@ -860,7 +1250,7 @@ function itemMultiplicity (
   return 0
 }
 
-function emptyLookupBusRow (): FieldElement[] {
+function emptyLookupBusBaseRow (): FieldElement[] {
   return new Array<FieldElement>(LOOKUP_BUS_LAYOUT.width).fill(0n)
 }
 
@@ -909,6 +1299,28 @@ function tuplesEqual (
     if (left[i] !== right[i]) return false
   }
   return true
+}
+
+function assertDigest (bytes: number[], name: string): void {
+  if (!Array.isArray(bytes) || bytes.length !== 32) {
+    throw new Error(`${name} must be 32 bytes`)
+  }
+  for (const byte of bytes) {
+    if (!Number.isSafeInteger(byte) || byte < 0 || byte > 255) {
+      throw new Error(`${name} contains invalid byte`)
+    }
+  }
+}
+
+function committedSegmentByName (
+  segments: MultiTraceCommittedSegmentSummary[],
+  name: string
+): MultiTraceCommittedSegmentSummary {
+  const segment = segments.find(item => item.name === name)
+  if (segment === undefined) {
+    throw new Error(`lookup bus committed segment is missing: ${name}`)
+  }
+  return segment
 }
 
 function writeField (writer: Writer, value: FieldElement): void {
