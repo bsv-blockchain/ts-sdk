@@ -138,7 +138,8 @@ describe('BRC-69 production radix-11 EC segment', () => {
       maskSeed: ascii('production-radix11-ec-mask')
     })
 
-    expect(verifyProductionRadix11Ec(trace, proof)).toBe(true)
+    expect(verifyProductionRadix11Ec(trace, proof, { numQueries: 2 }))
+      .toBe(true)
     expect(productionRadix11EcMetrics(trace, 16, proof)).toMatchObject({
       affineAddProofs: 2,
       totalFieldLinearProofs: 12,
@@ -173,11 +174,12 @@ describe('BRC-69 production radix-11 EC segment', () => {
       maskSeed: ascii('production-ec-aggregate-mask')
     })
 
-    expect(verifyProductionEc(trace.publicInput, proof)).toBe(true)
+    expect(verifyProductionEc(trace.publicInput, proof, { numQueries: 2 }))
+      .toBe(true)
     expect(verifyProductionEc({
       ...trace.publicInput,
       publicA: scalarMultiply(3n)
-    }, proof)).toBe(false)
+    }, proof, { numQueries: 2 })).toBe(false)
     expect(productionEcMetrics(trace, proof)).toMatchObject({
       activeRows: 5280,
       paddedRows: 8192,
@@ -330,7 +332,8 @@ describe('BRC-69 production radix-11 EC segment', () => {
       })
     }
 
-    expect(verifyProductionRadix11Ec(trace, tampered)).toBe(false)
+    expect(verifyProductionRadix11Ec(trace, tampered, { numQueries: 2 }))
+      .toBe(false)
   })
 })
 

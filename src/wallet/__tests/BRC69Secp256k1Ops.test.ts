@@ -41,7 +41,8 @@ describe('BRC-69 secp256k1 field and point op prototypes', () => {
       numQueries: 2,
       maskSeed: ascii('secp-field-add-mask')
     })
-    expect(verifySecp256k1FieldLinear(add, addProof)).toBe(true)
+    expect(verifySecp256k1FieldLinear(add, addProof, { numQueries: 2 }))
+      .toBe(true)
     expect(secp256k1FieldLinearMetrics(addProof).proofBytes).toBeGreaterThan(0)
 
     const sub = buildSecp256k1FieldSubTrace(3n, 9n)
@@ -70,7 +71,8 @@ describe('BRC-69 secp256k1 field and point op prototypes', () => {
       numQueries: 2,
       maskSeed: ascii('secp-field-mul-mask')
     })
-    expect(verifySecp256k1FieldMul(trace, proof)).toBe(true)
+    expect(verifySecp256k1FieldMul(trace, proof, { numQueries: 2 }))
+      .toBe(true)
     expect(secp256k1FieldMulMetrics(proof)).toMatchObject({
       limbBits: 52,
       limbCount: 5,
@@ -96,7 +98,8 @@ describe('BRC-69 secp256k1 field and point op prototypes', () => {
       maskSeed: ascii('secp-affine-add-mask')
     })
 
-    expect(verifySecp256k1AffineAdd(bundle, proof)).toBe(true)
+    expect(verifySecp256k1AffineAdd(bundle, proof, { numQueries: 2 }))
+      .toBe(true)
     expect(secp256k1AffineAddMetrics(proof)).toMatchObject({
       linearProofs: 6,
       mulProofs: 4
@@ -115,7 +118,8 @@ describe('BRC-69 secp256k1 field and point op prototypes', () => {
       maskSeed: ascii('secp-affine-add-locked-domain-mask')
     })
 
-    expect(verifySecp256k1AffineAdd(bundle, proof)).toBe(true)
+    expect(verifySecp256k1AffineAdd(bundle, proof, { numQueries: 2 }))
+      .toBe(true)
   })
 })
 

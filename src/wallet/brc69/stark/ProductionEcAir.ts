@@ -353,12 +353,20 @@ export function proveProductionEc (
 
 export function verifyProductionEc (
   publicInput: ProductionEcPublicInput,
-  proof: StarkProof
+  proof: StarkProof,
+  options: StarkVerifierOptions = {}
 ): boolean {
   const publicInputDigest = productionEcPublicInputDigest(publicInput)
-  if (!bytesEqual(proof.publicInputDigest, publicInputDigest)) return false
   const air = buildProductionEcAir(publicInput, publicInputDigest)
-  return verifyStark(air, proof, starkVerifierOptions(proof))
+  return verifyStark(air, proof, {
+    blowupFactor: options.blowupFactor,
+    numQueries: options.numQueries,
+    maxRemainderSize: options.maxRemainderSize,
+    maskDegree: options.maskDegree,
+    cosetOffset: options.cosetOffset,
+    publicInputDigest,
+    transcriptDomain: PRODUCTION_EC_TRANSCRIPT_DOMAIN
+  })
 }
 
 export function productionEcTracePublicA (
@@ -1354,25 +1362,6 @@ function affineWitnessLimbs (
     xDiff: secp256k1FieldToLimbs52(witness.xDiff),
     ySum: secp256k1FieldToLimbs52(witness.ySum)
   }
-}
-
-function starkVerifierOptions (proof: StarkProof): StarkVerifierOptions {
-  return {
-    blowupFactor: proof.blowupFactor,
-    numQueries: proof.numQueries,
-    maxRemainderSize: proof.maxRemainderSize,
-    maskDegree: proof.maskDegree,
-    cosetOffset: proof.cosetOffset,
-    traceDegreeBound: proof.traceDegreeBound,
-    compositionDegreeBound: proof.compositionDegreeBound,
-    publicInputDigest: proof.publicInputDigest,
-    transcriptDomain: PRODUCTION_EC_TRANSCRIPT_DOMAIN
-  }
-}
-
-function bytesEqual (left: number[], right: number[]): boolean {
-  return left.length === right.length &&
-    left.every((byte, index) => byte === right[index])
 }
 
 function selectorSum (

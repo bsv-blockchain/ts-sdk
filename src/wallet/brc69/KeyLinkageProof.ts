@@ -53,10 +53,18 @@ export type ParsedSpecificKeyLinkageProofPayload =
 
 export function normalizeSpecificKeyLinkageCounterparty (
   counterparty: WalletCounterparty,
-  prover: string
+  prover: string,
+  options: { allowSentinelCounterparty?: boolean } = {}
 ): string {
-  if (counterparty === 'self') return prover
-  if (counterparty === 'anyone') return toHex(compressPoint(SECP256K1_G))
+  if (counterparty === 'self' || counterparty === 'anyone') {
+    if (options.allowSentinelCounterparty !== true) {
+      throw new Error(
+        'BRC69 Method 2 proof type 1 requires an explicit counterparty public key; sentinel counterparties require proofType 0'
+      )
+    }
+    if (counterparty === 'self') return prover
+    return toHex(compressPoint(SECP256K1_G))
+  }
   assertCompressedPublicKeyHex(counterparty, 'counterparty')
   return counterparty.toLowerCase()
 }

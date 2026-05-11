@@ -7,6 +7,7 @@ import {
   MultiTraceCrossConstraintInput,
   MultiTraceStarkProof,
   StarkProverOptions,
+  StarkVerifierOptions,
   diagnoseMultiTraceStark,
   provePhasedMultiTraceStark,
   serializeMultiTraceStarkProof,
@@ -519,9 +520,11 @@ export function proveLookupBus (
 
 export function verifyLookupBusProof (
   publicInput: LookupBusPublicInput,
-  proof: MultiTraceStarkProof
+  proof: MultiTraceStarkProof,
+  options: StarkVerifierOptions = {}
 ): boolean {
-  if (!lookupBusProofMeetsMinimumProfile(proof)) return false
+  const verifierOptions = lookupBusVerifierOptions(options)
+  if (!lookupBusProofMeetsProfile(proof, verifierOptions)) return false
   const air = buildLookupBusAir(publicInput)
   const baseProof = proof.segments.find(segment => segment.name === 'lookup-base')
   if (baseProof === undefined) return false
@@ -539,21 +542,14 @@ export function verifyLookupBusProof (
       name: 'lookup-accumulator',
       air: buildLookupBusAccumulatorAir(publicInput, challengeInput)
     }
-  ], proof, {
-    blowupFactor: baseProof.proof.blowupFactor,
-    numQueries: baseProof.proof.numQueries,
-    maxRemainderSize: baseProof.proof.maxRemainderSize,
-    maskDegree: baseProof.proof.maskDegree,
-    cosetOffset: baseProof.proof.cosetOffset,
-    transcriptDomain: LOOKUP_BUS_TRANSCRIPT_DOMAIN
-  }, [
+  ], proof, verifierOptions, [
     lookupBusAccumulatorCrossConstraint(
       'lookup-base',
       'lookup-accumulator',
       challengeInput,
       lookupBusCrossDegreeBound(
         publicInput.traceLength,
-        baseProof.proof.blowupFactor
+        verifierOptions.blowupFactor ?? LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.blowupFactor
       )
     )
   ])
@@ -561,9 +557,11 @@ export function verifyLookupBusProof (
 
 export function diagnoseLookupBusProof (
   publicInput: LookupBusPublicInput,
-  proof: MultiTraceStarkProof
+  proof: MultiTraceStarkProof,
+  options: StarkVerifierOptions = {}
 ): ReturnType<typeof diagnoseMultiTraceStark> {
-  if (!lookupBusProofMeetsMinimumProfile(proof)) {
+  const verifierOptions = lookupBusVerifierOptions(options)
+  if (!lookupBusProofMeetsProfile(proof, verifierOptions)) {
     return { ok: false, stage: 'proof-shape' }
   }
   const air = buildLookupBusAir(publicInput)
@@ -583,28 +581,40 @@ export function diagnoseLookupBusProof (
       name: 'lookup-accumulator',
       air: buildLookupBusAccumulatorAir(publicInput, challengeInput)
     }
-  ], proof, {
-    blowupFactor: baseProof.proof.blowupFactor,
-    numQueries: baseProof.proof.numQueries,
-    maxRemainderSize: baseProof.proof.maxRemainderSize,
-    maskDegree: baseProof.proof.maskDegree,
-    cosetOffset: baseProof.proof.cosetOffset,
-    transcriptDomain: LOOKUP_BUS_TRANSCRIPT_DOMAIN
-  }, [
+  ], proof, verifierOptions, [
     lookupBusAccumulatorCrossConstraint(
       'lookup-base',
       'lookup-accumulator',
       challengeInput,
       lookupBusCrossDegreeBound(
         publicInput.traceLength,
-        baseProof.proof.blowupFactor
+        verifierOptions.blowupFactor ?? LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.blowupFactor
       )
     )
   ])
 }
 
-function lookupBusProofMeetsMinimumProfile (
-  proof: MultiTraceStarkProof
+function lookupBusVerifierOptions (
+  options: StarkVerifierOptions
+): StarkVerifierOptions {
+  return {
+    blowupFactor: options.blowupFactor ??
+      LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.blowupFactor,
+    numQueries: options.numQueries ??
+      LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.numQueries,
+    maxRemainderSize: options.maxRemainderSize ??
+      LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.maxRemainderSize,
+    maskDegree: options.maskDegree ??
+      LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.maskDegree,
+    cosetOffset: options.cosetOffset ??
+      LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.cosetOffset,
+    transcriptDomain: LOOKUP_BUS_TRANSCRIPT_DOMAIN
+  }
+}
+
+function lookupBusProofMeetsProfile (
+  proof: MultiTraceStarkProof,
+  options: StarkVerifierOptions
 ): boolean {
   if (proof.transcriptDomain !== LOOKUP_BUS_TRANSCRIPT_DOMAIN) return false
   if (
@@ -616,12 +626,22 @@ function lookupBusProofMeetsMinimumProfile (
   }
   if ((proof.crossProofs ?? []).length !== 1) return false
   if ((proof.constantColumnProofs ?? []).length !== 0) return false
+  const blowupFactor = options.blowupFactor ??
+    LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.blowupFactor
+  const numQueries = options.numQueries ??
+    LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.numQueries
+  const maxRemainderSize = options.maxRemainderSize ??
+    LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.maxRemainderSize
+  const maskDegree = options.maskDegree ??
+    LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.maskDegree
+  const cosetOffset = options.cosetOffset ??
+    LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.cosetOffset
   return proof.segments.every(segment =>
-    segment.proof.blowupFactor >= LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.blowupFactor &&
-    segment.proof.numQueries >= LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.numQueries &&
-    segment.proof.maxRemainderSize >= LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.maxRemainderSize &&
-    segment.proof.maskDegree >= LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS.maskDegree &&
-    segment.proof.cosetOffset !== 0n
+    segment.proof.blowupFactor === blowupFactor &&
+    segment.proof.numQueries === numQueries &&
+    segment.proof.maxRemainderSize === maxRemainderSize &&
+    segment.proof.maskDegree === maskDegree &&
+    segment.proof.cosetOffset === cosetOffset
   )
 }
 

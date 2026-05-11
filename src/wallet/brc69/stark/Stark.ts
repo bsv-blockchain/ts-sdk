@@ -819,8 +819,7 @@ export function verifyMultiTraceStark (
         multiTraceSegmentVerifierOptions(
           transcriptDomain,
           segment,
-          options,
-          segmentProof.proof
+          options
         )
       )
       return {
@@ -924,8 +923,7 @@ export function diagnoseMultiTraceStark (
         multiTraceSegmentVerifierOptions(
           transcriptDomain,
           segment,
-          options,
-          segmentProof.proof
+          options
         )
       )
       return {
@@ -1084,10 +1082,10 @@ export function verifyStark (
     if (!verifyFri(proof.traceFriProof, {
       expectedRoot: proof.traceCombinationRoot,
       domainSize: ldeSize,
-      degreeBound: proof.traceDegreeBound,
-      numQueries: proof.numQueries,
-      maxRemainderSize: proof.maxRemainderSize,
-      domainOffset: proof.cosetOffset,
+      degreeBound: resolved.traceDegreeBound,
+      numQueries: resolved.numQueries,
+      maxRemainderSize: resolved.maxRemainderSize,
+      domainOffset: resolved.cosetOffset,
       transcriptDomain: `${resolved.transcriptDomain}:trace-fri`,
       transcriptContext: resolved.transcriptContext
     })) {
@@ -1097,10 +1095,10 @@ export function verifyStark (
     if (!verifyFri(proof.friProof, {
       expectedRoot: proof.compositionRoot,
       domainSize: ldeSize,
-      degreeBound: proof.compositionDegreeBound,
-      numQueries: proof.numQueries,
-      maxRemainderSize: proof.maxRemainderSize,
-      domainOffset: proof.cosetOffset,
+      degreeBound: resolved.compositionDegreeBound,
+      numQueries: resolved.numQueries,
+      maxRemainderSize: resolved.maxRemainderSize,
+      domainOffset: resolved.cosetOffset,
       transcriptDomain: `${resolved.transcriptDomain}:fri`,
       transcriptContext: resolved.transcriptContext
     })) {
@@ -1255,10 +1253,10 @@ export function diagnoseStark (
     if (!verifyFri(proof.traceFriProof, {
       expectedRoot: proof.traceCombinationRoot,
       domainSize: ldeSize,
-      degreeBound: proof.traceDegreeBound,
-      numQueries: proof.numQueries,
-      maxRemainderSize: proof.maxRemainderSize,
-      domainOffset: proof.cosetOffset,
+      degreeBound: resolved.traceDegreeBound,
+      numQueries: resolved.numQueries,
+      maxRemainderSize: resolved.maxRemainderSize,
+      domainOffset: resolved.cosetOffset,
       transcriptDomain: `${resolved.transcriptDomain}:trace-fri`,
       transcriptContext: resolved.transcriptContext
     })) {
@@ -1268,10 +1266,10 @@ export function diagnoseStark (
     if (!verifyFri(proof.friProof, {
       expectedRoot: proof.compositionRoot,
       domainSize: ldeSize,
-      degreeBound: proof.compositionDegreeBound,
-      numQueries: proof.numQueries,
-      maxRemainderSize: proof.maxRemainderSize,
-      domainOffset: proof.cosetOffset,
+      degreeBound: resolved.compositionDegreeBound,
+      numQueries: resolved.numQueries,
+      maxRemainderSize: resolved.maxRemainderSize,
+      domainOffset: resolved.cosetOffset,
       transcriptDomain: `${resolved.transcriptDomain}:fri`,
       transcriptContext: resolved.transcriptContext
     })) {
@@ -2692,16 +2690,12 @@ function multiTraceSegmentProverOptions (
 function multiTraceSegmentVerifierOptions (
   transcriptDomain: string,
   segment: MultiTraceStarkSegmentVerifierInput,
-  options: StarkVerifierOptions,
-  proof: StarkProof
+  options: StarkVerifierOptions
 ): StarkVerifierOptions {
   return {
     ...options,
     ...segment.options,
     transcriptDomain: multiTraceSegmentDomain(transcriptDomain, segment.name),
-    traceDegreeBound: proof.traceDegreeBound,
-    compositionDegreeBound: proof.compositionDegreeBound,
-    publicInputDigest: proof.publicInputDigest,
     transcriptContext: undefined
   }
 }

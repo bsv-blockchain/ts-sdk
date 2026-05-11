@@ -17,7 +17,6 @@ import {
 import {
   StarkProof,
   StarkProverOptions,
-  StarkVerifierOptions,
   serializeStarkProof,
   proveStark,
   verifyStark
@@ -306,8 +305,12 @@ export function verifyBRC69ProductionScalar (
   proof: StarkProof
 ): boolean {
   if (!proofMeetsProductionProfile(proof)) return false
-  const air = buildBRC69ProductionScalarAir(publicInput, proof.publicInputDigest)
-  return verifyStark(air, proof, starkVerifierOptions(proof))
+  const air = buildBRC69ProductionScalarAir(publicInput)
+  return verifyStark(air, proof, {
+    ...BRC69_PRODUCTION_SCALAR_STARK_OPTIONS,
+    publicInputDigest: air.publicInputDigest,
+    transcriptDomain: BRC69_PRODUCTION_SCALAR_TRANSCRIPT_DOMAIN
+  })
 }
 
 export function brc69ProductionScalarMetrics (
@@ -583,20 +586,6 @@ function proofMeetsProductionProfile (proof: StarkProof): boolean {
     proof.maxRemainderSize === BRC69_PRODUCTION_SCALAR_STARK_OPTIONS.maxRemainderSize &&
     proof.maskDegree === BRC69_PRODUCTION_SCALAR_STARK_OPTIONS.maskDegree &&
     proof.cosetOffset === BRC69_PRODUCTION_SCALAR_STARK_OPTIONS.cosetOffset
-}
-
-function starkVerifierOptions (proof: StarkProof): StarkVerifierOptions {
-  return {
-    blowupFactor: proof.blowupFactor,
-    numQueries: proof.numQueries,
-    maxRemainderSize: proof.maxRemainderSize,
-    maskDegree: proof.maskDegree,
-    cosetOffset: proof.cosetOffset,
-    traceDegreeBound: proof.traceDegreeBound,
-    compositionDegreeBound: proof.compositionDegreeBound,
-    publicInputDigest: proof.publicInputDigest,
-    transcriptDomain: BRC69_PRODUCTION_SCALAR_TRANSCRIPT_DOMAIN
-  }
 }
 
 function writeField (writer: Writer, value: FieldElement): void {

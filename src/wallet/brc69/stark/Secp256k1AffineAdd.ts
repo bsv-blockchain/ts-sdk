@@ -6,7 +6,12 @@ import {
   pointAdd
 } from '../circuit/Secp256k1.js'
 import { SecpPoint } from '../circuit/Types.js'
-import { StarkProof, StarkProverOptions, serializeStarkProof } from './Stark.js'
+import {
+  StarkProof,
+  StarkProverOptions,
+  StarkVerifierOptions,
+  serializeStarkProof
+} from './Stark.js'
 import {
   Secp256k1FieldLinearTrace,
   Secp256k1FieldMulTrace,
@@ -172,18 +177,19 @@ export function proveSecp256k1AffineAdd (
 
 export function verifySecp256k1AffineAdd (
   bundle: Secp256k1AffineAddTraceBundle,
-  proof: Secp256k1AffineAddProofBundle
+  proof: Secp256k1AffineAddProofBundle,
+  options: StarkVerifierOptions = {}
 ): boolean {
-  return verifySecp256k1FieldLinear(bundle.linear.dx, proof.linear.dx) &&
-    verifySecp256k1FieldLinear(bundle.linear.dy, proof.linear.dy) &&
-    verifySecp256k1FieldLinear(bundle.linear.xFirstSub, proof.linear.xFirstSub) &&
-    verifySecp256k1FieldLinear(bundle.linear.xSecondSub, proof.linear.xSecondSub) &&
-    verifySecp256k1FieldLinear(bundle.linear.xDiff, proof.linear.xDiff) &&
-    verifySecp256k1FieldLinear(bundle.linear.ySum, proof.linear.ySum) &&
-    verifySecp256k1FieldMul(bundle.mul.inverse, proof.mul.inverse) &&
-    verifySecp256k1FieldMul(bundle.mul.slope, proof.mul.slope) &&
-    verifySecp256k1FieldMul(bundle.mul.slopeSquared, proof.mul.slopeSquared) &&
-    verifySecp256k1FieldMul(bundle.mul.yRelation, proof.mul.yRelation)
+  return verifySecp256k1FieldLinear(bundle.linear.dx, proof.linear.dx, options) &&
+    verifySecp256k1FieldLinear(bundle.linear.dy, proof.linear.dy, options) &&
+    verifySecp256k1FieldLinear(bundle.linear.xFirstSub, proof.linear.xFirstSub, options) &&
+    verifySecp256k1FieldLinear(bundle.linear.xSecondSub, proof.linear.xSecondSub, options) &&
+    verifySecp256k1FieldLinear(bundle.linear.xDiff, proof.linear.xDiff, options) &&
+    verifySecp256k1FieldLinear(bundle.linear.ySum, proof.linear.ySum, options) &&
+    verifySecp256k1FieldMul(bundle.mul.inverse, proof.mul.inverse, options) &&
+    verifySecp256k1FieldMul(bundle.mul.slope, proof.mul.slope, options) &&
+    verifySecp256k1FieldMul(bundle.mul.slopeSquared, proof.mul.slopeSquared, options) &&
+    verifySecp256k1FieldMul(bundle.mul.yRelation, proof.mul.yRelation, options)
 }
 
 export function secp256k1AffineAddMetrics (

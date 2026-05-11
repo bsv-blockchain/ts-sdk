@@ -6,6 +6,7 @@ import { F, FieldElement } from './Field.js'
 import {
   StarkProof,
   StarkProverOptions,
+  StarkVerifierOptions,
   proveStark,
   serializeStarkProof,
   verifyStark
@@ -397,18 +398,36 @@ export function proveSecp256k1FieldMul (
 
 export function verifySecp256k1FieldLinear (
   trace: Secp256k1FieldLinearTrace,
-  proof: StarkProof
+  proof: StarkProof,
+  options: StarkVerifierOptions = {}
 ): boolean {
-  const air = buildSecp256k1FieldLinearAir(trace, proof.publicInputDigest)
-  return verifyStark(air, proof, starkVerifierOptions(proof, `${SECP256K1_FIELD_OPS_TRANSCRIPT_DOMAIN}:linear`))
+  const air = buildSecp256k1FieldLinearAir(trace)
+  return verifyStark(air, proof, {
+    blowupFactor: options.blowupFactor ?? 4,
+    numQueries: options.numQueries ?? 4,
+    maxRemainderSize: options.maxRemainderSize ?? 8,
+    maskDegree: options.maskDegree ?? 1,
+    cosetOffset: options.cosetOffset ?? 3n,
+    publicInputDigest: air.publicInputDigest,
+    transcriptDomain: `${SECP256K1_FIELD_OPS_TRANSCRIPT_DOMAIN}:linear`
+  })
 }
 
 export function verifySecp256k1FieldMul (
   trace: Secp256k1FieldMulTrace,
-  proof: StarkProof
+  proof: StarkProof,
+  options: StarkVerifierOptions = {}
 ): boolean {
-  const air = buildSecp256k1FieldMulAir(trace, proof.publicInputDigest)
-  return verifyStark(air, proof, starkVerifierOptions(proof, `${SECP256K1_FIELD_OPS_TRANSCRIPT_DOMAIN}:mul`))
+  const air = buildSecp256k1FieldMulAir(trace)
+  return verifyStark(air, proof, {
+    blowupFactor: options.blowupFactor ?? 4,
+    numQueries: options.numQueries ?? 4,
+    maxRemainderSize: options.maxRemainderSize ?? 16,
+    maskDegree: options.maskDegree ?? 1,
+    cosetOffset: options.cosetOffset ?? 3n,
+    publicInputDigest: air.publicInputDigest,
+    transcriptDomain: `${SECP256K1_FIELD_OPS_TRANSCRIPT_DOMAIN}:mul`
+  })
 }
 
 export function secp256k1FieldLinearMetrics (
@@ -873,30 +892,6 @@ function emptyRows (height: number, width: number): FieldElement[][] {
 function validateFieldElement (value: bigint, label: string): void {
   if (value < 0n || value >= SECP256K1_P) {
     throw new Error(`secp256k1 field ${label} is out of range`)
-  }
-}
-
-function starkVerifierOptions (proof: StarkProof, transcriptDomain: string): {
-  blowupFactor: number
-  numQueries: number
-  maxRemainderSize: number
-  maskDegree: number
-  cosetOffset: FieldElement
-  traceDegreeBound: number
-  compositionDegreeBound: number
-  publicInputDigest: number[]
-  transcriptDomain: string
-} {
-  return {
-    blowupFactor: proof.blowupFactor,
-    numQueries: proof.numQueries,
-    maxRemainderSize: proof.maxRemainderSize,
-    maskDegree: proof.maskDegree,
-    cosetOffset: proof.cosetOffset,
-    traceDegreeBound: proof.traceDegreeBound,
-    compositionDegreeBound: proof.compositionDegreeBound,
-    publicInputDigest: proof.publicInputDigest,
-    transcriptDomain
   }
 }
 

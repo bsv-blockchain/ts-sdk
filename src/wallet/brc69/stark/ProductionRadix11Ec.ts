@@ -25,7 +25,7 @@ import {
   secp256k1AffineAddMetrics,
   verifySecp256k1AffineAdd
 } from './Secp256k1AffineAdd.js'
-import { StarkProverOptions } from './Stark.js'
+import { StarkProverOptions, StarkVerifierOptions } from './Stark.js'
 
 export type ProductionRadix11EcLane = 'G' | 'B'
 export type ProductionRadix11EcBranch =
@@ -245,7 +245,8 @@ export function proveProductionRadix11Ec (
 
 export function verifyProductionRadix11Ec (
   trace: ProductionRadix11EcTrace,
-  proof: ProductionRadix11EcProofBundle
+  proof: ProductionRadix11EcProofBundle,
+  options: StarkVerifierOptions = {}
 ): boolean {
   try {
     validateProductionRadix11EcTrace(trace)
@@ -258,7 +259,7 @@ export function verifyProductionRadix11Ec (
       if (!pointsEqual(item.trace.witness.left, lane.lane.before)) return false
       if (!pointsEqual(item.trace.witness.right, lane.lane.selected)) return false
       if (!pointsEqual(item.trace.witness.result, lane.lane.after)) return false
-      if (!verifySecp256k1AffineAdd(item.trace, item.proof)) return false
+      if (!verifySecp256k1AffineAdd(item.trace, item.proof, options)) return false
     }
     return true
   } catch {

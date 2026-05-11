@@ -155,7 +155,8 @@ export class ProtoWallet {
     }
     const counterparty = normalizeSpecificKeyLinkageCounterparty(
       args.counterparty,
-      identityKey
+      identityKey,
+      { allowSentinelCounterparty: proofType === 0 }
     )
     const linkage = this.keyDeriver.revealSpecificSecret(
       args.counterparty,

@@ -536,6 +536,76 @@ describe('BRC-69 STARK core', () => {
     ], segmentTampered, options)).toBe(false)
   })
 
+  it('rejects multi-trace proofs that select FRI degree bounds', () => {
+    const trace: FieldElement[][] = [[1n], [1n], [1n], [1n]]
+    const air = {
+      traceWidth: 1,
+      boundaryConstraints: [],
+      evaluateTransition: (current: FieldElement[], next: FieldElement[]) => [
+        F.sub(next[0], current[0])
+      ]
+    }
+    const verifierOptions = {
+      blowupFactor: 4,
+      numQueries: 4,
+      maxRemainderSize: 4,
+      maskDegree: 0,
+      cosetOffset: 3n,
+      transcriptDomain: 'BRC69_TEST_MULTI_TRACE_PROOF_SELECTED_DEGREE'
+    }
+    const proofSelectedOptions = {
+      ...verifierOptions,
+      traceDegreeBound: 15,
+      compositionDegreeBound: 15
+    }
+    const proof = proveMultiTraceStark([
+      { name: 'segment', air, traceRows: trace }
+    ], proofSelectedOptions)
+
+    expect(verifyMultiTraceStark([
+      { name: 'segment', air }
+    ], proof, verifierOptions)).toBe(false)
+    expect(verifyMultiTraceStark([
+      { name: 'segment', air }
+    ], proof, proofSelectedOptions)).toBe(true)
+  })
+
+  it('rejects multi-trace proofs that select the public-input digest', () => {
+    const trace: FieldElement[][] = [[3n], [3n], [3n], [3n]]
+    const air = {
+      traceWidth: 1,
+      boundaryConstraints: [],
+      evaluateTransition: (current: FieldElement[], next: FieldElement[]) => [
+        F.sub(next[0], current[0])
+      ]
+    }
+    const verifierOptions = {
+      blowupFactor: 4,
+      numQueries: 4,
+      maxRemainderSize: 4,
+      maskDegree: 0,
+      cosetOffset: 3n,
+      transcriptDomain: 'BRC69_TEST_MULTI_TRACE_PROOF_SELECTED_DIGEST'
+    }
+    const proofDigest = new Array(32).fill(7)
+    const proof = proveMultiTraceStark([
+      { name: 'segment', air, traceRows: trace }
+    ], {
+      ...verifierOptions,
+      publicInputDigest: proofDigest
+    })
+
+    expect(verifyMultiTraceStark([
+      { name: 'segment', air }
+    ], proof, verifierOptions)).toBe(false)
+    expect(verifyMultiTraceStark([
+      { name: 'segment', air }
+    ], proof, {
+      ...verifierOptions,
+      publicInputDigest: proofDigest
+    })).toBe(true)
+  })
+
   it('proves cross-trace constraints over committed masked traces', () => {
     const leftTrace: FieldElement[][] = [[2n], [3n], [5n], [8n]]
     const rightTrace: FieldElement[][] = [[2n], [3n], [5n], [8n]]

@@ -401,13 +401,7 @@ export function verifyMethod2CompactHmacSha256 (
     }
     const air = buildMethod2CompactHmacSha256Air(publicInput)
     return verifyStark(air, proof, {
-      blowupFactor: proof.blowupFactor,
-      numQueries: proof.numQueries,
-      maxRemainderSize: proof.maxRemainderSize,
-      maskDegree: proof.maskDegree,
-      cosetOffset: proof.cosetOffset,
-      traceDegreeBound: proof.traceDegreeBound,
-      compositionDegreeBound: proof.compositionDegreeBound,
+      ...METHOD2_COMPACT_HMAC_SHA256_STARK_OPTIONS,
       publicInputDigest: air.publicInputDigest,
       transcriptDomain: METHOD2_COMPACT_HMAC_SHA256_TRANSCRIPT_DOMAIN
     })
@@ -419,13 +413,13 @@ export function verifyMethod2CompactHmacSha256 (
 function method2CompactHmacSha256ProofMeetsMinimumProfile (
   proof: StarkProof
 ): boolean {
-  return proof.blowupFactor >=
+  return proof.blowupFactor ===
     METHOD2_COMPACT_HMAC_SHA256_STARK_OPTIONS.blowupFactor &&
-    proof.numQueries >= METHOD2_COMPACT_HMAC_SHA256_STARK_OPTIONS.numQueries &&
-    proof.maxRemainderSize <=
+    proof.numQueries === METHOD2_COMPACT_HMAC_SHA256_STARK_OPTIONS.numQueries &&
+    proof.maxRemainderSize ===
       METHOD2_COMPACT_HMAC_SHA256_STARK_OPTIONS.maxRemainderSize &&
-    proof.maskDegree >= METHOD2_COMPACT_HMAC_SHA256_STARK_OPTIONS.maskDegree &&
-    proof.cosetOffset !== 0n
+    proof.maskDegree === METHOD2_COMPACT_HMAC_SHA256_STARK_OPTIONS.maskDegree &&
+    proof.cosetOffset === METHOD2_COMPACT_HMAC_SHA256_STARK_OPTIONS.cosetOffset
 }
 
 export function evaluateMethod2CompactHmacSha256Transition (

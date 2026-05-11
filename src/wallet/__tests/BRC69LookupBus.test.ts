@@ -169,7 +169,13 @@ describe('BRC-69 lookup/equality bus prototype', () => {
       segment.name === 'lookup-accumulator'
     )?.proof
     expect(busProof?.compositionDegreeBound).toBeGreaterThan(32)
-    expect(verifyLookupBusProof(trace.publicInput, proof)).toBe(true)
+    expect(verifyLookupBusProof(trace.publicInput, proof, {
+      blowupFactor: 16,
+      numQueries: 48,
+      maxRemainderSize: 16,
+      maskDegree: 2,
+      cosetOffset: 7n
+    })).toBe(true)
   })
 })
 

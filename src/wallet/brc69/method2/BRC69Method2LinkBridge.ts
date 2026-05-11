@@ -2,35 +2,15 @@ import { sha256 } from '../../../primitives/Hash.js'
 import { Writer, toArray } from '../../../primitives/utils.js'
 import { SECP256K1_P } from '../circuit/index.js'
 import { AirDefinition } from '../stark/Air.js'
-import { F, FieldElement, getPowerOfTwoRootOfUnity } from '../stark/Field.js'
+import { F, FieldElement } from '../stark/Field.js'
 import {
   BRC69_RADIX11_POINT_LIMBS,
-  BRC69_RADIX11_TABLE_ROWS,
   BRC69_RADIX11_WINDOW_COUNT,
   ProductionRadix11LookupPrototype
 } from '../stark/DualBaseRadix11Metrics.js'
-import {
-  LOOKUP_BUS_LAYOUT,
-  LookupBusPublicInput,
-  LOOKUP_BUS_TUPLE_ARITY
-} from '../stark/LookupBus.js'
+import { LOOKUP_BUS_TUPLE_ARITY } from '../stark/LookupBus.js'
 import { ProductionRadix11EcTrace } from '../stark/ProductionRadix11Ec.js'
-import {
-  PRODUCTION_EC_LAYOUT,
-  ProductionEcPublicInput
-} from '../stark/ProductionEcAir.js'
 import { secp256k1FieldToLimbs52 } from '../stark/Secp256k1FieldOps.js'
-import { MultiTraceCrossConstraintInput } from '../stark/Stark.js'
-import { BRC69ProductionScalarPublicInput } from './BRC69ProductionScalar.js'
-import {
-  BRC69ProductionCompressionPublicInput,
-  BRC69_PRODUCTION_COMPRESSION_LAYOUT
-} from './BRC69ProductionCompression.js'
-import {
-  METHOD2_COMPACT_HMAC_SHA256_LAYOUT,
-  Method2CompactHmacSha256PublicInput
-} from './Method2CompactHmacSha256.js'
-import { METHOD2_HMAC_KEY_SIZE } from './Method2Hmac.js'
 
 export const BRC69_METHOD2_LINK_BRIDGE_TRANSCRIPT_DOMAIN =
   'BRC69_METHOD2_LINK_BRIDGE_AIR_V1'
@@ -231,144 +211,6 @@ export function validateBRC69Method2LinkBridgePublicInput (
   }
 }
 
-export function buildBRC69Method2CrossConstraints (input: {
-  scalar: BRC69ProductionScalarPublicInput
-  lookup: LookupBusPublicInput
-  ec: ProductionEcPublicInput
-  compression: BRC69ProductionCompressionPublicInput
-  hmac: Method2CompactHmacSha256PublicInput
-  bridge: BRC69Method2LinkBridgePublicInput
-}): MultiTraceCrossConstraintInput[] {
-  const traceLength = input.bridge.traceLength
-  const ecRows = ecSelectedRows(input.ec)
-  const finalBRow = finalEcLaneRow(input.ec, 'B')
-  const selector = (row: number, x: FieldElement): FieldElement =>
-    lagrangeSelector(row, x, traceLength)
-
-  return [
-    {
-      name: 'bridge-source-links',
-      refs: [
-        { alias: 'bridge', segment: 'bridge' },
-        { alias: 'scalar', segment: 'scalar' },
-        {
-          alias: 'lookupSelected',
-          segment: 'lookup',
-          shift: BRC69_RADIX11_TABLE_ROWS
-        },
-        ...ecRows.flatMap(row => [
-          {
-            alias: `ecG${row.step}`,
-            segment: 'ec',
-            shift: row.gRow - row.step
-          },
-          {
-            alias: `ecB${row.step}`,
-            segment: 'ec',
-            shift: row.bRow - row.step
-          }
-        ])
-      ],
-      evaluate: ({ rows, x }) => {
-        const bridge = rows.bridge
-        const scalar = rows.scalar
-        const lookup = rows.lookupSelected
-        const out: FieldElement[] = []
-        const active = bridge[BRC69_METHOD2_LINK_BRIDGE_LAYOUT.active]
-        out.push(F.mul(active, F.sub(
-          bridge[BRC69_METHOD2_LINK_BRIDGE_LAYOUT.window],
-          scalar[1]
-        )))
-        out.push(F.mul(active, F.sub(
-          bridge[BRC69_METHOD2_LINK_BRIDGE_LAYOUT.sign],
-          scalar[4]
-        )))
-        out.push(F.mul(active, F.sub(
-          bridge[BRC69_METHOD2_LINK_BRIDGE_LAYOUT.magnitude],
-          scalar[5]
-        )))
-        out.push(F.mul(active, F.sub(
-          bridge[BRC69_METHOD2_LINK_BRIDGE_LAYOUT.isZero],
-          scalar[6]
-        )))
-        for (let i = 0; i < LOOKUP_BUS_TUPLE_ARITY; i++) {
-          out.push(F.mul(active, F.sub(
-            bridge[BRC69_METHOD2_LINK_BRIDGE_LAYOUT.tableTuple + i],
-            lookup[LOOKUP_BUS_LAYOUT.left + i]
-          )))
-        }
-        for (const row of ecRows) {
-          const rowSelector = selector(row.step, x)
-          out.push(...selectedPointLinkConstraints(
-            bridge,
-            rows[`ecG${row.step}`],
-            rowSelector,
-            BRC69_METHOD2_LINK_BRIDGE_LAYOUT.selectedGInfinity,
-            BRC69_METHOD2_LINK_BRIDGE_LAYOUT.selectedGX,
-            BRC69_METHOD2_LINK_BRIDGE_LAYOUT.selectedGY
-          ))
-          out.push(...selectedPointLinkConstraints(
-            bridge,
-            rows[`ecB${row.step}`],
-            rowSelector,
-            BRC69_METHOD2_LINK_BRIDGE_LAYOUT.selectedBInfinity,
-            BRC69_METHOD2_LINK_BRIDGE_LAYOUT.selectedBX,
-            BRC69_METHOD2_LINK_BRIDGE_LAYOUT.selectedBY
-          ))
-        }
-        return out
-      }
-    },
-    {
-      name: 'ec-compression-link',
-      refs: [
-        { alias: 'ecFinalB', segment: 'ec', shift: finalBRow },
-        { alias: 'compression', segment: 'compression' }
-      ],
-      evaluate: ({ rows, x }) => {
-        const rowSelector = selector(0, x)
-        const out: FieldElement[] = []
-        const ec = rows.ecFinalB
-        const compression = rows.compression
-        for (let i = 0; i < BRC69_RADIX11_POINT_LIMBS; i++) {
-          out.push(F.mul(rowSelector, F.sub(
-            ec[PRODUCTION_EC_LAYOUT.afterX + i],
-            compression[BRC69_PRODUCTION_COMPRESSION_LAYOUT.xLimbs + i]
-          )))
-        }
-        out.push(F.mul(rowSelector, F.sub(
-          ec[PRODUCTION_EC_LAYOUT.afterY],
-          compression[BRC69_PRODUCTION_COMPRESSION_LAYOUT.yLimb0]
-        )))
-        return out
-      }
-    },
-    {
-      name: 'compression-hmac-key-link',
-      refs: [
-        { alias: 'hmac', segment: 'hmac' },
-        ...Array.from({ length: METHOD2_HMAC_KEY_SIZE }, (_, byteIndex) => ({
-          alias: `compressionByte${byteIndex}`,
-          segment: 'compression',
-          shift: compressionByteRow(byteIndex)
-        }))
-      ],
-      evaluate: ({ rows, x }) => {
-        const rowSelector = selector(0, x)
-        const hmac = rows.hmac
-        return Array.from({ length: METHOD2_HMAC_KEY_SIZE }, (_, byteIndex) => {
-          return F.mul(rowSelector, F.sub(
-            rows[`compressionByte${byteIndex}`][
-              BRC69_PRODUCTION_COMPRESSION_LAYOUT.byte
-            ],
-            hmac[METHOD2_COMPACT_HMAC_SHA256_LAYOUT.keyBytes + byteIndex]
-          ))
-        })
-      }
-    }
-  ]
-}
-
 function evaluateBRC69Method2LinkBridgeRow (
   row: FieldElement[],
   layout: BRC69Method2LinkBridgeLayout
@@ -457,33 +299,6 @@ function laneConstraints (
   return constraints
 }
 
-function selectedPointLinkConstraints (
-  bridge: FieldElement[],
-  ec: FieldElement[],
-  selector: FieldElement,
-  bridgeInfinity: number,
-  bridgeX: number,
-  bridgeY: number
-): FieldElement[] {
-  const out = [
-    F.mul(selector, F.sub(
-      bridge[bridgeInfinity],
-      ec[PRODUCTION_EC_LAYOUT.selectedInfinity]
-    ))
-  ]
-  for (let i = 0; i < BRC69_RADIX11_POINT_LIMBS; i++) {
-    out.push(F.mul(selector, F.sub(
-      bridge[bridgeX + i],
-      ec[PRODUCTION_EC_LAYOUT.selectedX + i]
-    )))
-    out.push(F.mul(selector, F.sub(
-      bridge[bridgeY + i],
-      ec[PRODUCTION_EC_LAYOUT.selectedY + i]
-    )))
-  }
-  return out
-}
-
 function writeSelectedPoint (
   row: FieldElement[],
   infinityColumn: number,
@@ -523,62 +338,6 @@ function writeNegationCarries (
   if (carry !== 0n) {
     throw new Error('BRC69 link bridge y-negation final carry mismatch')
   }
-}
-
-function ecSelectedRows (
-  publicInput: ProductionEcPublicInput
-): Array<{ step: number, gRow: number, bRow: number }> {
-  return Array.from({ length: BRC69_RADIX11_WINDOW_COUNT }, (_, step) => ({
-    step,
-    gRow: firstEcLaneRow(publicInput, 'G', step),
-    bRow: firstEcLaneRow(publicInput, 'B', step)
-  }))
-}
-
-function firstEcLaneRow (
-  publicInput: ProductionEcPublicInput,
-  lane: 'G' | 'B',
-  step: number
-): number {
-  const item = publicInput.schedule.find(row =>
-    row.lane === lane && row.step === step
-  )
-  if (item === undefined) throw new Error('BRC69 EC selected row is missing')
-  return item.row
-}
-
-function finalEcLaneRow (
-  publicInput: ProductionEcPublicInput,
-  lane: 'G' | 'B'
-): number {
-  const rows = publicInput.schedule.filter(row => row.lane === lane)
-  const item = rows[rows.length - 1]
-  if (item === undefined) throw new Error('BRC69 EC final row is missing')
-  return item.row + item.rows - 1
-}
-
-function compressionByteRow (byteIndex: number): number {
-  return byteIndex === 0 ? 256 : byteIndex * 8 - 1
-}
-
-function lagrangeSelector (
-  row: number,
-  x: FieldElement,
-  traceLength: number
-): FieldElement {
-  const domainPoint = F.pow(
-    getPowerOfTwoRootOfUnity(traceLength),
-    BigInt(row)
-  )
-  const numerator = F.mul(
-    F.sub(F.pow(x, BigInt(traceLength)), 1n),
-    domainPoint
-  )
-  const denominator = F.mul(
-    BigInt(traceLength),
-    F.sub(x, domainPoint)
-  )
-  return F.div(numerator, denominator)
 }
 
 function linkBridgeScheduleRows (

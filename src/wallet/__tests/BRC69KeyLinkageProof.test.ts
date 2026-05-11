@@ -6,6 +6,7 @@ import {
 import {
   BRC69_METHOD2_MAX_PROOF_BYTES,
   BRC69_METHOD2_MAX_PUBLIC_INPUT_BYTES,
+  normalizeSpecificKeyLinkageCounterparty,
   parseSpecificKeyLinkageProofPayload,
   serializeBRC69SpecificKeyLinkageProof,
   serializeSpecificKeyLinkageProofPayload,
@@ -19,7 +20,7 @@ import {
   MultiTraceStarkProof,
   StarkProof
 } from '../brc69/stark/index'
-import { compressPoint } from '../brc69/circuit/index'
+import { SECP256K1_G, compressPoint } from '../brc69/circuit/index'
 
 describe('BRC-69 key linkage proof payload', () => {
   it('serializes and parses the whole-statement payload envelope', () => {
@@ -112,7 +113,27 @@ describe('BRC-69 key linkage proof payload', () => {
       proof: dummyWholeStatementProof()
     })).toBe(false)
   })
+
+  it('requires explicit counterparties for proof type 1 sentinel policy', () => {
+    const fixture = brc69Method2WholeStatementDeterministicFixture()
+    const prover = bytesToHex(compressPoint(fixture.publicInput.publicA))
+
+    expect(() => normalizeSpecificKeyLinkageCounterparty('self', prover))
+      .toThrow('sentinel counterparties require proofType 0')
+    expect(() => normalizeSpecificKeyLinkageCounterparty('anyone', prover))
+      .toThrow('sentinel counterparties require proofType 0')
+    expect(normalizeSpecificKeyLinkageCounterparty('self', prover, {
+      allowSentinelCounterparty: true
+    })).toBe(prover)
+    expect(normalizeSpecificKeyLinkageCounterparty('anyone', prover, {
+      allowSentinelCounterparty: true
+    })).toBe(bytesToHex(compressPoint(SECP256K1_G)))
+  })
 })
+
+function bytesToHex (bytes: number[]): string {
+  return bytes.map(byte => byte.toString(16).padStart(2, '0')).join('')
+}
 
 function dummyWholeStatementProof (): MultiTraceStarkProof {
   return {

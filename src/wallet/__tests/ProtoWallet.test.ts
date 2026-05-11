@@ -544,6 +544,26 @@ describe('ProtoWallet', () => {
       }
     })
 
+    it('Rejects sentinel counterparties for proof type 1 specific linkage proofs', async () => {
+      const proverKey = PrivateKey.fromRandom()
+      const verifierKey = PrivateKey.fromRandom()
+      const proverWallet = new PlaintextEncryptingProtoWallet(proverKey)
+      const baseArgs = {
+        verifier: verifierKey.toPublicKey().toString(),
+        protocolID: [0, 'tests'] as [0 | 1 | 2, string],
+        keyID: 'test key id'
+      }
+
+      await expect(proverWallet.revealSpecificKeyLinkage({
+        ...baseArgs,
+        counterparty: 'self'
+      })).rejects.toThrow('sentinel counterparties require proofType 0')
+      await expect(proverWallet.revealSpecificKeyLinkage({
+        ...baseArgs,
+        counterparty: 'anyone'
+      })).rejects.toThrow('sentinel counterparties require proofType 0')
+    })
+
     it('Keeps explicit revealSpecificKeyLinkage proofType 0 isolated', async () => {
       const proverKey = PrivateKey.fromRandom()
       const counterpartyKey = PrivateKey.fromRandom()

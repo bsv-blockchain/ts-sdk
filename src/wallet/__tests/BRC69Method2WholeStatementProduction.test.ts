@@ -14,6 +14,7 @@ import {
   brc69SegmentBusWrappedLayout,
   buildBRC69SegmentBusAccumulatorTrace,
   buildBRC69Method2LinkBridgeAir,
+  diagnoseBRC69Method2WholeStatement,
   deriveBRC69SegmentBusChallenges,
   validateBRC69Method2WholeStatementPublicInput,
   verifyBRC69Method2WholeStatement
@@ -182,6 +183,47 @@ describe('BRC-69 Method 2 whole-statement proof', () => {
     )).toBe(false)
   })
 
+  it('rejects proof type 1 degree bounds that do not match the verifier profile', () => {
+    const statement = brc69Method2WholeStatementDeterministicFixture()
+    const badProof = {
+      transcriptDomain: BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.transcriptDomain,
+      contextDigest: new Array(32).fill(0),
+      segments: [
+        {
+          name: 'base',
+          proof: {
+            ...dummyStarkSegment(
+              statement.busProofTraceLength,
+              statement.baseSegment.air.traceWidth
+            ),
+            traceDegreeBound: statement.busProofTraceLength +
+              BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.maskDegree + 1
+          }
+        },
+        {
+          name: 'bus',
+          proof: dummyStarkSegment(statement.busProofTraceLength, 1)
+        }
+      ],
+      crossProofs: [{}, {}],
+      constantColumnProofs: []
+    } as unknown as MultiTraceStarkProof
+
+    const diagnostic = diagnoseBRC69Method2WholeStatement(
+      statement.publicInput,
+      badProof
+    )
+    expect(diagnostic).toMatchObject({
+      ok: false,
+      stage: 'proof-shape',
+      detail: 'proof metadata does not match verifier-derived BRC69 Method 2 profile'
+    })
+    expect(verifyBRC69Method2WholeStatement(
+      statement.publicInput,
+      badProof
+    )).toBe(false)
+  })
+
   it('documents base-field bus compression collision estimates', () => {
     expect(brc69SegmentBusNonAdaptiveCollisionSecurityBits())
       .toBeGreaterThan(118)
@@ -189,6 +231,27 @@ describe('BRC-69 Method 2 whole-statement proof', () => {
       .toBeGreaterThan(118)
   })
 })
+
+function dummyStarkSegment (
+  traceLength: number,
+  traceWidth: number
+): Record<string, unknown> {
+  return {
+    traceLength,
+    traceWidth,
+    blowupFactor: BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.blowupFactor,
+    numQueries: BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.numQueries,
+    maxRemainderSize:
+      BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.maxRemainderSize,
+    maskDegree: BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.maskDegree,
+    traceDegreeBound: traceLength +
+      BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.maskDegree,
+    compositionDegreeBound: traceLength + 1,
+    cosetOffset: BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.cosetOffset,
+    publicInputDigest: new Array(32).fill(0),
+    traceRoot: new Array(32).fill(0)
+  }
+}
 
 function clonePublicInput<T> (value: T): T {
   return JSON.parse(JSON.stringify(value, (_, entry) =>

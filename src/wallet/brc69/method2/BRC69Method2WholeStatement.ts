@@ -321,6 +321,9 @@ export function verifyBRC69Method2WholeStatement (
       publicInput,
       baseRoot
     )
+    if (!multiTraceProofMatchesProofType1VerifierMetadata(proof, verifier.segments, publicInput)) {
+      return false
+    }
     return verifyMultiTraceStark(
       verifier.segments,
       proof,
@@ -357,6 +360,13 @@ export function diagnoseBRC69Method2WholeStatement (
       publicInput,
       baseRoot
     )
+    if (!multiTraceProofMatchesProofType1VerifierMetadata(proof, verifier.segments, publicInput)) {
+      return {
+        ok: false,
+        stage: 'proof-shape',
+        detail: 'proof metadata does not match verifier-derived BRC69 Method 2 profile'
+      }
+    }
     const multiTrace = diagnoseMultiTraceStark(
       verifier.segments,
       proof,
@@ -1565,6 +1575,72 @@ function multiTraceProofMeetsProofType1Shape (
     segment.proof.cosetOffset ===
       BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.cosetOffset
   )
+}
+
+function multiTraceProofMatchesProofType1VerifierMetadata (
+  proof: MultiTraceStarkProof,
+  verifierSegments: Array<{ name: string, air: AirDefinition }>,
+  publicInput: BRC69Method2WholeStatementPublicInput
+): boolean {
+  const expectedTraceLength =
+    brc69Method2WholeStatementBusProofTraceLength(publicInput)
+  return verifierSegments.every(segment => {
+    const segmentProof = proof.segments.find(item => item.name === segment.name)
+    if (segmentProof === undefined) return false
+    const expected = brc69Method2ExpectedSegmentMetadata(
+      segment.air,
+      expectedTraceLength
+    )
+    return segmentProof.proof.traceLength === expectedTraceLength &&
+      segmentProof.proof.traceWidth === segment.air.traceWidth &&
+      segmentProof.proof.traceDegreeBound === expected.traceDegreeBound &&
+      segmentProof.proof.compositionDegreeBound ===
+        expected.compositionDegreeBound &&
+      hashesEqual(segmentProof.proof.publicInputDigest, expected.publicInputDigest)
+  })
+}
+
+function brc69Method2ExpectedSegmentMetadata (
+  air: AirDefinition,
+  traceLength: number
+): {
+    traceDegreeBound: number
+    compositionDegreeBound: number
+    publicInputDigest: number[]
+  } {
+  const maskDegree = BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.maskDegree
+  const blowupFactor = BRC69_METHOD2_WHOLE_STATEMENT_STARK_OPTIONS.blowupFactor
+  const ldeSize = traceLength * blowupFactor
+  const traceDegreeBound = traceLength + maskDegree
+  const transitionDegree = air.transitionDegree ?? 2
+  const transitionNumeratorBound = Math.max(
+    1,
+    transitionDegree * traceDegreeBound
+  )
+  const transitionQuotientBound = Math.max(
+    1,
+    transitionNumeratorBound - traceLength + 1
+  )
+  const boundaryBound = (
+    air.boundaryConstraints.length > 0 ||
+    (air.fullBoundaryColumns?.length ?? 0) > 0
+  )
+    ? traceDegreeBound
+    : 1
+  return {
+    traceDegreeBound,
+    compositionDegreeBound: Math.min(
+      ldeSize - 1,
+      Math.max(transitionQuotientBound, boundaryBound) + 8
+    ),
+    publicInputDigest: air.publicInputDigest ??
+      sha256([...'BRC69_STARK_CORE_EMPTY_PUBLIC_INPUT'].map(c => c.charCodeAt(0)))
+  }
+}
+
+function hashesEqual (left: number[], right: number[]): boolean {
+  return left.length === right.length &&
+    left.every((byte, index) => byte === right[index])
 }
 
 function validateDeterministicLookupTable (

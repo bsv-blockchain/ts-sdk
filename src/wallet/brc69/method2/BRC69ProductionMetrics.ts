@@ -281,7 +281,8 @@ export function collectBRC69ProductionMetrics (
     ? undefined
     : step('brc69.metrics.ecArithmetic.verify', () => verifyProductionEc(
       productionEcBuild.value.publicInput,
-      ecProof.value
+      ecProof.value,
+      BRC69_PRODUCTION_METRICS_PROFILE
     ), 'ecArithmetic')
   const ecRadixMetrics = productionRadix11EcMetrics(
     ecBuild.value,

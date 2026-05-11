@@ -63,10 +63,26 @@ Verification path:
    roots and post-base-root bus challenge digests, then verifies the `base` and
    `bus` STARK segments and their cross-trace accumulator constraints.
 
+The verifier derives all proof type `1` STARK metadata from verifier-owned
+inputs: AIR shape, public input, trace length, and the production profile. The
+serialized proof still carries metadata for parsing and compatibility, but the
+verifier treats trace degree bounds, composition degree bounds, FRI remainder
+size, and public-input digest as values to compare against verifier-derived
+expectations. They are not used as verifier policy.
+
 Standalone scalar, lookup, EC, compression, HMAC, or bus trace/AIR builders are
 diagnostic and metrics helpers only. Legacy lookup/log-bus proof APIs with
 public-input-derived challenges fail closed and are not accepted by the proof
 type `1` wallet verifier.
+
+## Counterparty Policy
+
+Proof type `1` models BRC-69 Method 2 as a relation against a specified
+counterparty public key. `ProtoWallet.revealSpecificKeyLinkage` therefore
+requires `counterparty` to be an explicit compressed public key when proof type
+`1` is used. Sentinel `self` and `anyone` requests remain supported only through
+explicit proof type `0`, which is the legacy no-proof payload. This avoids
+treating sentinel derivation modes as ordinary Method 2 proof statements.
 
 ## Production Proof Shape
 
