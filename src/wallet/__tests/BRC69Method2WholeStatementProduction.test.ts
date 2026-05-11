@@ -12,9 +12,11 @@ import {
   brc69Method2WholeStatementDeterministicFixture,
   brc69Method2WholeStatementMetrics,
   brc69SegmentBusWrappedLayout,
+  buildBRC69Method2WholeStatement,
   buildBRC69SegmentBusAccumulatorTrace,
   buildBRC69Method2LinkBridgeAir,
   diagnoseBRC69Method2WholeStatement,
+  destroyBRC69Method2WholeStatementWitness,
   deriveBRC69SegmentBusChallenges,
   validateBRC69Method2WholeStatementPublicInput,
   verifyBRC69Method2WholeStatement
@@ -25,6 +27,7 @@ import {
   MultiTraceStarkProof,
   evaluateAirTrace
 } from '../brc69/stark/index'
+import { scalarMultiply } from '../brc69/circuit/index'
 
 describe('BRC-69 Method 2 whole-statement proof', () => {
   it('builds production-shaped segment traces without verifier-facing secrets', () => {
@@ -82,6 +85,24 @@ describe('BRC-69 Method 2 whole-statement proof', () => {
 
     expect(() => validateBRC69Method2WholeStatementPublicInput(badInput))
       .toThrow('BRC69 Method 2 multi-trace linkage mismatch')
+  })
+
+  it('wipes witness traces without corrupting deterministic table cache', () => {
+    const input = {
+      scalar: 7n,
+      baseB: scalarMultiply(3n),
+      invoice: [1, 2, 3]
+    }
+    const statement = buildBRC69Method2WholeStatement(input)
+    const tableRoot = statement.publicInput.preprocessedTableRoot.slice()
+
+    destroyBRC69Method2WholeStatementWitness(statement)
+
+    const rebuilt = buildBRC69Method2WholeStatement(input)
+    expect(rebuilt.publicInput.preprocessedTableRoot).toEqual(tableRoot)
+    expect(() => validateBRC69Method2WholeStatementPublicInput(
+      rebuilt.publicInput
+    )).not.toThrow()
   })
 
   it('rejects tampered public segment-bus metadata', () => {

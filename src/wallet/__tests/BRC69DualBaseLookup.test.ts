@@ -119,10 +119,15 @@ describe('BRC-69 dual-base signed lookup prototype', () => {
     })
 
     const proof = proveDualBaseLookupPrototype(prototype, {
+      ...FAST_LOOKUP_PROOF_OPTIONS,
       maskSeed: ascii('dual-base-lookup-mask')
     })
 
-    expect(verifyDualBaseLookupPrototypeProof(prototype, proof)).toBe(true)
+    expect(verifyDualBaseLookupPrototypeProof(
+      prototype,
+      proof,
+      FAST_LOOKUP_PROOF_OPTIONS
+    )).toBe(true)
     expect(dualBaseLookupMetrics(prototype, proof)).toMatchObject({
       activeRows: 68,
       paddedRows: 128,
@@ -204,7 +209,10 @@ describe('BRC-69 dual-base signed lookup prototype', () => {
       prove: true,
       maxProveTableRows: 128,
       now: deterministicClock(),
-      proofOptions: { maskSeed: ascii('dual-base-sweep-mask') },
+      proofOptions: {
+        ...FAST_LOOKUP_PROOF_OPTIONS,
+        maskSeed: ascii('dual-base-sweep-mask')
+      },
       cases: [
         {
           name: 'small-proved',
@@ -245,6 +253,14 @@ describe('BRC-69 dual-base signed lookup prototype', () => {
 
 function ascii (value: string): number[] {
   return Array.from(value).map(char => char.charCodeAt(0))
+}
+
+const FAST_LOOKUP_PROOF_OPTIONS = {
+  blowupFactor: 4,
+  numQueries: 4,
+  maxRemainderSize: 8,
+  maskDegree: 1,
+  cosetOffset: 3n
 }
 
 function deterministicClock (): () => number {

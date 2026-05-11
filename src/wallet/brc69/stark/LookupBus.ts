@@ -70,11 +70,11 @@ const LOOKUP_BUS_MULTIPLICITY_SELECTOR_DENOMINATOR_INVERSES =
   })
 
 export const LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS = {
-  blowupFactor: 4,
-  numQueries: 4,
-  maxRemainderSize: 8,
-  maskDegree: 1,
-  cosetOffset: 3n,
+  blowupFactor: 16,
+  numQueries: 48,
+  maxRemainderSize: 16,
+  maskDegree: 192,
+  cosetOffset: 7n,
   transcriptDomain: LOOKUP_BUS_TRANSCRIPT_DOMAIN
 } as const
 

@@ -9,10 +9,11 @@ export class FiatShamirTranscript {
   private counter = 0
 
   constructor (domain: string) {
+    const domainBytes = toArray(domain, 'utf8')
     this.state = sha256([
       ...toArray(STARK_CORE_TRANSCRIPT_PREFIX, 'utf8'),
-      ...u32(domain.length),
-      ...toArray(domain, 'utf8')
+      ...u32(domainBytes.length),
+      ...domainBytes
     ])
   }
 
@@ -85,12 +86,23 @@ export class FiatShamirTranscript {
 }
 
 function u32 (value: number): number[] {
+  assertU32(value)
   return [
     value & 0xff,
     (value >>> 8) & 0xff,
     (value >>> 16) & 0xff,
     (value >>> 24) & 0xff
   ]
+}
+
+function assertU32 (value: number): void {
+  if (
+    !Number.isSafeInteger(value) ||
+    value < 0 ||
+    value > 0xffffffff
+  ) {
+    throw new Error('Transcript length exceeds u32 range')
+  }
 }
 
 function readBigIntLE (bytes: number[]): bigint {

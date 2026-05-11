@@ -6,8 +6,11 @@ import {
 import {
   BRC69_METHOD2_MAX_PROOF_BYTES,
   BRC69_METHOD2_MAX_PUBLIC_INPUT_BYTES,
+  BRC69_METHOD2_PROOF_PAYLOAD_MAGIC,
+  BRC69_METHOD2_PROOF_PAYLOAD_VERSION,
   normalizeSpecificKeyLinkageCounterparty,
   parseSpecificKeyLinkageProofPayload,
+  serializeBRC69Method2WholeStatementPublicInput,
   serializeBRC69SpecificKeyLinkageProof,
   serializeSpecificKeyLinkageProofPayload,
   verifySpecificKeyLinkageProof
@@ -63,6 +66,7 @@ describe('BRC-69 key linkage proof payload', () => {
   it('rejects oversized declared public input and proof sections', () => {
     expect(() => parseSpecificKeyLinkageProofPayload([
       1,
+      ...proofPayloadPrefix(),
       ...encodeVarInt(BRC69_METHOD2_MAX_PUBLIC_INPUT_BYTES + 1)
     ])).toThrow('BRC69 Method 2 public input is too large')
 
@@ -70,10 +74,32 @@ describe('BRC-69 key linkage proof payload', () => {
     const publicInput = publicInputBytes(fixture.publicInput)
     expect(() => parseSpecificKeyLinkageProofPayload([
       1,
+      ...proofPayloadPrefix(),
       ...encodeVarInt(publicInput.length),
       ...publicInput,
       ...encodeVarInt(BRC69_METHOD2_MAX_PROOF_BYTES + 1)
     ])).toThrow('BRC69 Method 2 STARK proof is too large')
+  })
+
+  it('rejects non-versioned or unknown-version proof envelopes', () => {
+    const fixture = brc69Method2WholeStatementDeterministicFixture()
+    const payload = serializeSpecificKeyLinkageProofPayload({
+      publicInput: fixture.publicInput,
+      proof: dummyWholeStatementProof()
+    })
+    const versionOffset = 1 + ascii(BRC69_METHOD2_PROOF_PAYLOAD_MAGIC).length
+    const wrongVersion = payload.slice()
+    wrongVersion[versionOffset] = BRC69_METHOD2_PROOF_PAYLOAD_VERSION + 1
+
+    expect(() => parseSpecificKeyLinkageProofPayload(wrongVersion))
+      .toThrow('Unsupported BRC69 key linkage proof payload version')
+    const wrongMagic = ascii(BRC69_METHOD2_PROOF_PAYLOAD_MAGIC)
+    wrongMagic[0] ^= 1
+    expect(() => parseSpecificKeyLinkageProofPayload([
+      1,
+      ...wrongMagic,
+      BRC69_METHOD2_PROOF_PAYLOAD_VERSION
+    ])).toThrow('Invalid BRC69_KEY_LINKAGE_PROOF_PAYLOAD magic')
   })
 
   it('rejects HMAC public-input mismatches before serialization', () => {
@@ -192,12 +218,20 @@ function dummyFriProof (domainSize: number, degreeBound: number): StarkProof['fr
 }
 
 function publicInputBytes (publicInput: unknown): number[] {
-  return Array.from(Buffer.from(
-    JSON.stringify(publicInput, (_key, value) =>
-      typeof value === 'bigint' ? `${value}n` : value
-    ),
-    'utf8'
-  ))
+  return serializeBRC69Method2WholeStatementPublicInput(
+    publicInput as Parameters<typeof serializeBRC69Method2WholeStatementPublicInput>[0]
+  )
+}
+
+function proofPayloadPrefix (): number[] {
+  return [
+    ...ascii(BRC69_METHOD2_PROOF_PAYLOAD_MAGIC),
+    BRC69_METHOD2_PROOF_PAYLOAD_VERSION
+  ]
+}
+
+function ascii (value: string): number[] {
+  return Array.from(value).map(char => char.charCodeAt(0))
 }
 
 function encodeVarInt (value: number): number[] {

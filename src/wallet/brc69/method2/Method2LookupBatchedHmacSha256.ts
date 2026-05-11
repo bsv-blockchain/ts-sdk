@@ -19,6 +19,7 @@ import {
   Method2CompactHmacSha256PublicInput,
   buildMethod2CompactHmacSha256Air,
   buildMethod2CompactHmacSha256Trace,
+  method2CompactHmacSha256KeyForLink,
   method2CompactHmacSha256PublicInput,
   validateMethod2CompactHmacSha256PublicInput
 } from './Method2CompactHmacSha256.js'
@@ -41,11 +42,11 @@ export const METHOD2_LOOKUP_BATCHED_HMAC_SHA256_PUBLIC_INPUT_ID =
   'BRC69_METHOD2_LOOKUP_BATCHED_HMAC_SHA256_PUBLIC_INPUT_V1'
 
 export const METHOD2_LOOKUP_BATCHED_HMAC_SHA256_STARK_OPTIONS = {
-  blowupFactor: 4,
-  numQueries: 4,
+  blowupFactor: 16,
+  numQueries: 48,
   maxRemainderSize: 16,
-  maskDegree: 1,
-  cosetOffset: 3n,
+  maskDegree: 192,
+  cosetOffset: 7n,
   transcriptDomain: METHOD2_LOOKUP_BATCHED_HMAC_SHA256_TRANSCRIPT_DOMAIN
 } as const
 
@@ -163,7 +164,6 @@ export interface Method2LookupBatchedHmacSha256PublicInput {
 
 export interface Method2LookupBatchedHmacSha256Trace {
   publicInput: Method2LookupBatchedHmacSha256PublicInput
-  key: number[]
   rows: FieldElement[][]
   layout: Method2LookupBatchedHmacSha256Layout
   compact: ReturnType<typeof buildMethod2CompactHmacSha256Trace>
@@ -482,7 +482,6 @@ export function buildMethod2LookupBatchedHmacSha256Trace (
 
   const trace = {
     publicInput,
-    key: key.slice(),
     rows,
     layout: METHOD2_LOOKUP_BATCHED_HMAC_SHA256_LAYOUT,
     compact
@@ -768,7 +767,7 @@ export function method2LookupBatchedHmacSha256KeyForLink (
   trace: Method2LookupBatchedHmacSha256Trace
 ): number[] {
   validateMethod2LookupBatchedHmacSha256Trace(trace)
-  return trace.key.slice()
+  return method2CompactHmacSha256KeyForLink(trace.compact)
 }
 
 export function method2LookupBatchedHmacSha256PublicInputDigest (
@@ -802,9 +801,13 @@ export function validateMethod2LookupBatchedHmacSha256Trace (
   trace: Method2LookupBatchedHmacSha256Trace
 ): void {
   validateMethod2LookupBatchedHmacSha256PublicInput(trace.publicInput)
-  assertBytes(trace.key, METHOD2_HMAC_KEY_SIZE, 'HMAC key')
-  if (!bytesEqual(hmacSha256(trace.key, trace.publicInput.invoice), trace.publicInput.linkage)) {
-    throw new Error('Lookup-batched HMAC-SHA256 trace linkage mismatch')
+  const key = method2CompactHmacSha256KeyForLink(trace.compact)
+  try {
+    if (!bytesEqual(hmacSha256(key, trace.publicInput.invoice), trace.publicInput.linkage)) {
+      throw new Error('Lookup-batched HMAC-SHA256 trace linkage mismatch')
+    }
+  } finally {
+    key.fill(0)
   }
   if (trace.layout.width !== METHOD2_LOOKUP_BATCHED_HMAC_SHA256_LAYOUT.width) {
     throw new Error('Lookup-batched HMAC-SHA256 layout mismatch')

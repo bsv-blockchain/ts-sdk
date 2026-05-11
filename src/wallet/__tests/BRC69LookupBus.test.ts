@@ -32,10 +32,16 @@ describe('BRC-69 lookup/equality bus prototype', () => {
       ...lookupBusLookupRequestItems(table, [7])
     ], { minTraceLength: 32 })
     const proof = proveLookupBus(trace, {
+      ...FAST_LOOKUP_PROOF_OPTIONS,
       maskSeed: ascii('lookup-bus-range16-mask')
     })
 
-    expect(verifyLookupBusProof(trace.publicInput, proof)).toBe(true)
+    expect(verifyLookupBusProof(
+      trace.publicInput,
+      proof,
+      FAST_LOOKUP_PROOF_OPTIONS
+    )).toBe(true)
+    expect(verifyLookupBusProof(trace.publicInput, proof)).toBe(false)
     expect(lookupBusMetrics(trace, proof)).toMatchObject({
       activeRows: 17,
       paddedRows: 32,
@@ -75,10 +81,15 @@ describe('BRC-69 lookup/equality bus prototype', () => {
       }
     ], { minTraceLength: 32 })
     const proof = proveLookupBus(trace, {
+      ...FAST_LOOKUP_PROOF_OPTIONS,
       maskSeed: ascii('lookup-bus-mixed-mask')
     })
 
-    expect(verifyLookupBusProof(trace.publicInput, proof)).toBe(true)
+    expect(verifyLookupBusProof(
+      trace.publicInput,
+      proof,
+      FAST_LOOKUP_PROOF_OPTIONS
+    )).toBe(true)
     expect(lookupBusMetrics(trace, proof)).toMatchObject({
       lookupRequests: 4,
       lookupSupplies: 4,
@@ -94,6 +105,7 @@ describe('BRC-69 lookup/equality bus prototype', () => {
       ...lookupBusLookupRequestItems(table, [5])
     ], { minTraceLength: 32 })
     expect(() => proveLookupBus(unmatchedRequest, {
+      ...FAST_LOOKUP_PROOF_OPTIONS,
       maskSeed: ascii('lookup-bus-unmatched-mask')
     })).toThrow()
 
@@ -105,6 +117,7 @@ describe('BRC-69 lookup/equality bus prototype', () => {
       { minTraceLength: 32 }
     )
     expect(() => proveLookupBus(wrongMultiplicity, {
+      ...FAST_LOOKUP_PROOF_OPTIONS,
       maskSeed: ascii('lookup-bus-wrong-multiplicity-mask')
     })).toThrow()
 
@@ -130,6 +143,7 @@ describe('BRC-69 lookup/equality bus prototype', () => {
     { minTraceLength: 32 }
     )
     const proof = proveLookupBus(trace, {
+      ...FAST_LOOKUP_PROOF_OPTIONS,
       maskSeed: ascii('lookup-bus-strict-mask')
     })
     const wrongTag = clonePublicInput(trace.publicInput)
@@ -138,46 +152,42 @@ describe('BRC-69 lookup/equality bus prototype', () => {
       tag: F.add(wrongTag.scheduleRows[2].tag, 1n)
     }
 
-    expect(verifyLookupBusProof(wrongTag, proof)).toBe(false)
+    expect(verifyLookupBusProof(
+      wrongTag,
+      proof,
+      FAST_LOOKUP_PROOF_OPTIONS
+    )).toBe(false)
 
     const weakProof = proveLookupBus(trace, {
-      ...LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS,
+      ...FAST_LOOKUP_PROOF_OPTIONS,
       numQueries: 2,
       maskSeed: ascii('lookup-bus-weak-mask')
     })
-    expect(verifyLookupBusProof(trace.publicInput, weakProof)).toBe(false)
+    expect(verifyLookupBusProof(
+      trace.publicInput,
+      weakProof,
+      FAST_LOOKUP_PROOF_OPTIONS
+    )).toBe(false)
   })
 
-  it('verifies a lookup proof with production STARK parameters', () => {
-    const table = buildLookupBusRange16Table()
-    const trace = buildLookupBusTrace([
-      ...lookupBusFixedTableItems(table, { 7: 1 }),
-      ...lookupBusLookupRequestItems(table, [7])
-    ],
-    { minTraceLength: 32 }
-    )
-    const proof = proveLookupBus(trace, {
+  it('uses production-strength parameters by default', () => {
+    expect(LOOKUP_BUS_PROTOTYPE_STARK_OPTIONS).toMatchObject({
       blowupFactor: 16,
       numQueries: 48,
       maxRemainderSize: 16,
-      maskDegree: 2,
-      cosetOffset: 7n,
-      maskSeed: ascii('lookup-bus-production-mask')
-    })
-
-    const busProof = proof.segments.find(segment =>
-      segment.name === 'lookup-accumulator'
-    )?.proof
-    expect(busProof?.compositionDegreeBound).toBeGreaterThan(32)
-    expect(verifyLookupBusProof(trace.publicInput, proof, {
-      blowupFactor: 16,
-      numQueries: 48,
-      maxRemainderSize: 16,
-      maskDegree: 2,
+      maskDegree: 192,
       cosetOffset: 7n
-    })).toBe(true)
+    })
   })
 })
+
+const FAST_LOOKUP_PROOF_OPTIONS = {
+  blowupFactor: 4,
+  numQueries: 4,
+  maxRemainderSize: 8,
+  maskDegree: 1,
+  cosetOffset: 3n
+}
 
 function clonePublicInput (
   publicInput: LookupBusPublicInput

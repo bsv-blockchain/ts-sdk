@@ -34,11 +34,11 @@ export const METHOD2_COMPACT_HMAC_SHA256_PUBLIC_INPUT_ID =
   'BRC69_METHOD2_COMPACT_HMAC_SHA256_PUBLIC_INPUT_V1'
 
 export const METHOD2_COMPACT_HMAC_SHA256_STARK_OPTIONS = {
-  blowupFactor: 4,
-  numQueries: 4,
+  blowupFactor: 16,
+  numQueries: 48,
   maxRemainderSize: 16,
-  maskDegree: 1,
-  cosetOffset: 3n,
+  maskDegree: 192,
+  cosetOffset: 7n,
   transcriptDomain: METHOD2_COMPACT_HMAC_SHA256_TRANSCRIPT_DOMAIN
 } as const
 
@@ -113,10 +113,6 @@ export interface Method2CompactHmacSha256PublicInput {
 
 export interface Method2CompactHmacSha256Trace {
   publicInput: Method2CompactHmacSha256PublicInput
-  key: number[]
-  innerDigest: number[]
-  innerMessage: number[]
-  outerMessage: number[]
   rows: FieldElement[][]
   layout: Method2CompactHmacSha256Layout
 }
@@ -226,7 +222,8 @@ export function buildMethod2CompactHmacSha256Trace (
   assertBytes(key, METHOD2_HMAC_KEY_SIZE, 'HMAC key')
   assertBytes(invoice, undefined, 'invoice')
   assertBytes(linkage, METHOD2_SHA256_DIGEST_SIZE, 'linkage')
-  if (!bytesEqual(hmacSha256(key, invoice), linkage)) {
+  const hmacKey = key.slice()
+  if (!bytesEqual(hmacSha256(hmacKey, invoice), linkage)) {
     throw new Error('Compact HMAC-SHA256 linkage does not match key and invoice')
   }
   const publicInput = method2CompactHmacSha256PublicInput(
@@ -241,11 +238,11 @@ export function buildMethod2CompactHmacSha256Trace (
   for (let rowIndex = 0; rowIndex < publicInput.activeRows; rowIndex++) {
     rows[rowIndex] = inactiveRow.slice()
   }
-  const innerKeyBytes = key.map(byte => byte ^ METHOD2_HMAC_INNER_PAD)
-  const outerKeyBytes = key.map(byte => byte ^ METHOD2_HMAC_OUTER_PAD)
-  const innerDigest = sha256Digest(innerHmacInput(key, invoice))
-  const innerMessage = sha256Pad(innerHmacInput(key, invoice))
-  const outerMessage = sha256Pad(outerHmacInput(key, innerDigest))
+  const innerKeyBytes = hmacKey.map(byte => byte ^ METHOD2_HMAC_INNER_PAD)
+  const outerKeyBytes = hmacKey.map(byte => byte ^ METHOD2_HMAC_OUTER_PAD)
+  const innerDigest = sha256Digest(innerHmacInput(hmacKey, invoice))
+  const innerMessage = sha256Pad(innerHmacInput(hmacKey, invoice))
+  const outerMessage = sha256Pad(outerHmacInput(hmacKey, innerDigest))
   const innerDigestWords = bytesToWordsBE(innerDigest)
   const selectors = compactSelectorValues(publicInput)
 
@@ -262,7 +259,7 @@ export function buildMethod2CompactHmacSha256Trace (
     row[layout.captureInnerDigest] = selectors.captureInnerDigest[rowIndex]
     row[layout.digestCarry] = selectors.digestCarry[rowIndex]
     row[layout.useInnerDigest] = selectors.useInnerDigest[rowIndex]
-    writeByteColumns(row, layout.keyBytes, key)
+    writeByteColumns(row, layout.keyBytes, hmacKey)
     writeByteColumns(row, layout.innerKeyBytes, innerKeyBytes)
     writeByteColumns(row, layout.outerKeyBytes, outerKeyBytes)
     for (let byteIndex = 0; byteIndex < METHOD2_HMAC_KEY_SIZE; byteIndex++) {
@@ -316,15 +313,20 @@ export function buildMethod2CompactHmacSha256Trace (
 
   const trace = {
     publicInput,
-    key: key.slice(),
-    innerDigest,
-    innerMessage,
-    outerMessage,
     rows,
     layout
   }
-  validateMethod2CompactHmacSha256Trace(trace)
-  return trace
+  try {
+    validateMethod2CompactHmacSha256Trace(trace)
+    return trace
+  } finally {
+    zeroNumberArray(hmacKey)
+    zeroNumberArray(innerKeyBytes)
+    zeroNumberArray(outerKeyBytes)
+    zeroNumberArray(innerDigest)
+    zeroNumberArray(innerMessage)
+    zeroNumberArray(outerMessage)
+  }
 }
 
 export function method2CompactHmacSha256PublicInput (
@@ -602,7 +604,29 @@ export function method2CompactHmacSha256KeyForLink (
   trace: Method2CompactHmacSha256Trace
 ): number[] {
   validateMethod2CompactHmacSha256Trace(trace)
-  return trace.key.slice()
+  return method2CompactHmacSha256KeyFromRows(trace)
+}
+
+function method2CompactHmacSha256KeyFromRows (
+  trace: Method2CompactHmacSha256Trace
+): number[] {
+  const row = trace.rows[0]
+  if (row === undefined) {
+    throw new Error('Compact HMAC-SHA256 trace is empty')
+  }
+  const key = row
+    .slice(
+      trace.layout.keyBytes,
+      trace.layout.keyBytes + METHOD2_HMAC_KEY_SIZE
+    )
+    .map(value => {
+      if (typeof value !== 'bigint' || value < 0n || value > 255n) {
+        throw new Error('Compact HMAC-SHA256 key byte is invalid')
+      }
+      return Number(value)
+    })
+  assertBytes(key, METHOD2_HMAC_KEY_SIZE, 'HMAC key')
+  return key
 }
 
 export function method2CompactHmacSha256PublicInputDigest (
@@ -628,28 +652,6 @@ export function validateMethod2CompactHmacSha256Trace (
   trace: Method2CompactHmacSha256Trace
 ): void {
   validateMethod2CompactHmacSha256PublicInput(trace.publicInput)
-  assertBytes(trace.key, METHOD2_HMAC_KEY_SIZE, 'HMAC key')
-  if (!bytesEqual(hmacSha256(trace.key, trace.publicInput.invoice), trace.publicInput.linkage)) {
-    throw new Error('Compact HMAC-SHA256 trace linkage mismatch')
-  }
-  if (!bytesEqual(trace.innerDigest, sha256Digest(innerHmacInput(
-    trace.key,
-    trace.publicInput.invoice
-  )))) {
-    throw new Error('Compact HMAC-SHA256 inner digest mismatch')
-  }
-  if (!bytesEqual(trace.innerMessage, sha256Pad(innerHmacInput(
-    trace.key,
-    trace.publicInput.invoice
-  )))) {
-    throw new Error('Compact HMAC-SHA256 inner message mismatch')
-  }
-  if (!bytesEqual(trace.outerMessage, sha256Pad(outerHmacInput(
-    trace.key,
-    trace.innerDigest
-  )))) {
-    throw new Error('Compact HMAC-SHA256 outer message mismatch')
-  }
   if (trace.layout.width !== METHOD2_COMPACT_HMAC_SHA256_LAYOUT.width) {
     throw new Error('Compact HMAC-SHA256 layout mismatch')
   }
@@ -660,6 +662,14 @@ export function validateMethod2CompactHmacSha256Trace (
     if (row.length !== trace.layout.width) {
       throw new Error('Compact HMAC-SHA256 trace row width mismatch')
     }
+  }
+  const key = method2CompactHmacSha256KeyFromRows(trace)
+  try {
+    if (!bytesEqual(hmacSha256(key, trace.publicInput.invoice), trace.publicInput.linkage)) {
+      throw new Error('Compact HMAC-SHA256 trace linkage mismatch')
+    }
+  } finally {
+    zeroNumberArray(key)
   }
 }
 
@@ -1567,4 +1577,8 @@ function assertBytes (
 function bytesEqual (left: number[], right: number[]): boolean {
   return left.length === right.length &&
     left.every((byte, index) => byte === right[index])
+}
+
+function zeroNumberArray (values: number[]): void {
+  values.fill(0)
 }

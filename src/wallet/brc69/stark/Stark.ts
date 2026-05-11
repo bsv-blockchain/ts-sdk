@@ -4,6 +4,7 @@ import { AirDefinition, assertAirTrace } from './Air.js'
 import {
   F,
   FieldElement,
+  MAX_TWO_ADIC_DOMAIN_SIZE,
   assertPowerOfTwo,
   batchInvertFieldElements,
   getPowerOfTwoRootOfUnity
@@ -54,6 +55,7 @@ export const STARK_DEFAULT_MAX_REMAINDER_SIZE = 16
 export const STARK_DEFAULT_MASK_DEGREE = 2
 export const STARK_DEFAULT_COSET_OFFSET = 7n
 export const STARK_MAX_TRACE_WIDTH = 65536
+export const STARK_MAX_U32_PARAMETER = 0xffffffff
 
 export interface StarkProverOptions {
   blowupFactor?: number
@@ -2239,6 +2241,7 @@ function validateStarkParameters (
   options: ResolvedStarkOptions
 ): void {
   assertPowerOfTwo(traceLength)
+  assertU32Parameter(traceLength, 'STARK traceLength')
   if (
     !Number.isSafeInteger(traceWidth) ||
     traceWidth < 1 ||
@@ -2246,24 +2249,35 @@ function validateStarkParameters (
   ) {
     throw new Error('STARK trace width must be positive')
   }
+  assertU32Parameter(traceWidth, 'STARK traceWidth')
   assertPowerOfTwo(options.blowupFactor)
+  assertU32Parameter(options.blowupFactor, 'STARK blowupFactor')
   const ldeSize = traceLength * options.blowupFactor
   assertPowerOfTwo(ldeSize)
+  assertU32Parameter(ldeSize, 'STARK LDE size')
+  if (ldeSize > MAX_TWO_ADIC_DOMAIN_SIZE) {
+    throw new Error('STARK LDE size exceeds Goldilocks two-adicity')
+  }
   if (!Number.isSafeInteger(options.numQueries) || options.numQueries < 1 || options.numQueries > ldeSize) {
     throw new Error('STARK numQueries must be in [1, LDE size]')
   }
+  assertU32Parameter(options.numQueries, 'STARK numQueries')
   if (!Number.isSafeInteger(options.maxRemainderSize) || options.maxRemainderSize < 1 || options.maxRemainderSize >= ldeSize) {
     throw new Error('STARK maxRemainderSize must be in [1, LDE size)')
   }
+  assertU32Parameter(options.maxRemainderSize, 'STARK maxRemainderSize')
   if (!Number.isSafeInteger(options.maskDegree) || options.maskDegree < 0) {
     throw new Error('STARK maskDegree must be non-negative')
   }
+  assertU32Parameter(options.maskDegree, 'STARK maskDegree')
   if (!Number.isSafeInteger(options.traceDegreeBound) || options.traceDegreeBound < 1 || options.traceDegreeBound >= ldeSize) {
     throw new Error('STARK traceDegreeBound must be in [1, LDE size)')
   }
+  assertU32Parameter(options.traceDegreeBound, 'STARK traceDegreeBound')
   if (!Number.isSafeInteger(options.compositionDegreeBound) || options.compositionDegreeBound < 1 || options.compositionDegreeBound >= ldeSize) {
     throw new Error('STARK compositionDegreeBound must be in [1, LDE size)')
   }
+  assertU32Parameter(options.compositionDegreeBound, 'STARK compositionDegreeBound')
   if (options.cosetOffset === 0n) {
     throw new Error('STARK cosetOffset must be non-zero')
   }
@@ -3655,12 +3669,23 @@ function bytesKey (bytes: number[]): string {
 }
 
 function u32 (value: number): number[] {
+  assertU32Parameter(value, 'STARK transcript parameter')
   return [
     value & 0xff,
     (value >>> 8) & 0xff,
     (value >>> 16) & 0xff,
     (value >>> 24) & 0xff
   ]
+}
+
+function assertU32Parameter (value: number, label: string): void {
+  if (
+    !Number.isSafeInteger(value) ||
+    value < 0 ||
+    value > STARK_MAX_U32_PARAMETER
+  ) {
+    throw new Error(`${label} exceeds u32 range`)
+  }
 }
 
 class StarkBinaryReader {

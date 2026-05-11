@@ -414,15 +414,20 @@ export function runDualBaseLookupMetricsSweep (
     validateDualBaseLookupPrototype(prototype)
     const buildMs = now() - buildStart
 
-    const proveStart = now()
-    const proof = proveDualBaseLookupPrototype(prototype, {
+    const proofOptions = {
       ...options.proofOptions,
       ...item.proofOptions
-    })
+    }
+    const proveStart = now()
+    const proof = proveDualBaseLookupPrototype(prototype, proofOptions)
     const proveMs = now() - proveStart
 
     const verifyStart = now()
-    const verified = verifyDualBaseLookupPrototypeProof(prototype, proof)
+    const verified = verifyDualBaseLookupPrototypeProof(
+      prototype,
+      proof,
+      proofOptions
+    )
     const verifyMs = now() - verifyStart
 
     results.push({

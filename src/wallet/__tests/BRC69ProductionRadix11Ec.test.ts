@@ -236,7 +236,32 @@ describe('BRC-69 production radix-11 EC segment', () => {
       const metrics = productionRadix11EcMetrics(trace)
       expect(metrics.doublingBranches).toBe(0)
       expect(metrics.oppositeBranches).toBe(0)
+
+      const aggregate = buildProductionEcTrace(trace)
+      const exceptional = aggregate.rows.filter(row =>
+        row[aggregate.layout.branchDoubling] !== 0n ||
+        row[aggregate.layout.branchOpposite] !== 0n
+      )
+      expect(exceptional).toHaveLength(0)
     }
+  })
+
+  it('fails aggregate EC AIR if an exceptional branch is selected', () => {
+    const lookup = buildProductionRadix11LookupPrototype(
+      1n + (2n << 11n),
+      scalarMultiply(7n)
+    )
+    const trace = buildProductionEcTrace(buildProductionRadix11EcTrace(lookup))
+    const rowIndex = trace.rows.findIndex(row =>
+      row[trace.layout.branchDistinctAdd] === 1n
+    )
+    if (rowIndex < 0) throw new Error('distinct-add row missing')
+    const tampered = trace.rows.map(row => row.slice())
+    tampered[rowIndex][trace.layout.branchDistinctAdd] = 0n
+    tampered[rowIndex][trace.layout.branchDoubling] = 1n
+
+    expect(evaluateAirTrace(buildProductionEcAir(trace), tampered).valid)
+      .toBe(false)
   })
 
   it('rejects tampered aggregate EC field-operation rows', () => {

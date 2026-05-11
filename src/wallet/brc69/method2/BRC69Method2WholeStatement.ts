@@ -396,6 +396,32 @@ export const proveBRC69Method2ProductionStatement =
 export const verifyBRC69Method2ProductionStatement =
   verifyBRC69Method2WholeStatement
 
+export function destroyBRC69Method2WholeStatementWitness (
+  statement: BRC69Method2WholeStatement
+): void {
+  zeroRows(statement.scalarTrace.rows)
+  zeroRows(statement.lookup.trace.baseRows)
+  zeroRows(statement.ecTrace.rows)
+  zeroRows(statement.compressionTrace.rows)
+  zeroRows(statement.hmacTrace.rows)
+  zeroRows(statement.bridgeTrace.rows)
+  for (const segment of Object.values(statement.baseSegments)) {
+    zeroRows(segment.rows)
+  }
+  zeroRows(statement.baseSegment.rows)
+  zeroNestedBigintArrays(statement.scalarTrace.digitTuples)
+  statement.lookup.scalar = 0n
+  statement.lookup.digits.length = 0
+  statement.lookup.selectedIndexes.fill(0)
+  statement.radixEcTrace.privateS = { x: 0n, y: 0n, infinity: true }
+  statement.compressionTrace.point = { x: 0n, y: 0n, infinity: true }
+  statement.radixEcTrace.compressedS.fill(0)
+  statement.radixEcTrace.steps.length = 0
+  statement.compressionTrace.compressedBytes.fill(0)
+  zeroBigintArray(statement.compressionTrace.pointTuple)
+  zeroNestedBigintArrays(statement.compressionTrace.byteTuples)
+}
+
 export function brc69Method2WholeStatementMetrics (
   statement: BRC69Method2WholeStatement,
   proof?: MultiTraceStarkProof
@@ -1693,6 +1719,18 @@ function validateDeterministicLookupTable (
 function vectorsEqual (left: bigint[], right: bigint[]): boolean {
   return left.length === right.length &&
     left.every((value, index) => value === right[index])
+}
+
+function zeroRows (rows: FieldElement[][]): void {
+  for (const row of rows) zeroBigintArray(row)
+}
+
+function zeroNestedBigintArrays (rows: bigint[][]): void {
+  for (const row of rows) zeroBigintArray(row)
+}
+
+function zeroBigintArray (values: bigint[]): void {
+  values.fill(0n)
 }
 
 function segmentMetrics (

@@ -29,7 +29,7 @@ export const BRC69_PRODUCTION_COMPRESSION_STARK_OPTIONS = {
   blowupFactor: 16,
   numQueries: 48,
   maxRemainderSize: 16,
-  maskDegree: 2,
+  maskDegree: 192,
   cosetOffset: 7n,
   transcriptDomain: BRC69_PRODUCTION_COMPRESSION_TRANSCRIPT_DOMAIN
 } as const

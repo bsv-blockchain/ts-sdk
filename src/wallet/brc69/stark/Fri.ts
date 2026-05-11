@@ -1,6 +1,7 @@
 import {
   F,
   FieldElement,
+  MAX_TWO_ADIC_DOMAIN_SIZE,
   assertPowerOfTwo,
   getPowerOfTwoRootOfUnity,
   isPowerOfTwo
@@ -41,6 +42,7 @@ import {
 export const FRI_TRANSCRIPT_DOMAIN = 'BRC69_STARK_FRI_V1'
 export const FRI_DEFAULT_NUM_QUERIES = 48
 export const FRI_DEFAULT_MAX_REMAINDER_SIZE = 16
+export const FRI_MAX_U32_PARAMETER = 0xffffffff
 
 export interface FriOptions {
   degreeBound: number
@@ -826,15 +828,22 @@ function validateFriParameters (
   domainOffset: FieldElement
 ): void {
   assertPowerOfTwo(domainSize)
+  assertU32Parameter(domainSize, 'FRI domainSize')
+  if (domainSize > MAX_TWO_ADIC_DOMAIN_SIZE) {
+    throw new Error('FRI domainSize exceeds Goldilocks two-adicity')
+  }
   if (!Number.isSafeInteger(degreeBound) || degreeBound < 1 || degreeBound >= domainSize) {
     throw new Error('FRI degreeBound must be in [1, domainSize)')
   }
+  assertU32Parameter(degreeBound, 'FRI degreeBound')
   if (!Number.isSafeInteger(numQueries) || numQueries < 1 || numQueries > domainSize) {
     throw new Error('FRI numQueries must be in [1, domainSize]')
   }
+  assertU32Parameter(numQueries, 'FRI numQueries')
   if (!isPowerOfTwo(maxRemainderSize) || maxRemainderSize >= domainSize) {
     throw new Error('FRI maxRemainderSize must be a power of two smaller than domainSize')
   }
+  assertU32Parameter(maxRemainderSize, 'FRI maxRemainderSize')
   domainOffset = F.normalize(domainOffset)
   if (domainOffset === 0n) {
     throw new Error('FRI domainOffset must be non-zero')
@@ -930,12 +939,23 @@ function deriveQueryIndexes (
 }
 
 function u32 (value: number): number[] {
+  assertU32Parameter(value, 'FRI transcript parameter')
   return [
     value & 0xff,
     (value >>> 8) & 0xff,
     (value >>> 16) & 0xff,
     (value >>> 24) & 0xff
   ]
+}
+
+function assertU32Parameter (value: number, label: string): void {
+  if (
+    !Number.isSafeInteger(value) ||
+    value < 0 ||
+    value > FRI_MAX_U32_PARAMETER
+  ) {
+    throw new Error(`${label} exceeds u32 range`)
+  }
 }
 
 function writeField (writer: Writer, value: FieldElement): void {

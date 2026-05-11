@@ -197,8 +197,13 @@ describe('BRC-69 lookup-centric SHA/HMAC shape', () => {
     const linkage = hmacSha256(key, invoice)
     const trace = buildMethod2CompactHmacSha256Trace(key, invoice, linkage)
     const air = buildMethod2CompactHmacSha256Air(trace.publicInput)
+    const traceObject = trace as unknown as Record<string, unknown>
 
     expect(evaluateAirTrace(air, trace.rows).valid).toBe(true)
+    expect(traceObject).not.toHaveProperty('key')
+    expect(traceObject).not.toHaveProperty('innerDigest')
+    expect(traceObject).not.toHaveProperty('innerMessage')
+    expect(traceObject).not.toHaveProperty('outerMessage')
 
     const mutatedKey = key.slice()
     mutatedKey[0] ^= 1

@@ -302,70 +302,155 @@ a different opening scheme. Reducing proof parameters or mask degree is not an
 acceptable proof-size fix because it would weaken the soundness or
 zero-knowledge margin.
 
-## Cryptographic Soundness and Correctness
+## Formal Security Argument
 
-Validated in the current code path:
+This section is the audit target for proof type `1`. It states what the proof
+establishes, which assumptions it uses, and which failures are outside the
+algebraic proof model.
 
-- The relation is unchanged: `A = aG`, `S = aB`, and
-  `linkage = HMAC-SHA256(compress(S), invoice)`.
-- Recent implementation changes preserve the relation while changing proof
-  plumbing and hardening: compact HMAC AIR, phased base/bus commitments,
-  proof encoding, EC range checks, and stronger whole-statement masking.
-- The latest full production run generated and verified a proof for the
-  phased/hardened path. The diagnostic result was `ok`; the remaining acceptance
-  failure is proof size, not relation correctness or STARK verification.
-- STARK parameters are 16 blowup, 48 queries, max remainder 16, mask degree 192,
-  coset offset 7.
-- The only wallet-facing proof selector for this ZK system is proof type `1`;
-  proof type `0` remains the no-proof path.
-- The verifier reconstructs public-input digests, deterministic table roots,
-  post-base-root bus challenge digests, proof parameters, the `base` AIR, the
-  `bus` AIR, and cross-trace accumulator constraints from public inputs and the
-  proof's committed base root.
-- HMAC is compact SHA/HMAC AIR in proof type `1`.
-- Compression-to-HMAC key-byte bus linkage is preserved.
-- EC formulas and windows are unchanged. The production EC AIR now range-checks
-  selected 52-bit linear limbs, selected 26-bit multiplication and quotient
-  limbs, signed carries, and canonical `< p` field encodings.
-- The compact proof encoder only deduplicates serialized Merkle authentication
-  nodes; it does not change Merkle roots, FRI queries, AIR constraints, Fiat-
-  Shamir inputs, or verifier checks.
+### Relation
 
-Soundness gaps and required review:
+For public inputs `(A, B, invoice, linkage)` the accepted statement is:
 
-- No independent cryptographic audit has been completed for this proof system.
-- A full soundness calculation is still needed for AIR degrees, FRI parameters,
-  Fiat-Shamir challenges, masking, bus compression challenges, and the compact
-  HMAC AIR.
-- EC field arithmetic now has bounded limb, carry, quotient-limb, and canonical
-  `< p` borrow-chain constraints in the production AIR. It still needs a written
-  proof that those constraints imply the intended secp256k1 field operations for
-  every bound metadata value.
-- Segment and lookup bus tuple compression use two Goldilocks-field challenges.
-  The challenges are now derived after the witness-bearing base trace root is
-  committed, so the standard non-adaptive tuple-collision argument applies to
-  the committed base polynomials rather than to prover-chosen post-challenge
-  tuples. For arity 23, the base-field Schwartz-Zippel estimate is about
-  119 bits. Extension-field challenges remain a possible future margin increase,
-  but they are no longer a substitute for transcript ordering.
-- The whole-statement mask degree now covers the verifier's worst-case
-  trace-root openings per column at 48 queries. A final zero-knowledge write-up
-  must still enumerate every unmasked schedule/public column and prove that
-  masking hides `a`, `S`, compressed `S`, HMAC internals, and private bus
-  endpoints.
-- The EC exceptional-branch policy remains fail-closed for this slice. Broader
-  production use needs either complete exceptional-branch constraints or a
-  verifier-checkable proof that rejected branches are unreachable for accepted
-  inputs.
-- The BRC-69 Method 2 parser now rejects public input above 16 MiB, STARK proof
-  sections above 16 MiB, and whole payloads above 34 MiB before expensive
-  section parsing. A final production DoS policy should still be tied to the
-  post-optimization proof encoding.
+```text
+exists a in [1, n - 1]:
+  A = aG
+  S = aB
+  K = compress(S)
+  linkage = HMAC-SHA256(K, invoice)
+```
+
+`G` is the secp256k1 generator, `n` is the secp256k1 group order, and accepted
+`A` and `B` are non-infinity curve points. Since secp256k1 has cofactor one,
+every accepted non-infinity point has order `n`.
+
+### Encoding and Transcript Binding
+
+The wallet payload is a versioned binary envelope:
+
+```text
+proofType = 1
+magic = BRC69_KEY_LINKAGE_PROOF_PAYLOAD
+version = 1
+publicInput = BRC69_METHOD2_WHOLE_STATEMENT_PUBLIC_INPUT version 1
+proof = binary multi-trace STARK proof
+```
+
+The public input is no longer JSON-revived. Points are compressed SEC1 points,
+field elements are canonical 8-byte Goldilocks encodings, byte vectors and row
+counts have explicit length prefixes, and the parser rejects trailing bytes,
+unknown versions, payloads above 34 MiB, public input above 16 MiB, and proof
+sections above 16 MiB. STARK and FRI transcript parameters are checked before
+`u32` packing, including explicit `<= 0xffffffff` bounds and Goldilocks
+two-adicity caps for evaluation domains.
+
+The verifier recomputes deterministic public-input digests, deterministic table
+roots, AIR metadata, degree bounds, proof parameters, and bus challenge inputs.
+Proof-carried metadata is accepted only if it equals verifier-derived metadata.
+
+### AIR Soundness Lemmas
+
+1. Scalar lemma: the scalar AIR range-checks the 24 signed radix-11 windows,
+   reconstructs the scalar, rejects zero, enforces `a < n`, and enforces the
+   production final-window bound. Therefore any accepted scalar segment commits
+   to one canonical `a in [1, n - 1]`.
+2. Lookup lemma: the lookup base schedule binds requests to the deterministic
+   dual-base table rooted by `B`. The phased lookup accumulator uses challenges
+   derived after the base trace root, so committed lookup rows cannot be chosen
+   adaptively after seeing compression challenges.
+3. Bridge lemma: the bridge consumes scalar digit bus tuples and lookup output
+   bus tuples, applies the digit sign, and emits selected `G` and `B` points.
+   Segment-bus balance forces the EC segment to consume exactly those selected
+   points.
+4. EC lemma: for each distinct-add row, the production EC AIR constrains
+   `dx`, `dy`, `dx^{-1}`, slope, `x3`, and `y3` through secp256k1 field
+   additions/subtractions/multiplications. Each field operation has selected
+   limb range checks, signed carry bounds, quotient-limb range checks, and
+   canonical `< p` borrow-chain checks, so the Goldilocks identities lift to
+   integer identities over secp256k1 field elements without wraparound.
+5. Compression lemma: the compression AIR bit-decomposes `S.x`, reconstructs
+   each compressed-key byte, and binds the prefix to the parity of `S.y`.
+6. HMAC lemma: the compact SHA/HMAC AIR constrains the SHA-256 schedules,
+   boolean helpers, modular word additions, inner digest carry, outer digest,
+   and public `linkage`. The segment bus binds its 33 key-byte inputs to the
+   compression segment outputs.
+7. Composition lemma: concatenating the base trace and proving the second-phase
+   bus trace with cross-trace accumulator constraints preserves each component
+   AIR and additionally proves lookup/segment-bus balance against the already
+   committed base rows.
+
+Together these lemmas reduce an accepted proof to the relation above, except
+with the negligible STARK/FRI and randomized bus-collision probabilities below.
+
+### Bus Collision Bounds
+
+Lookup and segment buses compress tuples with two Goldilocks challenges. For
+arity `23`, a fixed unequal tuple pair collides with probability at most
+`23 / (p - 1)` per challenge, so two independent challenges give about
+`2 * (log2(p - 1) - log2(23))`, or greater than 118 bits, for non-adaptive
+committed tuples. Challenges are sampled after the base trace root, so this is
+the applicable non-adaptive bound for proof type `1`.
+
+### EC Exceptional Branches
+
+The production EC AIR intentionally supports only selected-infinity,
+accumulator-infinity, and distinct-add rows. It constrains doubling and
+opposite-add selectors to zero. This is sound for accepted radix-11 inputs:
+
+- At window `i`, the accumulator is `P_i = sum_{j<i} d_j r^j` and the selected
+  point is `d_i r^i` times the lane base, with `r = 2^11`.
+- Doubling would require `P_i ≡ d_i r^i (mod n)`.
+- Opposite-add would require `P_i ≡ -d_i r^i (mod n)`.
+- The builder and validator reconstruct these exact integers from the canonical
+  scalar digits and reject if either congruence holds.
+- Because both `G` and any accepted non-infinity `B` have order `n`, these
+  scalar congruences are exactly the group equalities that would cause
+  doubling or opposite-add in either lane.
+
+Tests exercise deterministic edge scalars and randomized fixtures, assert zero
+doubling/opposite selectors in the aggregate EC trace, and mutate a distinct-add
+row into a doubling row to confirm the AIR fails closed.
+
+### STARK and Fiat-Shamir Assumptions
+
+The STARK security argument assumes collision resistance of SHA-256 for Merkle
+commitments and Fiat-Shamir transcript binding, plus the standard random-oracle
+heuristic for Fiat-Shamir challenge sampling. With blowup `16`, `48` queries,
+and max remainder `16`, verifier policy is fixed by proof type `1`; proofs with
+weaker query counts, different degree bounds, altered public-input digests, or
+different transcript domains fail before or during STARK verification.
+
+### Zero-Knowledge and Local Secret Handling
+
+The whole-statement profile uses mask degree `192`, covering the verifier's
+worst-case trace-root openings per committed column at 48 queries. Public and
+schedule columns are intentionally unmasked only when their values are
+verifier-derived or public metadata. Witness-bearing columns for `a`, selected
+points, `S`, compressed key bytes, HMAC key material, digest internals, and
+private bus endpoints are masked in committed traces.
+
+This is an algebraic zero-knowledge claim, not a local-process side-channel
+claim. The prover now avoids a duplicate pre-proof `aB` scalar multiplication,
+does not retain separate compact-HMAC key/message/digest convenience copies,
+and wipes the witness-bearing whole-statement traces after wallet proof
+generation. JavaScript execution is still not constant-time; deployments that
+must defend against local timing/cache/process-memory observers need isolated
+prover execution or a constant-time native prover boundary.
+
+### Audit Status
+
+The code path now has a written formal argument and verifier-enforced format,
+parameter, branch, and profile checks. No independent third-party
+cryptographic audit has been completed; such an audit remains a release
+governance requirement, not an undocumented proof-system gap.
 
 ## Acceptance Status
 
 Current status: proof type `1` defaults to the phased whole-statement path. The
 base and bus challenge ordering now matches the standard lookup/permutation
-shape. The latest production run verifies and passes diagnostics, but production
-acceptance is still blocked by proving time above 900s, proof size above 1.5 MB,
-and the remaining soundness review items above.
+shape, public input/proof payloads are versioned binary encodings, the
+standalone Method 2 lookup/HMAC/scalar/compression helpers use the
+production-strength profile, and EC exceptional branches are covered by the
+radix scalar argument above plus fail-closed AIR selectors. The latest
+production run verifies and passes diagnostics, but production acceptance is
+still blocked by proving time above 900s and proof size above 1.5 MB.
